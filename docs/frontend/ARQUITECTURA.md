@@ -1,27 +1,23 @@
-# Arquitectura de interfaz (fase 1)
+# Arquitectura Blazor — acceso directo en web
 
-- **Web pública**: `Facturacion.Web.Public` — landing, precios y registro (sin llamadas HTTP aún).
-- **Web privada**: `Facturacion.Web.App` — maqueta responsive **sin datos reales ni autenticación**. No desplegar como aplicación operativa hasta implementar login y autorización.
-- **Componentes compartidos**: `Facturacion.UI.Shared` — Razor Class Library y sistema visual adaptable.
-- **Contrato HTTP**: `Facturacion.Client` — rutas de API; servicios HTTP, DTOs y autenticación quedan para la fase 2.
-- **Desktop y móvil**: futura aplicación .NET MAUI Blazor Hybrid para Windows, macOS, Android e iOS, reutilizando componentes de `Facturacion.UI.Shared`. No se crea aún un proyecto MAUI sin validar workloads y entornos de compilación.
+La rama `develop` contiene dos aplicaciones web independientes y una biblioteca de componentes Razor compartida.
 
-## Seguridad y alcance
+- `Facturacion.Web.Public`: Blazor Web App con renderizado interactivo en servidor. Configura Identity, SelfService y correo y utiliza servicios de servidor directamente; la página de planes consulta `SelfServiceDbContext` mediante `PublicPlansService` (sin peticiones HTTP internas).
+- `Facturacion.Web.App`: maqueta privada, **todavía sin autenticación**. No publicar como aplicación de facturación real.
+- `Facturacion.UI.Shared`: diseño y componentes reutilizables.
+- `Facturacion.Client`: contrato y futuro cliente HTTP para MAUI.
+- Windows, macOS, Android e iOS: futuro .NET MAUI Blazor Hybrid, comunicándose por HTTPS con la API existente. **Las aplicaciones nativas aún no están creadas**.
 
-No se modifica el backend, la persistencia, Stripe ni VERI*FACTU. No hay pagos ni registro funcionales desde la interfaz todavía. Las páginas privadas actuales son una maqueta sin datos. Antes de habilitar funcionalidad privada deben existir autenticación y autorización por tenant y empresa, con validación en la API. Los estados Outbox y AEAT no son equivalentes.
+## Seguridad y siguientes pasos
 
-## Ejecutar localmente
+La conexión a la base de datos y los secretos permanecen únicamente en el servidor. La web pública requiere configuración de base de datos, Identity y correo equivalentes a los servicios del backend; nunca se deben distribuir secretos a dispositivos. La página de planes no presenta precios porque el contrato actual solo contiene código y nombre. El registro y el pago siguen deshabilitados en la interfaz: antes de exponerlos, completar formularios, validación, antiabuso, confirmación de correo y protección frente a errores. La web privada requiere autenticación, autorización por tenant y gestión correcta de ámbitos EF Core antes de usar datos reales.
+
+No se han ejecutado migraciones ni operaciones contra bases de datos. No se ha modificado el backend existente.
+
+## Ejecución
 
 ```sh
 dotnet run --project src/Facturacion.Web.Public
-dotnet run --project src/Facturacion.Web.App
 ```
 
-Ejecutar en terminales separadas y configurar puertos diferentes si fuera necesario. El diseño usa CSS propio y no depende de servicios externos.
-
-## Próximas fases
-
-1. Conectar planes y registro a la API con DTOs compartidos.
-2. Verificación de correo y checkout con redirecciones seguras.
-3. Autenticación y autorización reales para web privada.
-4. Clientes y componentes compartidos con MAUI Blazor Hybrid.
+Usar un entorno de desarrollo aislado con conexión de prueba; no ejecutar contra bases de datos de producción. Verificar compilación y arranque en un entorno configurado antes de desplegar.

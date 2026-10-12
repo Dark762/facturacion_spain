@@ -1,3 +1,47 @@
 @page "/precios"
+@using Facturacion.Application.Billing
+@using Facturacion.Web.Public.Services
+@inject PublicPlansService PlansService
 <PageTitle>Planes | Facturación ES</PageTitle>
-<section class="container section"><span class="eyebrow">Planes</span><h1>Encuentra el plan adecuado</h1><p class="muted">Los planes y precios definitivos se mostrarán desde la API. No se publican importes de ejemplo para evitar información comercial incorrecta.</p><div class="card"><h2>Consulta nuestros planes</h2><p>La conexión con <code>GET /api/saas/plans</code> se realizará en la siguiente fase.</p><a class="button" href="/registro">Continuar al registro</a></div></section>
+<section class="container section">
+    <span class="eyebrow">Planes</span>
+    <h1>Encuentra el plan adecuado</h1>
+    <p class="muted">Consulta los planes disponibles para tu negocio.</p>
+    @if (_loading)
+    {
+        <p role="status">Cargando planes…</p>
+    }
+    else if (_error)
+    {
+        <div class="notice" role="alert">No podemos mostrar los planes ahora mismo. Inténtalo más tarde.</div>
+    }
+    else if (_plans.Count == 0)
+    {
+        <p>No hay planes disponibles actualmente.</p>
+    }
+    else
+    {
+        <div class="cards">
+            @foreach (var plan in _plans)
+            {
+                <article class="card" @key="plan.Code">
+                    <h2>@plan.Name</h2>
+                    <p class="muted">Código: @plan.Code</p>
+                    <a class="button" href="/registro">Crear cuenta</a>
+                </article>
+            }
+        </div>
+    }
+</section>
+@code {
+    private List<PlanResponse> _plans = [];
+    private bool _loading = true;
+    private bool _error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try { _plans = await PlansService.GetActiveAsync(); }
+        catch { _error = true; }
+        finally { _loading = false; }
+    }
+}
