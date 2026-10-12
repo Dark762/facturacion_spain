@@ -41,7 +41,7 @@ public sealed class TestFiscalEngine : IFiscalEngine
     private readonly IVerifier _verifier = new Verifier();
     private readonly IFiscalChainWalker _chain = new FiscalChainWalker();
     private readonly IRecordXmlBuilder _xml = new AeatRecordXmlBuilder();
-    private readonly IXsdValidator _xsd = new AeatXsdValidator(@"D:\proyectos\Facturacion_ESPN\docs\verifactu\xsd");
+    private readonly IXsdValidator _xsd = new AeatXsdValidator(Path.Combine(AppContext.BaseDirectory, "xsd"));
     private readonly IQrGenerator _qr = new UnavailableQrGenerator();
     private readonly IFingerprintCalculator _fingerprint;
 
@@ -77,7 +77,7 @@ public sealed class BlockedFiscalEngine : IFiscalEngine
         new Sha256FingerprintCalculator(new AeatRecordCanonicalizer()),
         new FiscalChainWalker(),
         new AeatRecordXmlBuilder(),
-        new AeatXsdValidator(@"D:\proyectos\Facturacion_ESPN\docs\verifactu\xsd"),
+        new AeatXsdValidator(Path.Combine(AppContext.BaseDirectory, "xsd")),
         new UnavailableQrGenerator());
 
     public bool IsReadyForIssuance => _inner.IsReadyForIssuance;

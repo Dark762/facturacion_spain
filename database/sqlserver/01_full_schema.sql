@@ -615,6 +615,8 @@ GO
 
 
 CREATE INDEX [IX_OutboxMessages_TenantId_Status_NextAttemptAt] ON [OutboxMessages] ([TenantId], [Status], [NextAttemptAt]);
+-- El worker reclama por Status sin filtrar por tenant: este indice es el que lo sostiene.
+CREATE INDEX [IX_OutboxMessages_Status_NextAttemptAt] ON [OutboxMessages] ([Status], [NextAttemptAt]);
 GO
 
 -- --- Alta self-service y suscripciones (SelfServiceDbContext) ---

@@ -303,6 +303,8 @@ public sealed class InvoiceIssuanceService(
             recordId,
             fingerprint.Hash);
 
+        var previousRecordIdForXml = chain?.LastRecordId;
+
         if (chain is null)
         {
             chain = new FiscalChain
@@ -323,6 +325,8 @@ public sealed class InvoiceIssuanceService(
             chain.UpdatedAt = issuedAt;
         }
 
+var software = FiscalEngineSoftware.Current;
+
         var record = new FiscalRecord
         {
             Id = recordId,
@@ -332,16 +336,117 @@ public sealed class InvoiceIssuanceService(
             PreviousHash = fingerprint.PreviousHash,
             Hash = fingerprint.Hash,
             GeneratedAt = issuedAt,
-            SoftwareName = FiscalEngineSoftware.Current.SystemName,
-            SoftwareVersion = FiscalEngineSoftware.Current.SystemVersion,
-            InstallationId = FiscalEngineSoftware.Current.InstallationNumber,
-            XmlPayload = string.Empty,
+            SoftwareName = software.SystemName,
+            SoftwareVersion = software.SystemVersion,
+            InstallationId = software.InstallationNumber,
+            XmlPayload = await BuildAndValidateXmlAsync(
+                invoice, company, previousRecordIdForXml, previousHash, fingerprint.Hash, issuedAt, ct),
             SubmissionStatus = SubmissionStatus.Pending
         };
 
         await fiscalRecords.AddAsync(record, ct);
         return record.Id;
     }
+
+    /// <summary>
+    /// Genera el XML del registro y lo valida contra el XSD oficial.
+    ///
+    /// Lo que se guarda y lo que se valida es el SOBRE de remision
+    /// (RegFactuSistemaFacturacion), no el RegistroAlta suelto: el esquema no
+    /// admite el fragmento como raiz, asi que validar el trocito daria un
+    /// falso negativo.
+    ///
+    /// Si el documento no valida no se emite: un registro fiscal con XML
+    /// invalido es peor que no emitir, porque llega a la AEAT y se rechaza
+    /// tarde, cuando ya es coste corregirlo.
+    /// </summary>
+    private async Task<string> BuildAndValidateXmlAsync(
+        Invoice invoice,
+        Domain.Entities.Company company,
+        Guid? previousRecordId,
+        string previousHash,
+        string hash,
+        DateTimeOffset issuedAt,
+        CancellationToken ct)
+    {
+        // Un desglose por tipo impositivo, no por linea: es como la AEAT pide
+        // informar cuando una factura lleva varios.
+        var taxLines = invoice.Lines
+            .GroupBy(l => l.VatRate)
+            .Select(g => new Verifactu.Xml.TaxBreakdownLine(
+                "01", g.Sum(l => l.NetAmount), g.Sum(l => l.VatAmount), g.Key))
+            .ToArray();
+
+        if (taxLines.Length == 0)
+        {
+            taxLines = [new Verifactu.Xml.TaxBreakdownLine("01", invoice.TaxableBase, invoice.TaxAmount, 0m)];
+        }
+
+        // Para encadenar, el esquema pide los datos de la factura anterior,
+        // no solo su huella. Se usan los capturados ANTES de avanzar la
+        // cadena: despues de actualizarla, LastHash ya es la huella nueva y
+        // el documento se encadenaria consigo mismo.
+        string? previousInvoiceNumber = null;
+        DateOnly? previousIssueDate = null;
+
+        if (previousRecordId is Guid previousId)
+        {
+            var previousRecord = await fiscalRecords.GetByIdAsync(previousId, ct);
+            if (previousRecord is not null)
+            {
+                var previousInvoice = await invoices.GetByIdAsync(previousRecord.InvoiceId, ct);
+                if (previousInvoice is not null)
+                {
+                    previousInvoiceNumber = BuildInvoiceNumber(previousInvoice);
+                    previousIssueDate = previousInvoice.IssueDate;
+                }
+            }
+        }
+
+        var software = FiscalEngineSoftware.Current;
+
+        var xml = fiscalEngine.Xml.BuildAltaXml(new Verifactu.Xml.FiscalRecordXmlData
+        {
+            IssuerNif = company.Nif,
+            IssuerName = company.LegalName,
+            InvoiceNumber = BuildInvoiceNumber(invoice),
+            IssueDate = invoice.IssueDate,
+            InvoiceType = invoice.Type.ToString(),
+            Description = Truncate(invoice.Lines.FirstOrDefault()?.Description, 80),
+            IsFirstRecord = string.IsNullOrEmpty(previousHash),
+            PreviousHash = string.IsNullOrEmpty(previousHash) ? null : previousHash,
+            PreviousInvoiceNumber = previousInvoiceNumber,
+            PreviousIssueDate = previousIssueDate,
+            SystemName = software.SystemName,
+            SystemId = software.SystemId,
+            SystemVersion = software.SystemVersion,
+            InstallationNumber = software.InstallationNumber,
+            ProducerName = software.ProducerName,
+            ProducerNif = software.ProducerNif,
+            TaxLines = taxLines,
+            TaxTotal = invoice.TaxAmount,
+            Total = invoice.Total,
+            Hash = hash,
+            GeneratedAt = issuedAt
+        });
+
+        var envelope = fiscalEngine.Xml.BuildSubmissionXml(company.LegalName, company.Nif, xml);
+        var validation = fiscalEngine.Xsd.Validate(envelope);
+
+        if (!validation.IsValid)
+        {
+            throw new InvalidOperationException(
+                "El XML fiscal no supera el esquema oficial de la AEAT: " + validation.Summary);
+        }
+
+        return envelope;
+    }
+
+
+    private static string Truncate(string? value, int max) =>
+        string.IsNullOrWhiteSpace(value)
+            ? "Factura"
+            : (value.Length <= max ? value : value[..max]);
 
     /// <summary>
     /// Encola el evento de forma atomica. El mensaje no lo consume ningun
