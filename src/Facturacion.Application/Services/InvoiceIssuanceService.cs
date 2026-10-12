@@ -51,13 +51,14 @@ public sealed class InvoiceIssuanceService(
         if (access.IsFailure)
             return Result<InvoiceIssueResult>.Failure(access.Errors.ToArray());
 
-        // Idempotencia: una factura ya emitida devuelve su numeracion sin volver
-        // a tocar la secuencia.
+// Idempotencia: una factura ya emitida devuelve su numeracion sin volver
+        // a tocar la secuencia. El registro fiscal debe EXISTIR: devolver
+        // Guid.Empty obligaba al consumidor a tratar un identificador ficticio
+        // como si fuera real.
         if (invoice.Status != InvoiceStatus.Draft)
         {
             if (invoice.IssuedAt is not null && invoice.Number is not null)
-                return Result<InvoiceIssueResult>.Success(new InvoiceIssueResult(
-                    invoice.Id, $"{invoice.Series}/{invoice.Number}", Guid.Empty));
+                return await ResolveAlreadyIssuedAsync(invoice, ct);
 
             return Fail("INVOICE_NOT_DRAFT",
                 $"Solo se pueden emitir facturas en borrador (estado actual: {invoice.Status}).", "status");
@@ -79,6 +80,18 @@ public sealed class InvoiceIssuanceService(
                 "fiscalEngine"));
         }
 
+        // La identificacion del sistema forma parte del contenido del registro
+        // fiscal. Si le falta un dato obligatorio, tampoco se emite: un nombre
+        // de software o un numero de instalacion ficticios acabarian en un
+        // documento dirigido a Hacienda.
+        if (!FiscalEngineSoftware.IsComplete)
+        {
+            return Result<InvoiceIssueResult>.Failure(ApplicationErrors.Invalid(
+                "SYSTEM_IDENTIFICATION_NOT_CONFIGURED",
+                FiscalEngineSoftware.Describe(),
+                "systemIdentification"));
+        }
+
         // La primera emision de una serie crea su fila de secuencia. Varias
         // emisiones simultaneas pueden competir por esa creacion, lo que produce
         // deadlock o clave duplicada. Solo reintentar la transaccion completa
@@ -97,9 +110,10 @@ public sealed class InvoiceIssuanceService(
                         return Result<InvoiceIssueResult>.Failure(ApplicationErrors.NotFound("Factura"));
                     invoice = reloaded;
 
+// Tras un reintento la factura puede haberse emitido en otro intento
+                    // concurrente: se resuelve su registro fiscal real.
                     if (invoice.Status != InvoiceStatus.Draft)
-                        return Result<InvoiceIssueResult>.Success(new InvoiceIssueResult(
-                            invoice.Id, $"{invoice.Series}/{invoice.Number}", Guid.Empty));
+                        return await ResolveAlreadyIssuedAsync(invoice, ct);
                 }
 
                 return await IssueCoreAsync(invoice, normalizedSeries, ct);
@@ -139,13 +153,20 @@ public sealed class InvoiceIssuanceService(
             var number = sequence.NextNumber;
             sequence.NextNumber = number + 1;
 
+// Una SOLA marca temporal para toda la emision. Antes se usaba
+            // DateTimeOffset.UtcNow para IssuedAt y GeneratedAt, y
+            // DateTimeOffset.Now para la huella: dos instantes distintos con
+            // desplazamientos distintos. La huella es el dato que la AEAT
+            // verifica, asi que debe salir de la MISMA lectura que el resto.
+            var issuedAt = DateTimeOffset.Now;
+
             // Serie, numero e IssuedAt se asignan juntos: la restriccion
             // CK_Invoices_IssuedNumber exige que IssuedAt no se informe sin
             // serie y numero.
             invoice.Series = series;
             invoice.Number = number.ToString();
             invoice.Status = InvoiceStatus.Issued;
-            invoice.IssuedAt = DateTimeOffset.UtcNow;
+            invoice.IssuedAt = issuedAt;
 
             await unitOfWork.SaveChangesAsync(ct);
 
@@ -153,8 +174,8 @@ public sealed class InvoiceIssuanceService(
             // misma transaccion que la factura y la secuencia. Si el commit
             // falla, no queda ni factura emitida, ni numero consumido, ni evento
             // pendiente: el Outbox nunca puede quedar huerfano de su factura.
-            var fiscalRecordId = await CreateFiscalRecordAsync(invoice, ct);
-            await EnqueueOutboxAsync(invoice, fiscalRecordId, ct);
+            var fiscalRecordId = await CreateFiscalRecordAsync(invoice, issuedAt, ct);
+            await EnqueueOutboxAsync(invoice, fiscalRecordId, issuedAt, ct);
 
             await unitOfWork.SaveChangesAsync(ct);
             await tx.CommitAsync(ct);
@@ -170,6 +191,36 @@ public sealed class InvoiceIssuanceService(
     }
 
 /// <summary>
+    /// Resuelve el resultado de una factura ya emitida, localizando su registro
+    /// fiscal REAL en lugar de devolver un identificador ficticio.
+    ///
+    /// Si el registro no existe o pertenece a otro tenant, es una
+    /// inconsistencia: se rechaza con un error explicito en vez de propagar
+    /// un Guid.Empty que el consumidor no podria distinguir de un identificador
+    /// valido.
+    /// </summary>
+    private async Task<Result<InvoiceIssueResult>> ResolveAlreadyIssuedAsync(
+        Invoice invoice, CancellationToken ct)
+    {
+        var records = await fiscalRecords.GetByInvoiceAsync(invoice.Id, ct);
+        var record = records.FirstOrDefault(r => r.RecordType == FiscalRecordType.Alta);
+
+        if (record is null)
+            return Fail("FISCAL_RECORD_MISSING",
+                $"La factura {invoice.Id} figura emitida pero no tiene registro fiscal de alta. " +
+                "No se devuelve un identificador ficticio: la cadena fiscal quedaria huerfana.",
+                "fiscalRecord");
+
+        if (record.TenantId != invoice.TenantId)
+            return Fail("FISCAL_RECORD_TENANT_MISMATCH",
+                "El registro fiscal pertenece a otro tenant. Operacion rechazada.",
+                "fiscalRecord");
+
+        return Result<InvoiceIssueResult>.Success(new InvoiceIssueResult(
+            invoice.Id, $"{invoice.Series}/{invoice.Number}", record.Id));
+    }
+
+    /// <summary>
     /// Numero de factura segun el XSD oficial: NumSerieFactura y Numero van en
     /// el MISMO campo separados por "/". Es el unico separador que admite el
     /// tipo TextoIDFacturaType, y el que usan los vectores oficiales.
@@ -190,7 +241,7 @@ public sealed class InvoiceIssuanceService(
     /// la huella: es preferible abortar la emision que persistir un registro
     /// fiscal sin huella, que seria indistinguible de uno real.
     /// </summary>
-    private async Task<Guid> CreateFiscalRecordAsync(Invoice invoice, CancellationToken ct)
+    private async Task<Guid> CreateFiscalRecordAsync(Invoice invoice, DateTimeOffset issuedAt, CancellationToken ct)
     {
         var recordId = Guid.NewGuid();
         var company = await invoices.GetCompanyAsync(invoice.CompanyId, ct);
@@ -235,8 +286,7 @@ public sealed class InvoiceIssuanceService(
                 invoice.TaxAmount.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture),
                 invoice.Total.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture),
                 string.IsNullOrEmpty(previousHash) ? null : previousHash,
-                DateTimeOffset.Now.ToString("yyyy-MM-ddTHH:mm:sszzz",
-                    System.Globalization.CultureInfo.InvariantCulture)));
+                issuedAt.ToString("yyyy-MM-ddTHH:mm:sszzz", System.Globalization.CultureInfo.InvariantCulture)));
 
         var chainProblem = fiscalEngine.Chain.VerifyChaining(
             string.IsNullOrEmpty(previousHash) ? null : previousHash,
@@ -259,10 +309,10 @@ public sealed class InvoiceIssuanceService(
             {
                 TenantId = invoice.TenantId,
                 CompanyId = invoice.CompanyId,
-                InstallationId = FiscalEngineSoftware.InstallationId,
+                InstallationId = FiscalEngineSoftware.Current.InstallationNumber,
                 LastRecordId = head.LastRecordId,
                 LastHash = head.LastHash,
-                UpdatedAt = DateTimeOffset.UtcNow
+                UpdatedAt = issuedAt
             };
             await fiscalChains.AddAsync(chain, ct);
         }
@@ -270,7 +320,7 @@ public sealed class InvoiceIssuanceService(
         {
             chain.LastRecordId = head.LastRecordId;
             chain.LastHash = head.LastHash;
-            chain.UpdatedAt = DateTimeOffset.UtcNow;
+            chain.UpdatedAt = issuedAt;
         }
 
         var record = new FiscalRecord
@@ -281,10 +331,10 @@ public sealed class InvoiceIssuanceService(
             RecordType = FiscalRecordType.Alta,
             PreviousHash = fingerprint.PreviousHash,
             Hash = fingerprint.Hash,
-            GeneratedAt = DateTimeOffset.UtcNow,
-            SoftwareName = FiscalEngineSoftware.Name,
-            SoftwareVersion = FiscalEngineSoftware.Version,
-            InstallationId = FiscalEngineSoftware.InstallationId,
+            GeneratedAt = issuedAt,
+            SoftwareName = FiscalEngineSoftware.Current.SystemName,
+            SoftwareVersion = FiscalEngineSoftware.Current.SystemVersion,
+            InstallationId = FiscalEngineSoftware.Current.InstallationNumber,
             XmlPayload = string.Empty,
             SubmissionStatus = SubmissionStatus.Pending
         };
@@ -297,7 +347,7 @@ public sealed class InvoiceIssuanceService(
     /// Encola el evento de forma atomica. El mensaje no lo consume ningun
     /// worker todavia: la Fase 4 (adaptadores AEAT) esta diferida.
     /// </summary>
-    private async Task EnqueueOutboxAsync(Invoice invoice, Guid fiscalRecordId, CancellationToken ct)
+    private async Task EnqueueOutboxAsync(Invoice invoice, Guid fiscalRecordId, DateTimeOffset issuedAt, CancellationToken ct)
     {
         var message = new OutboxMessage
         {
@@ -307,8 +357,8 @@ public sealed class InvoiceIssuanceService(
             Payload = $"{{\"InvoiceId\":\"{invoice.Id}\",\"FiscalRecordId\":\"{fiscalRecordId}\"," +
                       $"\"InvoiceNumber\":\"{invoice.Series}/{invoice.Number}\"}}",
             Status = OutboxStatusPending,
-            CreatedAt = DateTimeOffset.UtcNow,
-            NextAttemptAt = DateTimeOffset.UtcNow
+            CreatedAt = issuedAt,
+            NextAttemptAt = issuedAt
         };
 
         await outbox.AddAsync(message, ct);

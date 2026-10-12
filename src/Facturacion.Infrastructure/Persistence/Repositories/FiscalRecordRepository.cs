@@ -16,8 +16,14 @@ public sealed class FiscalRecordRepository : IFiscalRecordRepository
         await _db.FiscalRecords.AddAsync(entity, ct);
 
     public async Task<IReadOnlyList<FiscalRecord>> GetByInvoiceAsync(Guid invoiceId, CancellationToken ct) =>
-        await _db.FiscalRecords.AsNoTracking()
+        // La ordenacion se hace en memoria a proposito: SQLite no admite
+        // ORDER BY sobre DateTimeOffset, y las pruebas corren sobre el. El
+        // numero de registros por factura es pequeno, asi que el coste es
+        // irrelevante y el repositorio funciona en los cuatro motores.
+        (await _db.FiscalRecords.AsNoTracking()
             .Where(x => x.InvoiceId == invoiceId)
-            .OrderBy(x => x.GeneratedAt).ToListAsync(ct);
+            .ToListAsync(ct))
+            .OrderBy(x => x.GeneratedAt)
+            .ToList();
 
 }

@@ -10,7 +10,7 @@ public sealed class InvoiceRepository : IInvoiceRepository
     public InvoiceRepository(BillingDbContext db) => _db = db;
 
     public Task<Invoice?> GetByIdAsync(Guid id, CancellationToken ct) =>
-        _db.Invoices.FirstOrDefaultAsync(x => x.Id == id, ct);
+        _db.Invoices.Include(x => x.Lines).FirstOrDefaultAsync(x => x.Id == id, ct);
 
     public async Task AddAsync(Invoice entity, CancellationToken ct) =>
         await _db.Invoices.AddAsync(entity, ct);
