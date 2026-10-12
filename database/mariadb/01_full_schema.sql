@@ -869,7 +869,7 @@ CREATE TABLE `outboxmessages` (
   `LastError` longtext DEFAULT NULL,
   PRIMARY KEY (`Id`),
   UNIQUE KEY `AK_OutboxMessages_TenantId_Id` (`TenantId`,`Id`),
-  KEY `IX_OutboxMessage_Pending` (`TenantId`,`Status`,`NextAttemptAt`)
+  KEY `IX_OutboxMessage_Pending` (`TenantId`,`Status`,`NextAttemptAt`),
   -- El worker reclama por Status sin filtrar por tenant: este indice es el que lo sostiene.
   KEY `IX_OutboxMessages_Status_NextAttemptAt` (`Status`,`NextAttemptAt`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
