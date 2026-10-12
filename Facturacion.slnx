@@ -8,6 +8,10 @@
     <Project Path="src/Facturacion.Payments.Stripe/Facturacion.Payments.Stripe.csproj" Id="3ea60aaa-c084-49bc-b9e4-13eb5b093bd2" />
     <Project Path="src/Facturacion.Verifactu/Facturacion.Verifactu.csproj" />
     <Project Path="src/Facturacion.Workers/Facturacion.Workers.csproj" />
+    <Project Path="src/Facturacion.UI.Shared/Facturacion.UI.Shared.csproj" />
+    <Project Path="src/Facturacion.Client/Facturacion.Client.csproj" />
+    <Project Path="src/Facturacion.Web.Public/Facturacion.Web.Public.csproj" />
+    <Project Path="src/Facturacion.Web.App/Facturacion.Web.App.csproj" />
   </Folder>
   <Folder Name="/test/">
     <Project Path="test/Facturacion.Integration.Test/Facturacion.Integration.Test.csproj" />
