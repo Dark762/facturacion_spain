@@ -12,19 +12,26 @@ public static class SelfServiceRegistration
 {
     public static IServiceCollection AddSaasSelfService(this IServiceCollection services, IConfiguration config)
     {
-        var section = config.GetSection("Stripe");
-        // Solo se valida si la seccion existe: sin configuracion la funcion
-        // queda inactiva (el webhook rechaza todo al no poder verificar la
-        // firma) en lugar de impedir que arranque el resto de la API.
-        if (section.Exists())
-        {
-            var stripe = section.Get<StripeOptions>()
-                ?? throw new InvalidOperationException("Falta configuración Stripe.");
+var section = config.GetSection("Stripe");
+        var stripe = section.Get<StripeOptions>() ?? new StripeOptions();
 
+        // Solo el par de credenciales marca Stripe como configurado. Tener las
+        // URLs de retorno sin claves es el estado normal en desarrollo local y
+        // no debe impedir que arranque el resto de la API.
+        //
+        // Si no hay ninguna clave, Stripe queda inactivo: el webhook rechaza
+        // cada llamada al no poder verificar la firma. Si hay una pero falta la
+        // otra, es un error de despliegue y si se avisa.
+        var hasKeys = !string.IsNullOrWhiteSpace(stripe.SecretKey)
+                      || !string.IsNullOrWhiteSpace(stripe.WebhookSecret);
+
+        if (hasKeys)
+        {
             if (string.IsNullOrWhiteSpace(stripe.WebhookSecret) ||
                 string.IsNullOrWhiteSpace(stripe.SecretKey))
                 throw new InvalidOperationException(
-                    "Configuración Stripe inválida. Usa Stripe:SecretKey y Stripe:WebhookSecret.");
+                    "Configuración Stripe incompleta: define ambos, Stripe:SecretKey y Stripe:WebhookSecret. " +
+                    "Si no vas a usar Stripe, deja ambos vacíos.");
             if (!Uri.TryCreate(stripe.SuccessUrl, UriKind.Absolute, out _) ||
                 !Uri.TryCreate(stripe.CancelUrl, UriKind.Absolute, out _))
                 throw new InvalidOperationException(
