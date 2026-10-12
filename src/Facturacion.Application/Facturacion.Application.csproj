@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="8.0.2" />
@@ -6,6 +6,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Facturacion.Domain\Facturacion.Domain.csproj" />
+    <ProjectReference Include="..\Facturacion.Verifactu\Facturacion.Verifactu.csproj" />
   </ItemGroup>
 
   <PropertyGroup>

@@ -1,5 +1,6 @@
 using Facturacion.Api.Security;
 using Facturacion.Application.DependencyInjection;
+using Facturacion.Verifactu.DependencyInjection;
 using Facturacion.Infrastructure.Billing;
 using Facturacion.Infrastructure.DependencyInjection;
 using Facturacion.Infrastructure.Email;
@@ -48,6 +49,8 @@ builder.Services.AddConfiguredDatabaseContext<BillingDbContext>(
 builder.Services.AddSaasAuthentication(builder.Configuration);
 
 // Application
+builder.Services.AddVerifactu();
+
 builder.Services.AddBillingApplication();
 
 // Infrastructure
