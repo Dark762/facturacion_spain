@@ -41,11 +41,13 @@ public sealed class BillingDatabaseFixture : IDisposable
 
         services.AddScoped<IUnitOfWork, UnitOfWork>();
         services.AddScoped<IInvoiceRepository, InvoiceRepository>();
+        services.AddScoped<IInvoiceSequenceRepository, InvoiceSequenceRepository>();
         services.AddScoped<ICompanyRepository, CompanyRepository>();
         services.AddScoped<ICustomerRepository, CustomerRepository>();
         services.AddScoped<IOutboxMessageRepository, OutboxMessageRepository>();
         services.AddScoped<IFiscalRecordRepository, FiscalRecordRepository>();
         services.AddScoped<IInvoiceApplicationService, InvoiceApplicationService>();
+        services.AddScoped<IInvoiceIssuanceService, InvoiceIssuanceService>();
 
         services.AddDbContext<BillingDbContext>(o => o.UseSqlite(Connection));
         services.AddDbContext<AuthDbContext>(o => o.UseSqlite(Connection));

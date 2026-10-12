@@ -14,5 +14,9 @@ public sealed class InvoiceTaxBreakdownConfiguration : IEntityTypeConfiguration<
         e.Property(x => x.SurchargeAmount).HasPrecision(18,2);
         e.Property(x => x.TaxRate).HasPrecision(9,4);
         e.Property(x => x.SurchargeRate).HasPrecision(9,4);
+            e.Property(x => x.ExemptionCode).HasMaxLength(30);
+            e.Property(x => x.OperationClassification).HasMaxLength(60);
+            e.Property(x => x.RegimeKey).HasMaxLength(20);
+            e.Property(x => x.TaxCode).HasMaxLength(20);
     }
 }

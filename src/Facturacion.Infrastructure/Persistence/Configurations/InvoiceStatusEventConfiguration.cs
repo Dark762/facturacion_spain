@@ -10,5 +10,8 @@ public sealed class InvoiceStatusEventConfiguration : IEntityTypeConfiguration<I
         e.HasAlternateKey(x => new { x.TenantId, x.Id });
         e.HasOne(x => x.Invoice).WithMany().HasForeignKey(x => new { x.TenantId, x.InvoiceId }).HasPrincipalKey(x => new { x.TenantId, x.Id }).OnDelete(DeleteBehavior.Restrict);
         e.Property(x => x.Payload).HasColumnType("longtext");
+            e.Property(x => x.EventType).HasMaxLength(100);
+            e.Property(x => x.ExternalReference).HasMaxLength(200);
+            e.Property(x => x.Source).HasMaxLength(100);
     }
 }

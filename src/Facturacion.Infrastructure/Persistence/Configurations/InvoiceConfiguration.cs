@@ -17,5 +17,12 @@ public sealed class InvoiceConfiguration : IEntityTypeConfiguration<Invoice>
         e.Property(x => x.TaxableBase).HasPrecision(18,2);
         e.Property(x => x.TaxAmount).HasPrecision(18,2);
         e.Property(x => x.WithholdingAmount).HasPrecision(18,2);
+            e.Property(x => x.Currency).HasMaxLength(3);
+            e.Property(x => x.CustomerName).HasMaxLength(250);
+            e.Property(x => x.CustomerTaxId).HasMaxLength(20);
+            e.Property(x => x.IssuerName).HasMaxLength(250);
+            e.Property(x => x.IssuerNif).HasMaxLength(20);
+            e.Property(x => x.Number).HasMaxLength(40);
+            e.Property(x => x.Series).HasMaxLength(32);
     }
 }

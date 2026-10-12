@@ -157,7 +157,7 @@ public sealed class InvoiceDraftTests : IClassFixture<BillingDatabaseFixture>
     [InlineData(4, 4)]
     [InlineData(10, 10)]
     [InlineData(21, 21)]
-    public void Vat_rates_supported_by_this_use_case_are_accepted(decimal vat, decimal expectedVatAmount)
+    public async Task Vat_rates_supported_by_this_use_case_are_accepted(decimal vat, decimal expectedVatAmount)
     {
         var seeded = _fixture.Seed();
         using var scope = _fixture.CreateScope(seeded.TenantId);
@@ -165,7 +165,7 @@ public sealed class InvoiceDraftTests : IClassFixture<BillingDatabaseFixture>
         var service = scope.ServiceProvider.GetRequiredService<IInvoiceApplicationService>();
         var request = ValidRequest(seeded, lines: new[] { ("Base", 1m, 100m, vat) });
 
-        var result = service.CreateDraftAsync(request, CancellationToken.None).GetAwaiter().GetResult();
+        var result = await service.CreateDraftAsync(request, CancellationToken.None);
 
         Assert.True(result.IsSuccess);
         Assert.Equal(expectedVatAmount, result.Value.TaxAmount);

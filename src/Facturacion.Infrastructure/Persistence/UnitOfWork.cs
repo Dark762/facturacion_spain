@@ -11,6 +11,12 @@ public sealed class UnitOfWork : IUnitOfWork
     public Task<int> SaveChangesAsync(CancellationToken ct = default) =>
         _db.SaveChangesAsync(ct);
 
+    public Task ResetAsync(CancellationToken ct = default)
+    {
+        _db.ChangeTracker.Clear();
+        return Task.CompletedTask;
+    }
+
     public async Task<IUnitOfWorkTransaction> BeginTransactionAsync(CancellationToken ct = default) =>
         new EfTransaction(await _db.Database.BeginTransactionAsync(ct));
 

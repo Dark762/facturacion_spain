@@ -11,5 +11,8 @@ public sealed class OutboxMessageConfiguration : IEntityTypeConfiguration<Outbox
         e.HasIndex(x => new { x.TenantId, x.Status, x.NextAttemptAt });
         e.Property(x => x.Payload).HasColumnType("longtext");
         e.Property(x => x.LastError).HasColumnType("longtext");
+            e.Property(x => x.AggregateId).HasMaxLength(100);
+            e.Property(x => x.Status).HasMaxLength(32);
+            e.Property(x => x.Type).HasMaxLength(100);
     }
 }

@@ -15,6 +15,7 @@
 	<ItemGroup>
 		<ProjectReference Include="..\Facturacion.Domain\Facturacion.Domain.csproj" />
 		<ProjectReference Include="..\Facturacion.Application\Facturacion.Application.csproj" />
+		<ProjectReference Include="..\Facturacion.Payments.Stripe\Facturacion.Payments.Stripe.csproj" />
 	</ItemGroup>
 
 	<PropertyGroup>

@@ -42,14 +42,17 @@ public sealed class TenantAdministrationController : ControllerBase
         return Ok(result);
     }
 
+/// <summary>
+    /// retired: permitir a un administrador fijar la contraseña de otro usuario es una
+    /// escala de privilegios. El alta de usuarios se hace exclusivamente mediante
+    /// invitaciones (/api/invitations), que obligan al invitado a establecer su
+    /// propia credencial.
+    /// </summary>
     [HttpPost("users")]
-    public async Task<IActionResult> CreateUser([FromBody] CreateTenantUserRequest request, CancellationToken ct)
-    {
-        var tenantId = await GetAdminTenantAsync(ct);
-        if (tenantId is null) return Forbid();
-        var id = await _provisioning.AddTenantUserAsync(tenantId.Value, request, ct);
-        return Ok(new { UserId = id });
-    }
+    [Obsolete("Sustituir por POST /api/invitations. Se conserva solo para no romper clientes existentes.")]
+    public IActionResult CreateUser() =>
+        StatusCode(StatusCodes.Status410Gone,
+            new { message = "Este endpoint ha sido retirado. Usa POST /api/invitations." });
 
     [HttpPut("companies/{companyId:guid}/users")]
     public async Task<IActionResult> AssignCompanyUser(Guid companyId, [FromBody] AssignCompanyUserRequest request, CancellationToken ct)

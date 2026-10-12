@@ -10,6 +10,7 @@ namespace Facturacion.Domain.Enums
     {
         Draft = 0,
         Issued = 1,
-        Cancelled = 2
+        Cancelled = 2,
+        Rectified = 3
     }
 }
