@@ -10,6 +10,18 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Facturacion.Verifactu.DependencyInjection;
 
+/// <summary>
+/// Ubicacion de los XSD oficiales de la AEAT.
+/// </summary>
+public sealed class FiscalSchemaOptions
+{
+    /// <summary>Configuracion: Fiscal:SchemaDirectory.</summary>
+    public const string SectionName = "Fiscal";
+
+    /// <summary>Carpeta que contiene los XSD oficiales.</summary>
+    public string SchemaDirectory { get; set; } = "docs/verifactu/xsd";
+}
+
 public static class VerifactuServiceCollectionExtensions
 {
     /// <summary>
@@ -28,9 +40,14 @@ public static class VerifactuServiceCollectionExtensions
 
         services.AddSingleton<IFiscalChainWalker, FiscalChainWalker>();
 
-        // Esquemas oficiales cargados desde disco. La ruta se configura en DI.
-//        services.AddSingleton<IRecordXmlBuilder, AeatRecordXmlBuilder>();
-        //        services.AddSingleton<IXsdValidator>(sp => new AeatXsdValidator(sp.GetRequiredService<IOptions<FiscalSchemaOptions>>().Directory));
+        // Esquemas oficiales cargados desde disco. El constructor del validador
+        // es lazy: si la carpeta no existe, falla al validar y no al arrancar.
+        services.AddSingleton<FiscalSchemaOptions>();
+        services.AddSingleton<IRecordXmlBuilder, AeatRecordXmlBuilder>();
+        services.AddSingleton<IXsdValidator>(sp =>
+            new AeatXsdValidator(sp.GetRequiredService<FiscalSchemaOptions>().SchemaDirectory));
+
+        // El QR sigue sin implementar: el motor permanece bloqueado.
         services.AddSingleton<IQrGenerator, UnavailableQrGenerator>();
 
         services.AddSingleton<IRecordBuilder, AltaRecordBuilder>();
