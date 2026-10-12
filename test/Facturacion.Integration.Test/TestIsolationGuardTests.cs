@@ -6,6 +6,7 @@ using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using MySqlConnector;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Configuration;
 using Xunit;
 
 namespace Facturacion.Integration.Test;
@@ -119,16 +120,53 @@ public sealed class TestIsolationGuardTests
     }
 
     [Fact]
-    public void Un_fixture_que_no_registra_un_contexto_no_falla()
+public void Un_contexto_protegido_que_no_esta_registrado_hace_fallar_la_prueba()
     {
+        // Fail-closed: si el guard solo comprobara los contextos que encuentra,
+        // bastaria con quitar un registro del contenedor para desactivar la
+        // proteccion en silencio.
         var connection = new SqliteConnection("DataSource=:memory:");
         connection.Open();
 
         using var provider = BuildContainer(s =>
             s.AddDbContext<AuthDbContext>(o => o.UseSqlite(connection)));
 
-        TestIsolationGuard.AssertAllContextsAreSqlite(provider);
+        var ex = Assert.Throws<TestIsolationGuard.IsolationException>(
+            () => TestIsolationGuard.AssertAllContextsAreSqlite(provider));
+
+        Assert.Contains("BillingDbContext", ex.Message);
+        Assert.Contains("NO esta registrado", ex.Message);
 
         connection.Dispose();
+    }
+
+    [Fact]
+    public void Una_cadena_de_conexion_real_en_la_configuracion_se_rechaza()
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["ConnectionStrings:Default"] = "Server=localhost;Database=facturacion_saas;Password=root;"
+            })
+            .Build();
+
+        var ex = Assert.Throws<TestIsolationGuard.IsolationException>(
+            () => TestIsolationGuard.AssertNoRealConnectionString(configuration));
+
+        Assert.Contains("conexion real", ex.Message);
+        Assert.DoesNotContain("Password=root", ex.Message);
+    }
+
+    [Fact]
+    public void Una_cadena_de_memoria_en_la_configuracion_se_acepta()
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["ConnectionStrings:Default"] = "DataSource=:memory:"
+            })
+            .Build();
+
+        TestIsolationGuard.AssertNoRealConnectionString(configuration);
     }
 }

@@ -52,6 +52,13 @@ services.AddScoped<IOutboxMessageRepository, OutboxMessageRepository>();
         // Motor fiscal de PRUEBA: habilita la emision para poder ejercitar la
         // numeracion. El motor real sigue bloqueado; ver FiscalEngineFailClosedTests.
         services.AddScoped<IFiscalEngine, TestFiscalEngine>();
+
+// Identificacion del sistema para pruebas. En produccion viene del
+        // entorno; sin ella la emision queda BLOQUEADA, que es lo correcto.
+        // Aqui se inyecta un valor ficticio VALIDO para poder ejercitar la
+        // emision. Los limites los impone FiscalSystemIdentification.
+        Assert.True(FiscalEngineSoftware.TrySet(TestSystemIdentification.Valid()),
+            "La identificacion de prueba deberia ser valida.");
         services.AddScoped<IInvoiceApplicationService, InvoiceApplicationService>();
         services.AddScoped<IInvoiceIssuanceService, InvoiceIssuanceService>();
 

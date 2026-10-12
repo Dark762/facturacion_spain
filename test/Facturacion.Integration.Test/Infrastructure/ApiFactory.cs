@@ -10,6 +10,8 @@ using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Hosting;
 
 namespace Facturacion.Integration.Test.Infrastructure;
 
@@ -22,6 +24,12 @@ public sealed class ApiFactory : WebApplicationFactory<Program>
     public const string SigningKey = "integration-test-signing-key-32-bytes-min!!";
     public const string AllowedOrigin = "https://app.example.test";
 
+    /// <summary>
+    /// Entorno de pruebas. Distinto de Development para que no se cargen los
+    /// user-secrets, que contienen la cadena de conexion real.
+    /// </summary>
+    public const string TestEnvironment = "Integration";
+
     private readonly SqliteConnection _connection = new("DataSource=:memory:");
     private bool _schemaReady;
 
@@ -32,17 +40,29 @@ public sealed class ApiFactory : WebApplicationFactory<Program>
         _schemaReady = true;
     }
 
-    protected override void ConfigureWebHost(IWebHostBuilder builder)
+protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
-        builder.UseEnvironment("Development");
+        // Entorno propio de integracion, NO Development. Los user-secrets solo
+        // se cargan en Development, asi que en este entorno la cadena real de
+        // MariaDB no llega a existir dentro del proceso de pruebas.
+        builder.UseEnvironment(TestEnvironment);
         builder.UseSetting("Jwt:Issuer", "Facturacion.Api");
         builder.UseSetting("Jwt:Audience", "Facturacion.Client");
         builder.UseSetting("Jwt:ExpiryMinutes", "15");
         builder.UseSetting("Jwt:SigningKey", SigningKey);
-        builder.UseSetting("Database:Provider", "MySql");
+        builder.UseSetting("Database:Provider", "Sqlite");
         builder.UseSetting("Database:ConnectionStringName", "Default");
         builder.UseSetting("ConnectionStrings:Default", "DataSource=:memory:");
         builder.UseSetting("Cors:AllowedOrigins:0", AllowedOrigin);
+
+        // Sin user-secrets en este entorno la seccion Email de appsettings.json
+        // llega vacia y la API no arranca. Se define aqui con valores
+        // ficticios: las pruebas nunca envian correo.
+        builder.UseSetting("Email:Provider", "Smtp");
+        builder.UseSetting("Email:FromAddress", "test@example.test");
+        builder.UseSetting("Email:Smtp:Host", "localhost");
+        builder.UseSetting("Email:Smtp:Port", "25");
+        builder.UseSetting("Email:VerifyEmailPath", "/verificar-email");
 
         builder.ConfigureServices(services =>
         {
@@ -69,11 +89,7 @@ public sealed class ApiFactory : WebApplicationFactory<Program>
             // UseSetting tiene MENOR precedencia que user-secrets. Si no se
             // sustituye aqui, el primer test que toque un endpoint de
             // self-service escribe en la base de verdad.
-            ReplaceWithSqlite<SelfServiceDbContext>(services, _connection);
-
-            // Barrera fail-closed: se comprueba una vez construido el
-            // contenedor, antes de que ninguna prueba escriba nada.
-            TestIsolationGuard.AssertAllContextsAreSqlite(services.BuildServiceProvider());
+ReplaceWithSqlite<SelfServiceDbContext>(services, _connection);
 
             // AddSaasAuthentication ya registro TenantContext como concreto y
             // ITenantContext apuntando a esa misma instancia. Hay que conservar
@@ -117,9 +133,28 @@ public sealed class ApiFactory : WebApplicationFactory<Program>
         services.AddDbContext<TContext>(o => o.UseSqlite(connection));
     }
 
-    protected override void Dispose(bool disposing)
+protected override void Dispose(bool disposing)
     {
         base.Dispose(disposing);
         if (disposing) _connection.Dispose();
+    }
+
+    /// <summary>
+    /// Barrera fail-closed. Se valida contra host.Services, el proveedor REAL
+    /// ya construido, y antes de que el cliente pueda hacer ninguna peticion.
+    ///
+    /// No se usa services.BuildServiceProvider() dentro de ConfigureServices:
+    /// construir un segundo contenedor duplica los singletons, rompe los
+    /// lifetimes scoped y validaria un objeto distinto del que se usa.
+    /// </summary>
+    protected override IHost CreateHost(IHostBuilder builder)
+    {
+        var host = base.CreateHost(builder);
+
+        TestIsolationGuard.AssertAllContextsAreSqlite(host.Services);
+        TestIsolationGuard.AssertNoRealConnectionString(
+            host.Services.GetRequiredService<IConfiguration>());
+
+        return host;
     }
 }
