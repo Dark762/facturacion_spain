@@ -56,9 +56,29 @@ public sealed class FiscalEngine : IFiscalEngine
     public IXsdValidator Xsd { get; }
     public IQrGenerator Qr { get; }
 
-    public bool IsReadyForIssuance => FiscalSpecification.IsReadyForIssuance;
+    public bool IsReadyForIssuance =>
+        FiscalSpecification.IsReadyForIssuance &&
+        Verifier.IsAvailable &&
+        Fingerprint.IsAvailable &&
+        Chain.IsAvailable &&
+        Xml.IsAvailable &&
+        Xsd.IsAvailable &&
+        Qr.IsAvailable;
 
-    public IReadOnlyList<string> Blockers => FiscalSpecification.BlockingComponents.ToArray();
+    public IReadOnlyList<string> Blockers
+    {
+        get
+        {
+            var list = new List<string>(FiscalSpecification.BlockingComponents);
+            if (!Verifier.IsAvailable && !list.Contains(nameof(IVerifier))) list.Add(nameof(IVerifier));
+            if (!Fingerprint.IsAvailable && !list.Contains(nameof(IFingerprintCalculator))) list.Add(nameof(IFingerprintCalculator));
+            if (!Chain.IsAvailable && !list.Contains(nameof(IFiscalChainWalker))) list.Add(nameof(IFiscalChainWalker));
+            if (!Xml.IsAvailable && !list.Contains(nameof(IRecordXmlBuilder))) list.Add(nameof(IRecordXmlBuilder));
+            if (!Xsd.IsAvailable && !list.Contains(nameof(IXsdValidator))) list.Add(nameof(IXsdValidator));
+            if (!Qr.IsAvailable && !list.Contains(nameof(IQrGenerator))) list.Add(nameof(IQrGenerator));
+            return list.ToArray();
+        }
+    }
 
     public string ReadinessReport => FiscalSpecification.BuildReadinessReport();
 }

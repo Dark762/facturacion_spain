@@ -10,6 +10,8 @@ public sealed record ChainHead(Guid? LastRecordId, string LastHash);
 /// </summary>
 public interface IFiscalChainWalker
 {
+    bool IsAvailable { get; }
+
     ChainHead BuildNextHead(ChainHead current, Guid newRecordId, string newHash);
 
     /// <summary>
@@ -21,6 +23,8 @@ public interface IFiscalChainWalker
 
 public sealed class FiscalChainWalker : IFiscalChainWalker
 {
+    public bool IsAvailable => true;
+
     public ChainHead BuildNextHead(ChainHead current, Guid newRecordId, string newHash)
     {
         ArgumentNullException.ThrowIfNull(current);

@@ -55,14 +55,31 @@ public sealed class AeatXsdValidator : IXsdValidator
     public const string XmlDsigNs = "http://www.w3.org/2000/09/xmldsig#";
 
     private readonly Lazy<XmlSchemaSet> _schemas;
+    private readonly string _schemaDirectory;
 
     public AeatXsdValidator(string schemaDirectory)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(schemaDirectory);
-        _schemas = new Lazy<XmlSchemaSet>(() => Load(schemaDirectory), isThreadSafe: true);
+        _schemaDirectory = schemaDirectory ?? string.Empty;
+        _schemas = new Lazy<XmlSchemaSet>(() => Load(_schemaDirectory), isThreadSafe: true);
     }
 
-    public bool IsAvailable => true;
+    public bool IsAvailable
+    {
+        get
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(_schemaDirectory) || !Directory.Exists(_schemaDirectory))
+                    return false;
+
+                return _schemas.Value is not null;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+    }
 
     public string SchemaReference =>
         "AEAT, Esquemas de los servicios web. Huella: documento oficial v0.1.2 (27/08/2024).";
@@ -107,23 +124,40 @@ public sealed class AeatXsdValidator : IXsdValidator
         if (string.IsNullOrWhiteSpace(xml))
             return new XsdValidationResult(false, new[] { "El documento XML esta vacio." });
 
+        if (!IsAvailable)
+            return new XsdValidationResult(false, new[] { "Los esquemas XSD oficiales no estan disponibles o no se pudieron cargar desde disco." });
+
         var errors = new List<string>();
 
         var settings = new XmlReaderSettings
         {
             ValidationType = ValidationType.Schema,
             Schemas = _schemas.Value,
+            ValidationFlags = XmlSchemaValidationFlags.ReportValidationWarnings |
+                              XmlSchemaValidationFlags.ProcessIdentityConstraints,
             DtdProcessing = DtdProcessing.Prohibit
         };
         settings.ValidationEventHandler += (_, e) =>
         {
-            if (e.Severity == XmlSeverityType.Error) errors.Add(e.Message);
+            if (e.Severity == XmlSeverityType.Error || e.Severity == XmlSeverityType.Warning)
+                errors.Add(e.Message);
         };
 
         try
         {
             using var reader = XmlReader.Create(new StringReader(xml), settings);
-            while (reader.Read()) { }
+            var isFirstElement = true;
+            while (reader.Read())
+            {
+                if (reader.NodeType == XmlNodeType.Element && isFirstElement)
+                {
+                    isFirstElement = false;
+                    if (reader.NamespaceURI != SuministroLrNs)
+                    {
+                        errors.Add($"Namespace raiz invalido: '{reader.NamespaceURI}'. Se esperaba '{SuministroLrNs}'.");
+                    }
+                }
+            }
         }
         catch (XmlException ex)
         {

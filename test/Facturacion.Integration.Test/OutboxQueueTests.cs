@@ -154,6 +154,109 @@ public sealed class OutboxQueueTests : IDisposable
         Assert.Equal(message.Id, claimed[0].Id);
     }
 
+    [Fact]
+    public async Task El_primer_worker_con_lease_caducado_intenta_completarlo_y_es_rechazado()
+    {
+        var message = await SeedAsync();
+
+        // Worker 1 reclama el mensaje con lease ya expirado
+        string worker1Token;
+        using (var scope1 = _fixture.CreateScope(_tenantId))
+        {
+            var claimed1 = await scope1.ServiceProvider.GetRequiredService<IOutboxMessageRepository>()
+                .ClaimPendingAsync(10, TimeSpan.FromMilliseconds(-1), CancellationToken.None);
+            Assert.Single(claimed1);
+            worker1Token = claimed1[0].ClaimToken!;
+            Assert.NotNull(worker1Token);
+        }
+
+        // Worker 2 recupera el mensaje expirado y obtiene un token nuevo
+        string worker2Token;
+        using (var scope2 = _fixture.CreateScope(_tenantId))
+        {
+            var claimed2 = await scope2.ServiceProvider.GetRequiredService<IOutboxMessageRepository>()
+                .ClaimPendingAsync(10, TimeSpan.FromMinutes(2), CancellationToken.None);
+            Assert.Single(claimed2);
+            worker2Token = claimed2[0].ClaimToken!;
+            Assert.NotEqual(worker1Token, worker2Token);
+        }
+
+        // Worker 1 termina tarde e intenta marcar como completado: debe ser RECHAZADO
+        using (var scope1 = _fixture.CreateScope(_tenantId))
+        {
+            var success1 = await scope1.ServiceProvider.GetRequiredService<IOutboxMessageRepository>()
+                .MarkProcessedAsync(message.Id, worker1Token, DateTimeOffset.UtcNow, CancellationToken.None);
+            Assert.False(success1, "Worker 1 con lease caducado y reasignado no debe poder completar el mensaje.");
+        }
+
+        // Worker 2 completa el mensaje exitosamente
+        using (var scope2 = _fixture.CreateScope(_tenantId))
+        {
+            var success2 = await scope2.ServiceProvider.GetRequiredService<IOutboxMessageRepository>()
+                .MarkProcessedAsync(message.Id, worker2Token, DateTimeOffset.UtcNow, CancellationToken.None);
+            Assert.True(success2, "Worker 2 propietario del lease vigente debe poder completar el mensaje.");
+        }
+
+        var stored = await ReadAsync(message.Id);
+        Assert.Equal(OutboxStatus.Completed, stored!.Status);
+    }
+
+    [Fact]
+    public async Task El_primer_worker_con_lease_caducado_intenta_marcarlo_fallido_y_es_rechazado()
+    {
+        var message = await SeedAsync();
+
+        // Worker 1 reclama
+        string worker1Token;
+        using (var scope1 = _fixture.CreateScope(_tenantId))
+        {
+            var claimed1 = await scope1.ServiceProvider.GetRequiredService<IOutboxMessageRepository>()
+                .ClaimPendingAsync(10, TimeSpan.FromMilliseconds(-1), CancellationToken.None);
+            worker1Token = claimed1[0].ClaimToken!;
+        }
+
+        // Worker 2 recupera
+        using (var scope2 = _fixture.CreateScope(_tenantId))
+        {
+            await scope2.ServiceProvider.GetRequiredService<IOutboxMessageRepository>()
+                .ClaimPendingAsync(10, TimeSpan.FromMinutes(2), CancellationToken.None);
+        }
+
+        // Worker 1 intenta marcarlo como fallido con su token antiguo: debe ser rechazado
+        using (var scope1 = _fixture.CreateScope(_tenantId))
+        {
+            var rejected = await scope1.ServiceProvider.GetRequiredService<IOutboxMessageRepository>()
+                .MarkFailedAsync(message.Id, worker1Token, DateTimeOffset.UtcNow, "error tardio", 5, TimeSpan.FromSeconds(10), CancellationToken.None);
+            Assert.False(rejected, "Worker 1 no debe poder modificar un mensaje que ya no posee.");
+        }
+    }
+
+    [Fact]
+    public async Task Un_reinicio_no_pierde_mensajes_pendientes()
+    {
+        var msg1 = await SeedAsync();
+        var msg2 = await SeedAsync();
+
+        // msg1 es reclamado y completado
+        using (var scope = _fixture.CreateScope(_tenantId))
+        {
+            var repo = scope.ServiceProvider.GetRequiredService<IOutboxMessageRepository>();
+            var claimed = await repo.ClaimPendingAsync(1, TimeSpan.FromMinutes(2), CancellationToken.None);
+            await repo.MarkProcessedAsync(claimed[0].Id, claimed[0].ClaimToken, DateTimeOffset.UtcNow, CancellationToken.None);
+        }
+
+        // Simula reinicio abriendo un nuevo scope desde cero
+        using (var freshScope = _fixture.CreateScope(_tenantId))
+        {
+            var repo = freshScope.ServiceProvider.GetRequiredService<IOutboxMessageRepository>();
+            var pending = await repo.ClaimPendingAsync(10, TimeSpan.FromMinutes(2), CancellationToken.None);
+
+            // msg2 permanece pendiente y es recuperado intacto
+            Assert.Single(pending);
+            Assert.Equal(msg2.Id, pending[0].Id);
+        }
+    }
+
     // ---------- Estados terminales ----------
 
     [Fact]

@@ -53,13 +53,14 @@ public sealed class FiscalEngineTests
     }
 
     [Fact]
-    public void Los_bloqueos_son_solo_xml_y_xsd()
+    public void El_bloqueo_es_por_qr_mientras_xml_y_xsd_estan_disponibles()
     {
         var blockers = BuildEngine().Blockers;
 
-        Assert.Contains(nameof(IRecordXmlBuilder), blockers);
+        Assert.Contains(nameof(IQrGenerator), blockers);
+        Assert.DoesNotContain(nameof(IRecordXmlBuilder), blockers);
+        Assert.DoesNotContain(nameof(IXsdValidator), blockers);
         Assert.DoesNotContain(nameof(IRecordCanonicalizer), blockers);
-        Assert.Contains(nameof(IXsdValidator), blockers);
     }
 
     [Fact]

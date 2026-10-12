@@ -52,6 +52,9 @@ services.AddScoped<IOutboxMessageRepository, OutboxMessageRepository>();
         // Motor fiscal de PRUEBA: habilita la emision para poder ejercitar la
         // numeracion. El motor real sigue bloqueado; ver FiscalEngineFailClosedTests.
         services.AddScoped<IFiscalEngine, TestFiscalEngine>();
+        services.AddSingleton<Facturacion.Verifactu.Xml.IRecordXmlBuilder, Facturacion.Verifactu.Xml.AeatRecordXmlBuilder>();
+        services.AddSingleton<Facturacion.Verifactu.Xml.IXsdValidator>(_ =>
+            new Facturacion.Verifactu.Xml.AeatXsdValidator(Path.Combine(AppContext.BaseDirectory, "xsd")));
 
 // Identificacion del sistema para pruebas. En produccion viene del
         // entorno; sin ella la emision queda BLOQUEADA, que es lo correcto.

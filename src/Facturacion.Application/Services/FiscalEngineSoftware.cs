@@ -204,3 +204,34 @@ public static class FiscalEngineSoftware
         HashType = Environment.GetEnvironmentVariable("VERIFACTU_HASH_TYPE") ?? FiscalSystemIdentification.AllowedHashType
     };
 }
+
+/// <summary>
+/// Implementacion de IFiscalSystemProvider basada en instancia inmutable
+/// o inyeccion de IOptions<FiscalSystemIdentification>.
+/// </summary>
+public sealed class FiscalSystemProvider : Facturacion.Application.Interfaces.IFiscalSystemProvider
+{
+    private readonly FiscalSystemIdentification _identification;
+
+    public FiscalSystemProvider(FiscalSystemIdentification identification)
+    {
+        _identification = identification ?? throw new ArgumentNullException(nameof(identification));
+    }
+
+    public FiscalSystemProvider() : this(FiscalEngineSoftware.Current)
+    {
+    }
+
+    public FiscalSystemIdentification Current => _identification;
+
+    public bool IsComplete => _identification.IsValid(out _);
+
+    public string Describe()
+    {
+        if (_identification.IsValid(out var errors))
+            return "Identificacion del sistema valida.";
+
+        return "Identificacion del sistema NO valida:" + Environment.NewLine +
+               string.Join(Environment.NewLine, errors.Select(e => "  - " + e));
+    }
+}

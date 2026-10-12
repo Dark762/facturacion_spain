@@ -24,12 +24,17 @@ public sealed class InvoiceIssuanceService(
     IFiscalRecordRepository fiscalRecords,
     IFiscalChainRepository fiscalChains,
     IFiscalEngine fiscalEngine,
-    ITenantContext tenant) : IInvoiceIssuanceService
+    ITenantContext tenant,
+    IFiscalSystemProvider? systemProvider = null) : IInvoiceIssuanceService
 {
     private const int MaxAttempts = 4;
 
     private const string OutboxType = "fiscal.record.created";
     private const string OutboxStatusPending = "Pending";
+
+    private FiscalSystemIdentification Software => systemProvider?.Current ?? FiscalEngineSoftware.Current;
+    private bool IsSoftwareComplete => systemProvider?.IsComplete ?? FiscalEngineSoftware.IsComplete;
+    private string DescribeSoftware() => systemProvider?.Describe() ?? FiscalEngineSoftware.Describe();
 
     public async Task<Result<InvoiceIssueResult>> IssueAsync(
         Guid invoiceId, string series, CancellationToken ct)
@@ -84,11 +89,11 @@ public sealed class InvoiceIssuanceService(
         // fiscal. Si le falta un dato obligatorio, tampoco se emite: un nombre
         // de software o un numero de instalacion ficticios acabarian en un
         // documento dirigido a Hacienda.
-        if (!FiscalEngineSoftware.IsComplete)
+        if (!IsSoftwareComplete)
         {
             return Result<InvoiceIssueResult>.Failure(ApplicationErrors.Invalid(
                 "SYSTEM_IDENTIFICATION_NOT_CONFIGURED",
-                FiscalEngineSoftware.Describe(),
+                DescribeSoftware(),
                 "systemIdentification"));
         }
 
@@ -311,7 +316,7 @@ public sealed class InvoiceIssuanceService(
             {
                 TenantId = invoice.TenantId,
                 CompanyId = invoice.CompanyId,
-                InstallationId = FiscalEngineSoftware.Current.InstallationNumber,
+                InstallationId = Software.InstallationNumber,
                 LastRecordId = head.LastRecordId,
                 LastHash = head.LastHash,
                 UpdatedAt = issuedAt
@@ -325,7 +330,7 @@ public sealed class InvoiceIssuanceService(
             chain.UpdatedAt = issuedAt;
         }
 
-var software = FiscalEngineSoftware.Current;
+        var software = Software;
 
         var record = new FiscalRecord
         {
@@ -403,7 +408,7 @@ var software = FiscalEngineSoftware.Current;
             }
         }
 
-        var software = FiscalEngineSoftware.Current;
+        var software = Software;
 
         var xml = fiscalEngine.Xml.BuildAltaXml(new Verifactu.Xml.FiscalRecordXmlData
         {
@@ -422,7 +427,7 @@ var software = FiscalEngineSoftware.Current;
             SystemVersion = software.SystemVersion,
             InstallationNumber = software.InstallationNumber,
             ProducerName = software.ProducerName,
-            ProducerNif = software.ProducerNif,
+            ProducerNif = software.ProducerNif ?? string.Empty,
             TaxLines = taxLines,
             TaxTotal = invoice.TaxAmount,
             Total = invoice.Total,

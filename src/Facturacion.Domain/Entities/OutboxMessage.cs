@@ -14,4 +14,5 @@ public sealed class OutboxMessage : ITenantEntity
     public DateTimeOffset? NextAttemptAt { get; set; }
     public DateTimeOffset? ProcessedAt { get; set; }
     public string? LastError { get; set; }
+    public string? ClaimToken { get; set; }
 }

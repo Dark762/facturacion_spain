@@ -126,9 +126,163 @@ public sealed class AeatRecordXmlBuilder : IRecordXmlBuilder
     private static string Importe(decimal value) =>
         value.ToString("0.00", CultureInfo.InvariantCulture);
 
-    public string BuildAltaXml(FiscalRecordXmlData data) => Build(data, isAnulacion: false);
+    public string BuildAltaXml(FiscalRecordXmlData data)
+    {
+        ArgumentNullException.ThrowIfNull(data);
 
-    public string BuildAnulacionXml(FiscalRecordXmlData data) => Build(data, isAnulacion: true);
+        using var stream = new MemoryStream();
+        var settings = new XmlWriterSettings
+        {
+            Indent = true,
+            Encoding = new UTF8Encoding(false),   // UTF-8 sin BOM, como exige la AEAT
+            OmitXmlDeclaration = false
+        };
+
+        using (var writer = XmlWriter.Create(stream, settings))
+        {
+            writer.WriteStartElement("RegistroAlta", SuministroInformacionNs);
+
+            // --- orden segun RegistroFacturacionAltaType ---
+            writer.WriteElementString("IDVersion", SuministroInformacionNs, data.IdVersion);
+
+            // IDFactura
+            writer.WriteStartElement("IDFactura", SuministroInformacionNs);
+            writer.WriteElementString("IDEmisorFactura", SuministroInformacionNs, data.IssuerNif);
+            writer.WriteElementString("NumSerieFactura", SuministroInformacionNs, data.InvoiceNumber);
+            writer.WriteElementString("FechaExpedicionFactura", SuministroInformacionNs, Fecha(data.IssueDate));
+            writer.WriteEndElement();
+
+            writer.WriteElementString("NombreRazonEmisor", SuministroInformacionNs, data.IssuerName);
+
+            writer.WriteElementString("TipoFactura", SuministroInformacionNs, data.InvoiceType);
+
+            // DescripcionOperacion es obligatoria (posicion 13 del esquema).
+            writer.WriteElementString("DescripcionOperacion", SuministroInformacionNs, data.Description);
+
+            // Desglose
+            writer.WriteStartElement("Desglose", SuministroInformacionNs);
+            foreach (var line in data.TaxLines)
+            {
+                writer.WriteStartElement("DetalleDesglose", SuministroInformacionNs);
+                // Impuesto es un elemento de TEXTO con el codigo impositivo (01=IVA).
+                writer.WriteElementString("Impuesto", SuministroInformacionNs, line.TaxCode);
+                writer.WriteElementString("ClaveRegimen", SuministroInformacionNs, "01");
+
+                // El esquema obliga a elegir CalificacionOperacion u OperacionExenta.
+                writer.WriteElementString("CalificacionOperacion", SuministroInformacionNs,
+                    line.CalificacionOperacion);
+
+                // Con inversion del sujeto pasivo (S2) la AEAT exige informar
+                // tipo impositivo y cuota repercutida a cero: no se repercute aqui.
+                var invierte = line.CalificacionOperacion == "S2";
+
+                writer.WriteElementString("TipoImpositivo", SuministroInformacionNs,
+                    invierte ? "0.00" : Importe(line.TaxRate));
+                writer.WriteElementString("BaseImponibleOimporteNoSujeto", SuministroInformacionNs,
+                    Importe(line.BaseAmount));
+                writer.WriteElementString("CuotaRepercutida", SuministroInformacionNs,
+                    invierte ? "0.00" : Importe(line.TaxAmount));
+                writer.WriteEndElement();   // DetalleDesglose
+            }
+            writer.WriteEndElement();       // Desglose
+
+            writer.WriteElementString("CuotaTotal", SuministroInformacionNs, Importe(data.TaxTotal));
+            writer.WriteElementString("ImporteTotal", SuministroInformacionNs, Importe(data.Total));
+
+            WriteEncadenamiento(writer, data);
+            WriteSistemaInformatico(writer, data);
+
+            writer.WriteElementString("FechaHoraHusoGenRegistro", SuministroInformacionNs,
+                FechaHora(data.GeneratedAt));
+
+            writer.WriteElementString("TipoHuella", SuministroInformacionNs, "01");
+            writer.WriteElementString("Huella", SuministroInformacionNs, data.Hash);
+
+            writer.WriteEndElement();       // RegistroAlta
+            writer.Flush();
+        }
+
+        return System.Text.Encoding.UTF8.GetString(stream.ToArray());
+    }
+
+    public string BuildAnulacionXml(FiscalRecordXmlData data)
+    {
+        ArgumentNullException.ThrowIfNull(data);
+
+        using var stream = new MemoryStream();
+        var settings = new XmlWriterSettings
+        {
+            Indent = true,
+            Encoding = new UTF8Encoding(false),   // UTF-8 sin BOM
+            OmitXmlDeclaration = false
+        };
+
+        using (var writer = XmlWriter.Create(stream, settings))
+        {
+            writer.WriteStartElement("RegistroAnulacion", SuministroInformacionNs);
+
+            // --- orden segun RegistroFacturacionAnulacionType ---
+            writer.WriteElementString("IDVersion", SuministroInformacionNs, data.IdVersion);
+
+            // IDFactura segun IDFacturaExpedidaBajaType
+            writer.WriteStartElement("IDFactura", SuministroInformacionNs);
+            writer.WriteElementString("IDEmisorFacturaAnulada", SuministroInformacionNs, data.IssuerNif);
+            writer.WriteElementString("NumSerieFacturaAnulada", SuministroInformacionNs, data.InvoiceNumber);
+            writer.WriteElementString("FechaExpedicionFacturaAnulada", SuministroInformacionNs, Fecha(data.IssueDate));
+            writer.WriteEndElement();
+
+            WriteEncadenamiento(writer, data);
+            WriteSistemaInformatico(writer, data);
+
+            writer.WriteElementString("FechaHoraHusoGenRegistro", SuministroInformacionNs,
+                FechaHora(data.GeneratedAt));
+
+            writer.WriteElementString("TipoHuella", SuministroInformacionNs, "01");
+            writer.WriteElementString("Huella", SuministroInformacionNs, data.Hash);
+
+            writer.WriteEndElement();       // RegistroAnulacion
+            writer.Flush();
+        }
+
+        return System.Text.Encoding.UTF8.GetString(stream.ToArray());
+    }
+
+    private static void WriteEncadenamiento(XmlWriter writer, FiscalRecordXmlData data)
+    {
+        writer.WriteStartElement("Encadenamiento", SuministroInformacionNs);
+        if (data.IsFirstRecord)
+        {
+            writer.WriteElementString("PrimerRegistro", SuministroInformacionNs, "S");
+        }
+        else
+        {
+            writer.WriteStartElement("RegistroAnterior", SuministroInformacionNs);
+            writer.WriteElementString("IDEmisorFactura", SuministroInformacionNs,
+                data.PreviousIssuerNif ?? data.IssuerNif);
+            writer.WriteElementString("NumSerieFactura", SuministroInformacionNs,
+                data.PreviousInvoiceNumber ?? data.InvoiceNumber);
+            writer.WriteElementString("FechaExpedicionFactura", SuministroInformacionNs,
+                Fecha(data.PreviousIssueDate ?? data.IssueDate));
+            writer.WriteElementString("Huella", SuministroInformacionNs, data.PreviousHash ?? "");
+            writer.WriteEndElement();
+        }
+        writer.WriteEndElement();
+    }
+
+    private static void WriteSistemaInformatico(XmlWriter writer, FiscalRecordXmlData data)
+    {
+        writer.WriteStartElement("SistemaInformatico", SuministroInformacionNs);
+        writer.WriteElementString("NombreRazon", SuministroInformacionNs, data.ProducerName);
+        writer.WriteElementString("NIF", SuministroInformacionNs, data.ProducerNif);
+        writer.WriteElementString("NombreSistemaInformatico", SuministroInformacionNs, data.SystemName);
+        writer.WriteElementString("IdSistemaInformatico", SuministroInformacionNs, data.SystemId);
+        writer.WriteElementString("Version", SuministroInformacionNs, data.SystemVersion);
+        writer.WriteElementString("NumeroInstalacion", SuministroInformacionNs, data.InstallationNumber);
+        writer.WriteElementString("TipoUsoPosibleSoloVerifactu", SuministroInformacionNs, "N");
+        writer.WriteElementString("TipoUsoPosibleMultiOT", SuministroInformacionNs, "N");
+        writer.WriteElementString("IndicadorMultiplesOT", SuministroInformacionNs, "N");
+        writer.WriteEndElement();
+    }
 
     /// <summary>
     /// Envuelve el registro en RegFactuSistemaFacturacion con su Cabecera.
@@ -184,115 +338,6 @@ public sealed class AeatRecordXmlBuilder : IRecordXmlBuilder
             writer.WriteEndElement();   // RegistroFactura
 
             writer.WriteEndElement();   // RegFactuSistemaFacturacion
-            writer.Flush();
-        }
-
-        return System.Text.Encoding.UTF8.GetString(stream.ToArray());
-    }
-
-    private string Build(FiscalRecordXmlData data, bool isAnulacion)
-    {
-        ArgumentNullException.ThrowIfNull(data);
-
-        using var stream = new MemoryStream();
-        var settings = new XmlWriterSettings
-        {
-            Indent = true,
-            Encoding = new UTF8Encoding(false),   // UTF-8 sin BOM, como exige la AEAT
-            OmitXmlDeclaration = false
-        };
-
-        using (var writer = XmlWriter.Create(stream, settings))
-        {
-            writer.WriteStartElement(isAnulacion ? "RegistroAnulacion" : "RegistroAlta", SuministroInformacionNs);
-
-            // --- orden segun RegistroFacturacionAltaType ---
-            writer.WriteElementString("IDVersion", SuministroInformacionNs, data.IdVersion);
-
-            // IDFactura
-            writer.WriteStartElement("IDFactura", SuministroInformacionNs);
-            writer.WriteElementString("IDEmisorFactura", SuministroInformacionNs, data.IssuerNif);
-            writer.WriteElementString("NumSerieFactura", SuministroInformacionNs, data.InvoiceNumber);
-            writer.WriteElementString("FechaExpedicionFactura", SuministroInformacionNs, Fecha(data.IssueDate));
-            writer.WriteEndElement();
-
-            writer.WriteElementString("NombreRazonEmisor", SuministroInformacionNs, data.IssuerName);
-
-            writer.WriteElementString("TipoFactura", SuministroInformacionNs, data.InvoiceType);
-
-            // DescripcionOperacion es obligatoria (posicion 13 del esquema).
-            writer.WriteElementString("DescripcionOperacion", SuministroInformacionNs, data.Description);
-
-            // Desglose
-            writer.WriteStartElement("Desglose", SuministroInformacionNs);
-            foreach (var line in data.TaxLines)
-            {
-                writer.WriteStartElement("DetalleDesglose", SuministroInformacionNs);
-                // Impuesto es un elemento de TEXTO con el codigo impositivo (01=IVA).
-                writer.WriteElementString("Impuesto", SuministroInformacionNs, line.TaxCode);
-                writer.WriteElementString("ClaveRegimen", SuministroInformacionNs, "01");
-
-                // El esquema obliga a elegir CalificacionOperacion u OperacionExenta.
-                writer.WriteElementString("CalificacionOperacion", SuministroInformacionNs,
-                    line.CalificacionOperacion);
-
-                // Con inversion del sujeto pasivo (S2) la AEAT exige informar
-                // tipo impositivo y cuota repercutida a cero: no se repercute aqui.
-                var invierte = line.CalificacionOperacion == "S2";
-
-                writer.WriteElementString("TipoImpositivo", SuministroInformacionNs,
-                    invierte ? "0.00" : Importe(line.TaxRate));
-                writer.WriteElementString("BaseImponibleOimporteNoSujeto", SuministroInformacionNs,
-                    Importe(line.BaseAmount));
-                writer.WriteElementString("CuotaRepercutida", SuministroInformacionNs,
-                    invierte ? "0.00" : Importe(line.TaxAmount));
-                writer.WriteEndElement();   // DetalleDesglose
-            }
-            writer.WriteEndElement();       // Desglose
-
-            writer.WriteElementString("CuotaTotal", SuministroInformacionNs, Importe(data.TaxTotal));
-            writer.WriteElementString("ImporteTotal", SuministroInformacionNs, Importe(data.Total));
-
-            // Encadenamiento
-            writer.WriteStartElement("Encadenamiento", SuministroInformacionNs);
-            if (data.IsFirstRecord)
-            {
-                writer.WriteElementString("PrimerRegistro", SuministroInformacionNs, "S");
-            }
-            else
-            {
-                writer.WriteStartElement("RegistroAnterior", SuministroInformacionNs);
-                writer.WriteElementString("IDEmisorFactura", SuministroInformacionNs,
-                    data.PreviousIssuerNif ?? data.IssuerNif);
-                writer.WriteElementString("NumSerieFactura", SuministroInformacionNs,
-                    data.PreviousInvoiceNumber ?? data.InvoiceNumber);
-                writer.WriteElementString("FechaExpedicionFactura", SuministroInformacionNs,
-                    Fecha(data.PreviousIssueDate ?? data.IssueDate));
-                writer.WriteElementString("Huella", SuministroInformacionNs, data.PreviousHash ?? "");
-                writer.WriteEndElement();
-            }
-            writer.WriteEndElement();       // Encadenamiento
-
-            // SistemaInformatico
-            writer.WriteStartElement("SistemaInformatico", SuministroInformacionNs);
-            writer.WriteElementString("NombreRazon", SuministroInformacionNs, data.ProducerName);
-            writer.WriteElementString("NIF", SuministroInformacionNs, data.ProducerNif);
-            writer.WriteElementString("NombreSistemaInformatico", SuministroInformacionNs, data.SystemName);
-            writer.WriteElementString("IdSistemaInformatico", SuministroInformacionNs, data.SystemId);
-            writer.WriteElementString("Version", SuministroInformacionNs, data.SystemVersion);
-            writer.WriteElementString("NumeroInstalacion", SuministroInformacionNs, data.InstallationNumber);
-            writer.WriteElementString("TipoUsoPosibleSoloVerifactu", SuministroInformacionNs, "N");
-            writer.WriteElementString("TipoUsoPosibleMultiOT", SuministroInformacionNs, "N");
-            writer.WriteElementString("IndicadorMultiplesOT", SuministroInformacionNs, "N");
-            writer.WriteEndElement();       // SistemaInformatico
-
-            writer.WriteElementString("FechaHoraHusoGenRegistro", SuministroInformacionNs,
-                FechaHora(data.GeneratedAt));
-
-            writer.WriteElementString("TipoHuella", SuministroInformacionNs, "01");
-            writer.WriteElementString("Huella", SuministroInformacionNs, data.Hash);
-
-            writer.WriteEndElement();       // RegistroAlta / RegistroAnulacion
             writer.Flush();
         }
 

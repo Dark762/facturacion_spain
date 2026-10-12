@@ -45,14 +45,42 @@ public interface IOutboxMessageRepository
         TimeSpan lease,
         CancellationToken ct);
 
-    Task MarkProcessedAsync(Guid id, DateTimeOffset processedAt, CancellationToken ct);
+    /// <summary>
+    /// Reclama mensajes de un tipo específico de forma atómica.
+    /// Permite que cada procesador solo reclame los eventos que sabe atender.
+    /// </summary>
+    Task<IReadOnlyList<OutboxMessage>> ClaimPendingAsync(
+        int maxCount,
+        TimeSpan lease,
+        string? type,
+        CancellationToken ct);
+
+    Task<bool> MarkProcessedAsync(Guid id, DateTimeOffset processedAt, CancellationToken ct);
+
+    /// <summary>
+    /// Marca un mensaje como completado verificando que el worker conserva la reclamación activa.
+    /// Un worker con lease caducado que fue reclamado por otro worker será rechazado (devuelve false).
+    /// </summary>
+    Task<bool> MarkProcessedAsync(Guid id, string? claimToken, DateTimeOffset processedAt, CancellationToken ct);
 
     /// <summary>
     /// Registra un fallo y reprograma el reintento con espera creciente. Al
     /// agotar los intentos el mensaje queda en Failed y no vuelve a la cola.
     /// </summary>
-    Task MarkFailedAsync(
+    Task<bool> MarkFailedAsync(
         Guid id,
+        DateTimeOffset now,
+        string error,
+        int maxAttempts,
+        TimeSpan baseDelay,
+        CancellationToken ct);
+
+    /// <summary>
+    /// Registra un fallo verificando que el worker conserva la reclamación activa.
+    /// </summary>
+    Task<bool> MarkFailedAsync(
+        Guid id,
+        string? claimToken,
         DateTimeOffset now,
         string error,
         int maxAttempts,

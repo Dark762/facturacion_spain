@@ -292,6 +292,7 @@ CREATE TABLE [OutboxMessages] (
     [NextAttemptAt] datetimeoffset NULL,
     [ProcessedAt] datetimeoffset NULL,
     [LastError] nvarchar(max) NULL,
+    [ClaimToken] nvarchar(64) NULL,
     CONSTRAINT [PK_OutboxMessages] PRIMARY KEY ([Id]),
     CONSTRAINT [AK_OutboxMessages_TenantId_Id] UNIQUE ([TenantId], [Id])
 );

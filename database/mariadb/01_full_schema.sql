@@ -867,6 +867,7 @@ CREATE TABLE `outboxmessages` (
   `NextAttemptAt` datetime(6) DEFAULT NULL,
   `ProcessedAt` datetime(6) DEFAULT NULL,
   `LastError` longtext DEFAULT NULL,
+  `ClaimToken` varchar(64) DEFAULT NULL,
   PRIMARY KEY (`Id`),
   UNIQUE KEY `AK_OutboxMessages_TenantId_Id` (`TenantId`,`Id`),
   KEY `IX_OutboxMessage_Pending` (`TenantId`,`Status`,`NextAttemptAt`),

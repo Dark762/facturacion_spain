@@ -121,6 +121,27 @@ public sealed class SystemIdentificationTests
         Assert.Equal("INSTALACION-XYZ", FiscalEngineSoftware.Current.InstallationNumber);
         Assert.True(FiscalEngineSoftware.IsComplete);
     }
+
+    [Fact]
+    public void Proveedor_inyectado_por_di_aisla_la_configuracion_sin_mutar_estado_global()
+    {
+        var globalOriginal = FiscalEngineSoftware.Current;
+
+        var customIdentification = Valid() with
+        {
+            InstallationNumber = "INSTALACION-AISLADA-DI",
+            SystemName = "SistemaCustomDI"
+        };
+
+        var provider = new FiscalSystemProvider(customIdentification);
+
+        Assert.True(provider.IsComplete);
+        Assert.Equal("INSTALACION-AISLADA-DI", provider.Current.InstallationNumber);
+        Assert.Equal("SistemaCustomDI", provider.Current.SystemName);
+
+        // El estado global permanece inalterado
+        Assert.Equal(globalOriginal, FiscalEngineSoftware.Current);
+    }
 }
 
 /// <summary>Acceso al helper sin exponerlo como parte del dominio.</summary>

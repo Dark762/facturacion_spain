@@ -21,6 +21,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Facturacion.Api\Facturacion.Api.csproj" />
+    <ProjectReference Include="..\..\src\Facturacion.Workers\Facturacion.Workers.csproj" />
   </ItemGroup>
 
   <ItemGroup>

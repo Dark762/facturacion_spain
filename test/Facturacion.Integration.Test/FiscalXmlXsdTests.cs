@@ -197,6 +197,49 @@ public sealed class FiscalXmlXsdTests
     }
 
     [Fact]
+    public void Un_registro_de_anulacion_valida_contra_el_esquema_oficial()
+    {
+        var record = Builder().BuildAnulacionXml(Sample());
+        var xml = Builder().BuildSubmissionXml("EMPRESA DEMO", "89890001K", record);
+
+        var result = Validator().Validate(xml);
+
+        Assert.True(result.IsValid, result.Summary);
+    }
+
+    [Fact]
+    public void Un_registro_de_anulacion_encadenado_tambien_valida()
+    {
+        var record = Builder().BuildAnulacionXml(Sample(isFirst: false));
+        var xml = Builder().BuildSubmissionXml("EMPRESA DEMO", "89890001K", record);
+
+        var result = Validator().Validate(xml);
+
+        Assert.True(result.IsValid, result.Summary);
+    }
+
+    [Fact]
+    public void Un_registro_con_namespace_invalido_se_rechaza()
+    {
+        var record = Builder().BuildAltaXml(Sample());
+        var xml = Builder().BuildSubmissionXml("EMPRESA DEMO", "89890001K", record)
+            .Replace("https://www2.agenciatributaria.gob.es/static_files/common/internet/dep/aplicaciones/es/aeat/tike/cont/ws/SuministroLR.xsd", "urn:namespace-falso");
+
+        Assert.False(Validator().Validate(xml).IsValid);
+    }
+
+    [Fact]
+    public void Un_validador_con_directorio_inexistente_falla_seguro()
+    {
+        var validator = new AeatXsdValidator(Path.Combine(AppContext.BaseDirectory, "no_existe_directorio_xsd"));
+        Assert.False(validator.IsAvailable);
+
+        var res = validator.Validate("<test/>");
+        Assert.False(res.IsValid);
+        Assert.Contains("no estan disponibles", res.Summary);
+    }
+
+    [Fact]
     public void El_xml_se_genera_en_utf8_sin_BOM()
     {
         var xml = Builder().BuildAltaXml(Sample());

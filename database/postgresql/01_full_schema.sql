@@ -239,6 +239,7 @@ CREATE TABLE "OutboxMessages" (
     "NextAttemptAt" timestamp with time zone,
     "ProcessedAt" timestamp with time zone,
     "LastError" text,
+    "ClaimToken" character varying(64),
     CONSTRAINT "PK_OutboxMessages" PRIMARY KEY ("Id"),
     CONSTRAINT "AK_OutboxMessages_TenantId_Id" UNIQUE ("TenantId", "Id")
 );

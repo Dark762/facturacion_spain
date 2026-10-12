@@ -164,4 +164,80 @@ public sealed class FiscalEngineFailClosedTests : IClassFixture<BillingDatabaseF
         Assert.Equal(string.Empty, records[0].PreviousHash);
         Assert.Equal(records[0].Hash, records[1].PreviousHash);
     }
+
+    // ---------- Bloqueos especificos de la Fase 4 ----------
+
+    [Fact]
+    public void Emision_bloqueada_cuando_faltan_esquemas_xsd()
+    {
+        var nonExistentDir = Path.Combine(AppContext.BaseDirectory, "carpeta_inexistente_xsd_" + Guid.NewGuid().ToString("N"));
+        var validator = new Facturacion.Verifactu.Xml.AeatXsdValidator(nonExistentDir);
+
+        Assert.False(validator.IsAvailable);
+
+        var engine = new FiscalEngine(
+            new Facturacion.Verifactu.Validation.Verifier(),
+            new Facturacion.Verifactu.Canonicalization.AeatRecordCanonicalizer(),
+            new Facturacion.Verifactu.Fingerprints.Sha256FingerprintCalculator(new Facturacion.Verifactu.Canonicalization.AeatRecordCanonicalizer()),
+            new Facturacion.Verifactu.Chain.FiscalChainWalker(),
+            new Facturacion.Verifactu.Xml.AeatRecordXmlBuilder(),
+            validator,
+            new Facturacion.Verifactu.Qr.UnavailableQrGenerator());
+
+        Assert.False(engine.IsReadyForIssuance);
+        Assert.Contains(nameof(Facturacion.Verifactu.Xml.IXsdValidator), engine.Blockers);
+    }
+
+    [Fact]
+    public async Task Emision_bloqueada_cuando_identificacion_fiscal_es_invalida()
+    {
+        var seeded = _fixture.Seed();
+        using var scope = _fixture.CreateScope(seeded.TenantId);
+
+        var invoices = scope.ServiceProvider.GetRequiredService<IInvoiceApplicationService>();
+        var created = await invoices.CreateDraftAsync(Draft(seeded), CancellationToken.None);
+
+        var invalidIdentification = new FiscalSystemIdentification
+        {
+            ProducerName = "", // Invalido: vacio
+            SystemName = "Test"
+        };
+        var systemProvider = new FiscalSystemProvider(invalidIdentification);
+
+        var service = new InvoiceIssuanceService(
+            scope.ServiceProvider.GetRequiredService<IInvoiceRepository>(),
+            scope.ServiceProvider.GetRequiredService<IInvoiceSequenceRepository>(),
+            scope.ServiceProvider.GetRequiredService<IUnitOfWork>(),
+            scope.ServiceProvider.GetRequiredService<ICompanyAuthorizationService>(),
+            scope.ServiceProvider.GetRequiredService<IOutboxMessageRepository>(),
+            scope.ServiceProvider.GetRequiredService<IFiscalRecordRepository>(),
+            scope.ServiceProvider.GetRequiredService<IFiscalChainRepository>(),
+            scope.ServiceProvider.GetRequiredService<IFiscalEngine>(),
+            scope.ServiceProvider.GetRequiredService<ITenantContext>(),
+            systemProvider);
+
+        var result = await service.IssueAsync(created.Value.Id, "SERIEINV", CancellationToken.None);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("SYSTEM_IDENTIFICATION_NOT_CONFIGURED", result.Errors[0].Code);
+    }
+
+    [Fact]
+    public void Emision_bloqueada_cuando_falta_componente_obligatorio_qr()
+    {
+        var qr = new Facturacion.Verifactu.Qr.UnavailableQrGenerator();
+        Assert.False(qr.IsAvailable);
+
+        var engine = new FiscalEngine(
+            new Facturacion.Verifactu.Validation.Verifier(),
+            new Facturacion.Verifactu.Canonicalization.AeatRecordCanonicalizer(),
+            new Facturacion.Verifactu.Fingerprints.Sha256FingerprintCalculator(new Facturacion.Verifactu.Canonicalization.AeatRecordCanonicalizer()),
+            new Facturacion.Verifactu.Chain.FiscalChainWalker(),
+            new Facturacion.Verifactu.Xml.AeatRecordXmlBuilder(),
+            new Facturacion.Verifactu.Xml.AeatXsdValidator(Path.Combine(AppContext.BaseDirectory, "xsd")),
+            qr);
+
+        Assert.False(engine.IsReadyForIssuance);
+        Assert.Contains(nameof(Facturacion.Verifactu.Qr.IQrGenerator), engine.Blockers);
+    }
 }

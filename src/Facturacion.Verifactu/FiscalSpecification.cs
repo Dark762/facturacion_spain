@@ -103,20 +103,18 @@ public static class FiscalSpecification
                 "Encadenamiento y verificacion de la cadena. Usa el algoritmo ya confirmado."),
 
             new FiscalComponent(
-                nameof(Xml.IRecordXmlBuilder), FiscalComponentStatus.Unavailable_MissingSpecification,
-                "La estructura XML debe validar contra los XSD oficiales, que no se han descargado " +
-                "ni contrastado en esta entrega.",
+                nameof(Xml.IRecordXmlBuilder), FiscalComponentStatus.Available_Verified,
+                "Construccion de documentos XML de alta y anulacion contrastada con los esquemas oficiales SuministroInformacion.xsd y SuministroLR.xsd.",
                 ReferenceUrl),
 
             new FiscalComponent(
-                nameof(Xml.IXsdValidator), FiscalComponentStatus.Unavailable_MissingSpecification,
-                "Requiere los esquemas XSD oficiales de la AEAT.",
+                nameof(Xml.IXsdValidator), FiscalComponentStatus.Available_Verified,
+                "Validacion local contra esquemas oficiales de la AEAT con modo seguro (DtdProcessing.Prohibit, sin resolucion remota).",
                 ReferenceUrl),
 
             new FiscalComponent(
                 nameof(Qr.IQrGenerator), FiscalComponentStatus.Unavailable_MissingSpecification,
-                "El formato del QR y sus parametros no se han verificado. La FAQ oficial confirma " +
-                "que la huella NO forma parte del QR, pero el resto de parametros siguen sin verificar.",
+                "El formato del QR y sus parametros no se han verificado. La normativa (RD 1007/2023 art. 15 y Orden HAC/1177/2024 art. 8) exige el codigo QR en la factura.",
                 ReferenceUrl));
 
     /// <summary>Componentes sin los cuales no se puede emitir.</summary>
@@ -128,7 +126,8 @@ public static class FiscalSpecification
             nameof(Fingerprints.Sha256FingerprintCalculator),
             nameof(Chain.FiscalChainWalker),
             nameof(Xml.IRecordXmlBuilder),
-            nameof(Xml.IXsdValidator));
+            nameof(Xml.IXsdValidator),
+            nameof(Qr.IQrGenerator));
 
     /// <summary>Componentes que bloquean la emision porque no se han verificado.</summary>
     public static ImmutableArray<string> BlockingComponents { get; } =
