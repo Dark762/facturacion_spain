@@ -184,7 +184,7 @@ public sealed class OutboxMessageRepository : IOutboxMessageRepository
 
         var affected = await _db.OutboxMessages
             .IgnoreQueryFilters()
-            .Where(x => x.Id == id && x.Status == OutboxStatus.Processing && x.ClaimToken == claimToken)
+            .Where(x => x.Id == id && x.Status == OutboxStatus.Processing && x.ClaimToken == claimToken && x.NextAttemptAt != null && x.NextAttemptAt > processedAt)
             .ExecuteUpdateAsync(setters => setters
                 .SetProperty(x => x.Status, OutboxStatus.Completed)
                 .SetProperty(x => x.ProcessedAt, (DateTimeOffset?)processedAt)

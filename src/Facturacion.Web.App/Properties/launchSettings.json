@@ -1,0 +1,12 @@
+{
+  "profiles": {
+    "Facturacion.Web.App": {
+      "commandName": "Project",
+      "launchBrowser": true,
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      },
+      "applicationUrl": "https://localhost:65291;http://localhost:65293"
+    }
+  }
+}
