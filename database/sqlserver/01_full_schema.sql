@@ -1,3 +1,74 @@
+-- =====================================================================
+-- Facturacion SaaS - Esquema completo e idempotente para SQL SERVER
+--
+-- Script UNICO de despliegue: crea el esquema Y aplica el endurecimiento
+-- de facturas. No hay un segundo archivo que recordar.
+--
+--   sqlcmd -S localhost -d facturacion_saas -i 01_full_schema.sql
+--
+-- IDEMPOTENTE: se puede reaplicar sin error.
+--
+-- ADVERTENCIA: es DESTRUCTIVO. Empieza droppeando las tablas, asi que
+-- ejecutar este script sobre una base con datos los borra. Es un script de
+-- instalacion, no de actualizacion.
+--
+-- Verificado ejecutandolo contra SQL Server 2025 real (LocalDB).
+-- =====================================================================
+SET QUOTED_IDENTIFIER ON;
+GO
+SET ANSI_NULLS ON;
+GO
+
+-- ---------------------------------------------------------------------
+-- 0. Reaplicabilidad. Primero se sueltan las claves foraneas: SQL Server no
+--    tiene CASCADE, y asi el orden de borrado de tablas es indiferente.
+-- ---------------------------------------------------------------------
+DECLARE @dropFk NVARCHAR(MAX) = N'';
+SELECT @dropFk = @dropFk + N'ALTER TABLE ' + QUOTENAME(OBJECT_NAME([parent_object_id]))
+       + N' DROP CONSTRAINT ' + QUOTENAME([name]) + N';'
+FROM sys.foreign_keys;
+EXEC sp_executesql @dropFk;
+GO
+
+IF OBJECT_ID('AeatSubmissions', 'U') IS NOT NULL DROP TABLE [AeatSubmissions];
+IF OBJECT_ID('AspNetRoleClaims', 'U') IS NOT NULL DROP TABLE [AspNetRoleClaims];
+IF OBJECT_ID('AspNetRoles', 'U') IS NOT NULL DROP TABLE [AspNetRoles];
+IF OBJECT_ID('AspNetUserClaims', 'U') IS NOT NULL DROP TABLE [AspNetUserClaims];
+IF OBJECT_ID('AspNetUserLogins', 'U') IS NOT NULL DROP TABLE [AspNetUserLogins];
+IF OBJECT_ID('AspNetUserRoles', 'U') IS NOT NULL DROP TABLE [AspNetUserRoles];
+IF OBJECT_ID('AspNetUsers', 'U') IS NOT NULL DROP TABLE [AspNetUsers];
+IF OBJECT_ID('AspNetUserTokens', 'U') IS NOT NULL DROP TABLE [AspNetUserTokens];
+IF OBJECT_ID('AuditEvents', 'U') IS NOT NULL DROP TABLE [AuditEvents];
+IF OBJECT_ID('B2BTransmissions', 'U') IS NOT NULL DROP TABLE [B2BTransmissions];
+IF OBJECT_ID('Companys', 'U') IS NOT NULL DROP TABLE [Companys];
+IF OBJECT_ID('CompanyUsers', 'U') IS NOT NULL DROP TABLE [CompanyUsers];
+IF OBJECT_ID('Customers', 'U') IS NOT NULL DROP TABLE [Customers];
+IF OBJECT_ID('ElectronicDocuments', 'U') IS NOT NULL DROP TABLE [ElectronicDocuments];
+IF OBJECT_ID('FiscalChains', 'U') IS NOT NULL DROP TABLE [FiscalChains];
+IF OBJECT_ID('FiscalRecords', 'U') IS NOT NULL DROP TABLE [FiscalRecords];
+IF OBJECT_ID('InvoiceLines', 'U') IS NOT NULL DROP TABLE [InvoiceLines];
+IF OBJECT_ID('InvoicePayments', 'U') IS NOT NULL DROP TABLE [InvoicePayments];
+IF OBJECT_ID('Invoices', 'U') IS NOT NULL DROP TABLE [Invoices];
+IF OBJECT_ID('InvoiceSequences', 'U') IS NOT NULL DROP TABLE [InvoiceSequences];
+IF OBJECT_ID('InvoiceStatusEvents', 'U') IS NOT NULL DROP TABLE [InvoiceStatusEvents];
+IF OBJECT_ID('InvoiceTaxBreakdowns', 'U') IS NOT NULL DROP TABLE [InvoiceTaxBreakdowns];
+IF OBJECT_ID('OutboxMessages', 'U') IS NOT NULL DROP TABLE [OutboxMessages];
+IF OBJECT_ID('ProcessedPaymentEvents', 'U') IS NOT NULL DROP TABLE [ProcessedPaymentEvents];
+IF OBJECT_ID('ProvisioningOperations', 'U') IS NOT NULL DROP TABLE [ProvisioningOperations];
+IF OBJECT_ID('RegistrationIntents', 'U') IS NOT NULL DROP TABLE [RegistrationIntents];
+IF OBJECT_ID('SubscriptionPlans', 'U') IS NOT NULL DROP TABLE [SubscriptionPlans];
+IF OBJECT_ID('SubscriptionStates', 'U') IS NOT NULL DROP TABLE [SubscriptionStates];
+IF OBJECT_ID('tenant_invitations', 'U') IS NOT NULL DROP TABLE [tenant_invitations];
+IF OBJECT_ID('Tenants', 'U') IS NOT NULL DROP TABLE [Tenants];
+IF OBJECT_ID('TenantUsers', 'U') IS NOT NULL DROP TABLE [TenantUsers];
+GO
+
+SET QUOTED_IDENTIFIER ON;
+GO
+
+SET ANSI_NULLS ON;
+GO
+
 -- ============================================================
 -- Facturacion SaaS - Esquema base (baseline) para SQL Server
 -- GENERADO DESDE EL MODELO EF CORE (Database First).
@@ -201,8 +272,8 @@ CREATE TABLE [AuditEvents] (
     [Action] nvarchar(100) NOT NULL,
     [UserId] nvarchar(450) NULL,
     [OccurredAt] datetimeoffset NOT NULL,
-    [PreviousValues] longtext NULL,
-    [NewValues] longtext NULL,
+    [PreviousValues] nvarchar(max) NULL,
+    [NewValues] nvarchar(max) NULL,
     CONSTRAINT [PK_AuditEvents] PRIMARY KEY ([Id]),
     CONSTRAINT [AK_AuditEvents_TenantId_Id] UNIQUE ([TenantId], [Id])
 );
@@ -214,13 +285,13 @@ CREATE TABLE [OutboxMessages] (
     [TenantId] uniqueidentifier NOT NULL,
     [Type] nvarchar(100) NOT NULL,
     [AggregateId] nvarchar(100) NOT NULL,
-    [Payload] longtext NOT NULL,
+    [Payload] nvarchar(max) NOT NULL,
     [Status] nvarchar(32) NOT NULL,
     [Attempts] int NOT NULL,
     [CreatedAt] datetimeoffset NOT NULL,
     [NextAttemptAt] datetimeoffset NULL,
     [ProcessedAt] datetimeoffset NULL,
-    [LastError] longtext NULL,
+    [LastError] nvarchar(max) NULL,
     CONSTRAINT [PK_OutboxMessages] PRIMARY KEY ([Id]),
     CONSTRAINT [AK_OutboxMessages_TenantId_Id] UNIQUE ([TenantId], [Id])
 );
@@ -344,7 +415,7 @@ CREATE TABLE [ElectronicDocuments] (
     [Format] nvarchar(50) NOT NULL,
     [FormatVersion] nvarchar(30) NOT NULL,
     [DocumentNumber] nvarchar(80) NOT NULL,
-    [XmlPayload] longtext NOT NULL,
+    [XmlPayload] nvarchar(max) NOT NULL,
     [ContentHash] nvarchar(128) NOT NULL,
     [CreatedAt] datetimeoffset NOT NULL,
     CONSTRAINT [PK_ElectronicDocuments] PRIMARY KEY ([Id]),
@@ -366,7 +437,7 @@ CREATE TABLE [FiscalRecords] (
     [SoftwareName] nvarchar(200) NOT NULL,
     [SoftwareVersion] nvarchar(50) NOT NULL,
     [InstallationId] nvarchar(100) NOT NULL,
-    [XmlPayload] longtext NOT NULL,
+    [XmlPayload] nvarchar(max) NOT NULL,
     [SubmissionStatus] int NOT NULL,
     CONSTRAINT [PK_FiscalRecords] PRIMARY KEY ([Id]),
     CONSTRAINT [AK_FiscalRecords_TenantId_Id] UNIQUE ([TenantId], [Id]),
@@ -420,7 +491,7 @@ CREATE TABLE [InvoiceStatusEvents] (
     [OccurredAt] datetimeoffset NOT NULL,
     [ReportedAt] datetimeoffset NULL,
     [ExternalReference] nvarchar(200) NULL,
-    [Payload] longtext NULL,
+    [Payload] nvarchar(max) NULL,
     CONSTRAINT [PK_InvoiceStatusEvents] PRIMARY KEY ([Id]),
     CONSTRAINT [AK_InvoiceStatusEvents_TenantId_Id] UNIQUE ([TenantId], [Id]),
     CONSTRAINT [FK_InvoiceStatusEvents_Invoices_TenantId_InvoiceId] FOREIGN KEY ([TenantId], [InvoiceId]) REFERENCES [Invoices] ([TenantId], [Id]) ON DELETE NO ACTION
@@ -457,8 +528,8 @@ CREATE TABLE [B2BTransmissions] (
     [Status] int NOT NULL,
     [SubmittedAt] datetimeoffset NULL,
     [AcknowledgedAt] datetimeoffset NULL,
-    [RequestPayload] longtext NULL,
-    [ResponsePayload] longtext NULL,
+    [RequestPayload] nvarchar(max) NULL,
+    [ResponsePayload] nvarchar(max) NULL,
     [ErrorCode] nvarchar(80) NULL,
     [ErrorDescription] nvarchar(1000) NULL,
     CONSTRAINT [PK_B2BTransmissions] PRIMARY KEY ([Id]),
@@ -478,8 +549,8 @@ CREATE TABLE [AeatSubmissions] (
     [Csv] nvarchar(150) NULL,
     [ErrorCode] nvarchar(80) NULL,
     [ErrorDescription] nvarchar(1000) NULL,
-    [RequestXml] longtext NOT NULL,
-    [ResponseXml] longtext NULL,
+    [RequestXml] nvarchar(max) NOT NULL,
+    [ResponseXml] nvarchar(max) NULL,
     CONSTRAINT [PK_AeatSubmissions] PRIMARY KEY ([Id]),
     CONSTRAINT [AK_AeatSubmissions_TenantId_Id] UNIQUE ([TenantId], [Id]),
     CONSTRAINT [FK_AeatSubmissions_FiscalRecords_TenantId_FiscalRecordId] FOREIGN KEY ([TenantId], [FiscalRecordId]) REFERENCES [FiscalRecords] ([TenantId], [Id]) ON DELETE NO ACTION
@@ -645,3 +716,285 @@ GO
 
 CREATE UNIQUE INDEX [IX_SubscriptionStates_TenantId] ON [SubscriptionStates] ([TenantId]);
 GO
+
+SET QUOTED_IDENTIFIER ON;
+GO
+SET XACT_ABORT ON;
+GO
+
+-- ---------------------------------------------------------------------
+-- 1. Objetos previos (para poder reejecutar)
+-- ---------------------------------------------------------------------
+IF OBJECT_ID('trg_Invoices_ProtectIssued', 'TR') IS NOT NULL DROP TRIGGER [trg_Invoices_ProtectIssued];
+IF OBJECT_ID('trg_InvoiceLines_ProtectIssued', 'TR') IS NOT NULL DROP TRIGGER [trg_InvoiceLines_ProtectIssued];
+IF OBJECT_ID('trg_InvoiceTaxBreakdowns_ProtectIssued', 'TR') IS NOT NULL DROP TRIGGER [trg_InvoiceTaxBreakdowns_ProtectIssued];
+GO
+
+IF EXISTS (SELECT 1 FROM sys.check_constraints WHERE name = 'CK_Invoices_NumberPair')
+    ALTER TABLE [Invoices] DROP CONSTRAINT [CK_Invoices_NumberPair];
+IF EXISTS (SELECT 1 FROM sys.check_constraints WHERE name = 'CK_Invoices_IssuedNumber')
+    ALTER TABLE [Invoices] DROP CONSTRAINT [CK_Invoices_IssuedNumber];
+GO
+
+-- ---------------------------------------------------------------------
+-- 2. Serie y numero opcionales
+--    El indice unico filtrado depende de estas columnas, asi que hay que
+--    soltarlo antes de alterarlas (Msg 4922) y recrearlo despues.
+-- ---------------------------------------------------------------------
+IF EXISTS (SELECT 1 FROM sys.indexes
+           WHERE object_id = OBJECT_ID('Invoices')
+             AND name = 'IX_Invoices_TenantId_CompanyId_Series_Number')
+    DROP INDEX [IX_Invoices_TenantId_CompanyId_Series_Number] ON [Invoices];
+GO
+
+IF COL_LENGTH('Invoices', 'Series') IS NOT NULL
+    ALTER TABLE [Invoices] ALTER COLUMN [Series] NVARCHAR(32) NULL;
+IF COL_LENGTH('Invoices', 'Number') IS NOT NULL
+    ALTER TABLE [Invoices] ALTER COLUMN [Number] NVARCHAR(40) NULL;
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes
+               WHERE object_id = OBJECT_ID('Invoices')
+                 AND name = 'IX_Invoices_TenantId_CompanyId_Series_Number')
+    CREATE UNIQUE INDEX [IX_Invoices_TenantId_CompanyId_Series_Number]
+        ON [Invoices] ([TenantId], [CompanyId], [Series], [Number])
+        WHERE [Series] IS NOT NULL AND [Number] IS NOT NULL;
+GO
+
+-- ---------------------------------------------------------------------
+-- 3. Restricciones CHECK
+-- ---------------------------------------------------------------------
+ALTER TABLE [Invoices] WITH CHECK
+    ADD CONSTRAINT [CK_Invoices_NumberPair]
+    CHECK (([Series] IS NULL AND [Number] IS NULL) OR
+           ([Series] IS NOT NULL AND [Number] IS NOT NULL
+            AND LTRIM(RTRIM([Series])) <> '' AND LTRIM(RTRIM([Number])) <> ''));
+
+ALTER TABLE [Invoices] WITH CHECK
+    ADD CONSTRAINT [CK_Invoices_IssuedNumber]
+    CHECK (([Status] <> 1 AND [IssuedAt] IS NULL) OR
+           ([Series] IS NOT NULL AND [Number] IS NOT NULL));
+GO
+
+-- ---------------------------------------------------------------------
+-- 4. Cabecera: inmutabilidad de la factura emitida
+-- ---------------------------------------------------------------------
+CREATE TRIGGER [trg_Invoices_ProtectIssued]
+ON [Invoices]
+INSTEAD OF UPDATE, DELETE
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET QUOTED_IDENTIFIER ON;
+
+    -- No se usa @@ROWCOUNT: los SET de la sesion lo alteran y el UPDATE
+    -- acababa descartado en silencio. Se decide sobre el contenido real.
+    IF NOT EXISTS (SELECT 1 FROM inserted) AND NOT EXISTS (SELECT 1 FROM deleted)
+        RETURN;
+
+    -- Volver a borrador seria deshacer una numeracion ya comunicada.
+    IF UPDATE([Status]) AND EXISTS (
+        SELECT 1 FROM inserted i
+        JOIN deleted d ON d.[Id] = i.[Id]
+        WHERE (d.[IssuedAt] IS NOT NULL OR d.[Status] = 1) AND i.[Status] = 0)
+    BEGIN
+        THROW 50000, 'An issued invoice cannot return to draft', 1;
+    END
+
+    -- Todo lo demas congelado. EXCEPT se usa porque en T-SQL no existe un
+    -- "<> NULL-safe": comparar con ISNULL sobre una expresion booleana es
+    -- error de sintaxis (Msg 102). EXCEPT ya considera NULL igual a NULL,
+    -- que es justo lo buscado: dos NULL significa "sin cambios".
+    -- Si se anade una columna a Invoices, debe anadirse aqui.
+    IF EXISTS (
+        SELECT 1
+        FROM inserted i
+        JOIN deleted d ON d.[Id] = i.[Id]
+        WHERE (d.[IssuedAt] IS NOT NULL OR d.[Status] = 1)
+          AND EXISTS (
+                SELECT i.[Id], i.[TenantId], i.[CompanyId], i.[CustomerId],
+                       i.[Series], i.[Number], i.[Type], i.[IssueDate],
+                       i.[OperationDate], i.[DueDate], i.[Currency],
+                       i.[TaxableBase], i.[TaxAmount], i.[WithholdingAmount],
+                       i.[Total], i.[IssuerNif], i.[IssuerName],
+                       i.[CustomerTaxId], i.[CustomerName],
+                       i.[CorrectedInvoiceId], i.[IssuedAt]
+                EXCEPT
+                SELECT d.[Id], d.[TenantId], d.[CompanyId], d.[CustomerId],
+                       d.[Series], d.[Number], d.[Type], d.[IssueDate],
+                       d.[OperationDate], d.[DueDate], d.[Currency],
+                       d.[TaxableBase], d.[TaxAmount], d.[WithholdingAmount],
+                       d.[Total], d.[IssuerNif], d.[IssuerName],
+                       d.[CustomerTaxId], d.[CustomerName],
+                       d.[CorrectedInvoiceId], d.[IssuedAt]
+              ))
+    BEGIN
+        THROW 50000, 'Issued invoice fiscal fields are immutable', 1;
+    END
+
+    -- Solo aplica a DELETE. En un UPDATE la pseudo-tabla deleted tambien
+    -- esta poblada, asi que sin comprobar inserted una simple anulacion se
+    -- interpretaria como un borrado.
+    IF EXISTS (SELECT 1 FROM deleted d
+               WHERE d.[IssuedAt] IS NOT NULL OR d.[Status] = 1)
+       AND NOT EXISTS (SELECT 1 FROM inserted)
+    BEGIN
+        THROW 50000, 'Issued invoices cannot be deleted', 1;
+    END
+
+    -- Reejecutar la operacion original. INSERT/UPDATE/DELETE no ocurren
+    -- solos en un trigger INSTEAD OF.
+    IF EXISTS (SELECT 1 FROM inserted) AND EXISTS (SELECT 1 FROM deleted)   -- UPDATE
+    BEGIN
+        UPDATE [Invoices]
+        SET [TenantId] = i.[TenantId], [CompanyId] = i.[CompanyId],
+            [CustomerId] = i.[CustomerId], [Series] = i.[Series], [Number] = i.[Number],
+            [Type] = i.[Type], [Status] = i.[Status], [IssueDate] = i.[IssueDate],
+            [OperationDate] = i.[OperationDate], [DueDate] = i.[DueDate],
+            [Currency] = i.[Currency], [TaxableBase] = i.[TaxableBase],
+            [TaxAmount] = i.[TaxAmount], [WithholdingAmount] = i.[WithholdingAmount],
+            [Total] = i.[Total], [IssuerNif] = i.[IssuerNif], [IssuerName] = i.[IssuerName],
+            [CustomerTaxId] = i.[CustomerTaxId], [CustomerName] = i.[CustomerName],
+            [CorrectedInvoiceId] = i.[CorrectedInvoiceId], [IssuedAt] = i.[IssuedAt]
+        FROM inserted i
+        WHERE [Invoices].[Id] = i.[Id];
+    END
+
+    IF EXISTS (SELECT 1 FROM deleted) AND NOT EXISTS (SELECT 1 FROM inserted)   -- DELETE
+    BEGIN
+        DELETE [Invoices] WHERE [Id] IN (SELECT [Id] FROM deleted);
+    END
+END;
+GO
+
+-- ---------------------------------------------------------------------
+-- 5. Lineas: sin trigger sobre la cabecera, el detalle de una factura
+--    emitida se podria reescribir o borrar por completo.
+-- ---------------------------------------------------------------------
+CREATE TRIGGER [trg_InvoiceLines_ProtectIssued]
+ON [InvoiceLines]
+INSTEAD OF INSERT, UPDATE, DELETE
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET QUOTED_IDENTIFIER ON;
+
+    IF NOT EXISTS (SELECT 1 FROM inserted) AND NOT EXISTS (SELECT 1 FROM deleted)
+        RETURN;
+
+    IF EXISTS (
+        SELECT 1 FROM inserted i
+        JOIN [Invoices] inv
+          ON inv.[TenantId] = i.[TenantId] AND inv.[Id] = i.[InvoiceId]
+        WHERE inv.[IssuedAt] IS NOT NULL OR inv.[Status] = 1)
+    BEGIN
+        THROW 50000, 'Invoice lines of an issued invoice are immutable', 1;
+    END
+
+    IF EXISTS (
+        SELECT 1 FROM deleted d
+        JOIN [Invoices] inv
+          ON inv.[TenantId] = d.[TenantId] AND inv.[Id] = d.[InvoiceId]
+        WHERE inv.[IssuedAt] IS NOT NULL OR inv.[Status] = 1)
+    BEGIN
+        THROW 50000, 'Invoice lines of an issued invoice are immutable', 1;
+    END
+
+    IF EXISTS (SELECT 1 FROM inserted) AND EXISTS (SELECT 1 FROM deleted)   -- UPDATE
+    BEGIN
+        UPDATE [InvoiceLines]
+        SET [TenantId] = i.[TenantId], [InvoiceId] = i.[InvoiceId],
+            [LineNumber] = i.[LineNumber], [Description] = i.[Description],
+            [Quantity] = i.[Quantity], [UnitPrice] = i.[UnitPrice],
+            [DiscountPercent] = i.[DiscountPercent], [VatRate] = i.[VatRate],
+            [NetAmount] = i.[NetAmount], [VatAmount] = i.[VatAmount],
+            [TotalAmount] = i.[TotalAmount]
+        FROM inserted i WHERE [InvoiceLines].[Id] = i.[Id];
+    END
+
+    IF EXISTS (SELECT 1 FROM inserted) AND NOT EXISTS (SELECT 1 FROM deleted)   -- INSERT
+    BEGIN
+        INSERT [InvoiceLines]
+            ([TenantId],[Id],[InvoiceId],[LineNumber],[Description],[Quantity],
+             [UnitPrice],[DiscountPercent],[VatRate],[NetAmount],[VatAmount],[TotalAmount])
+        SELECT i.[TenantId],i.[Id],i.[InvoiceId],i.[LineNumber],i.[Description],i.[Quantity],
+               i.[UnitPrice],i.[DiscountPercent],i.[VatRate],i.[NetAmount],i.[VatAmount],i.[TotalAmount]
+        FROM inserted i;
+    END
+
+    IF EXISTS (SELECT 1 FROM deleted) AND NOT EXISTS (SELECT 1 FROM inserted)   -- DELETE
+    BEGIN
+        DELETE [InvoiceLines] WHERE [Id] IN (SELECT [Id] FROM deleted);
+    END
+END;
+GO
+
+-- ---------------------------------------------------------------------
+-- 6. Desglose de impuestos: misma proteccion que las lineas
+-- ---------------------------------------------------------------------
+CREATE TRIGGER [trg_InvoiceTaxBreakdowns_ProtectIssued]
+ON [InvoiceTaxBreakdowns]
+INSTEAD OF INSERT, UPDATE, DELETE
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET QUOTED_IDENTIFIER ON;
+
+    IF NOT EXISTS (SELECT 1 FROM inserted) AND NOT EXISTS (SELECT 1 FROM deleted)
+        RETURN;
+
+    IF EXISTS (
+        SELECT 1 FROM inserted i
+        JOIN [Invoices] inv
+          ON inv.[TenantId] = i.[TenantId] AND inv.[Id] = i.[InvoiceId]
+        WHERE inv.[IssuedAt] IS NOT NULL OR inv.[Status] = 1)
+    BEGIN
+        THROW 50000, 'Tax breakdown rows of an issued invoice are immutable', 1;
+    END
+
+    IF EXISTS (
+        SELECT 1 FROM deleted d
+        JOIN [Invoices] inv
+          ON inv.[TenantId] = d.[TenantId] AND inv.[Id] = d.[InvoiceId]
+        WHERE inv.[IssuedAt] IS NOT NULL OR inv.[Status] = 1)
+    BEGIN
+        THROW 50000, 'Tax breakdown rows of an issued invoice are immutable', 1;
+    END
+
+    IF EXISTS (SELECT 1 FROM inserted) AND EXISTS (SELECT 1 FROM deleted)   -- UPDATE
+    BEGIN
+        UPDATE [InvoiceTaxBreakdowns]
+        SET [TenantId] = t.[TenantId], [InvoiceId] = t.[InvoiceId], [TaxCode] = t.[TaxCode],
+            [RegimeKey] = t.[RegimeKey], [OperationClassification] = t.[OperationClassification],
+            [ExemptionCode] = t.[ExemptionCode], [TaxRate] = t.[TaxRate],
+            [TaxableBase] = t.[TaxableBase], [TaxAmount] = t.[TaxAmount],
+            [SurchargeRate] = t.[SurchargeRate], [SurchargeAmount] = t.[SurchargeAmount]
+        FROM inserted t WHERE [InvoiceTaxBreakdowns].[Id] = t.[Id];
+    END
+
+    IF EXISTS (SELECT 1 FROM inserted) AND NOT EXISTS (SELECT 1 FROM deleted)   -- INSERT
+    BEGIN
+        INSERT [InvoiceTaxBreakdowns]
+            ([TenantId],[Id],[InvoiceId],[TaxCode],[RegimeKey],[OperationClassification],
+             [ExemptionCode],[TaxRate],[TaxableBase],[TaxAmount],[SurchargeRate],[SurchargeAmount])
+        SELECT i.[TenantId],i.[Id],i.[InvoiceId],i.[TaxCode],i.[RegimeKey],i.[OperationClassification],
+               i.[ExemptionCode],i.[TaxRate],i.[TaxableBase],i.[TaxAmount],i.[SurchargeRate],i.[SurchargeAmount]
+        FROM inserted i;
+    END
+
+    IF EXISTS (SELECT 1 FROM deleted) AND NOT EXISTS (SELECT 1 FROM inserted)   -- DELETE
+    BEGIN
+        DELETE [InvoiceTaxBreakdowns] WHERE [Id] IN (SELECT [Id] FROM deleted);
+    END
+END;
+GO
+
+-- ---------------------------------------------------------------------
+-- AVISO SOBRE NULL EN INDICES UNICOS
+-- SQL Server NO admite mas de un NULL en un indice UNIQUE, a diferencia de
+-- MySQL/MariaDB/PostgreSQL, donde cada NULL se considera distinto. Por eso
+-- el indice de Invoices se crea FILTRADO (ver seccion 2): el filtro
+-- reproduce la semantica del resto de motores. Los borradores sin numerar
+-- no colisionan y toda factura emitida queda cubierta porque
+-- CK_Invoices_IssuedNumber obliga a tener serie y numero.
+-- ---------------------------------------------------------------------
