@@ -598,6 +598,35 @@ CREATE TABLE [SubscriptionStates] (
 GO
 
 
+CREATE TABLE [ProvisioningOperations] (
+    [RegistrationId] uniqueidentifier NOT NULL,
+    [TenantId] uniqueidentifier NULL,
+    [CompanyId] uniqueidentifier NULL,
+    [Status] nvarchar(32) NOT NULL,
+    [CreatedAtUtc] datetime2 NOT NULL,
+    [UpdatedAtUtc] datetime2 NOT NULL,
+    CONSTRAINT [PK_ProvisioningOperations] PRIMARY KEY ([RegistrationId])
+);
+GO
+
+
+CREATE INDEX [IX_ProvisioningOperations_TenantId] ON [ProvisioningOperations] ([TenantId]);
+GO
+
+
+CREATE INDEX [IX_ProvisioningOperations_CompanyId] ON [ProvisioningOperations] ([CompanyId]);
+GO
+
+
+ALTER TABLE [ProvisioningOperations] ADD CONSTRAINT [FK_ProvisioningOperations_Tenants_TenantId]
+    FOREIGN KEY ([TenantId]) REFERENCES [Tenants] ([Id]) ON DELETE CASCADE;
+GO
+
+ALTER TABLE [ProvisioningOperations] ADD CONSTRAINT [FK_ProvisioningOperations_Companys_CompanyId]
+    FOREIGN KEY ([CompanyId]) REFERENCES [Companys] ([Id]) ON DELETE CASCADE;
+GO
+
+
 CREATE UNIQUE INDEX [IX_RegistrationIntents_CheckoutSessionId] ON [RegistrationIntents] ([CheckoutSessionId]) WHERE [CheckoutSessionId] IS NOT NULL;
 GO
 
@@ -616,6 +645,3 @@ GO
 
 CREATE UNIQUE INDEX [IX_SubscriptionStates_TenantId] ON [SubscriptionStates] ([TenantId]);
 GO
-
-
-

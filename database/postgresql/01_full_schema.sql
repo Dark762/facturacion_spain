@@ -542,6 +542,30 @@ CREATE TABLE "SubscriptionStates" (
 );
 
 
+CREATE TABLE "ProvisioningOperations" (
+    "RegistrationId" uuid NOT NULL,
+    "TenantId" uuid,
+    "CompanyId" uuid,
+    "Status" character varying(32) NOT NULL,
+    "CreatedAtUtc" timestamp with time zone NOT NULL,
+    "UpdatedAtUtc" timestamp with time zone NOT NULL,
+    CONSTRAINT "PK_ProvisioningOperations" PRIMARY KEY ("RegistrationId")
+);
+
+
+CREATE INDEX "IX_ProvisioningOperations_TenantId" ON "ProvisioningOperations" ("TenantId");
+
+
+CREATE INDEX "IX_ProvisioningOperations_CompanyId" ON "ProvisioningOperations" ("CompanyId");
+
+
+ALTER TABLE "ProvisioningOperations" ADD CONSTRAINT "FK_ProvisioningOperations_Tenants_TenantId"
+    FOREIGN KEY ("TenantId") REFERENCES "Tenants" ("Id") ON DELETE CASCADE;
+
+ALTER TABLE "ProvisioningOperations" ADD CONSTRAINT "FK_ProvisioningOperations_Companys_CompanyId"
+    FOREIGN KEY ("CompanyId") REFERENCES "Companys" ("Id") ON DELETE CASCADE;
+
+
 CREATE UNIQUE INDEX "IX_RegistrationIntents_CheckoutSessionId" ON "RegistrationIntents" ("CheckoutSessionId");
 
 
@@ -555,6 +579,3 @@ CREATE UNIQUE INDEX "IX_SubscriptionStates_StripeSubscriptionId" ON "Subscriptio
 
 
 CREATE UNIQUE INDEX "IX_SubscriptionStates_TenantId" ON "SubscriptionStates" ("TenantId");
-
-
-
