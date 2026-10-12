@@ -1,0 +1,87 @@
+using Facturacion.Api.Provisioning;
+using Facturacion.Api.Security;
+using Facturacion.Application.DependencyInjection;
+using Facturacion.Infrastructure.DependencyInjection;
+using Facturacion.Infrastructure.Persistence;
+using Facturacion.Infrastructure.Persistence.Providers;
+using Facturacion.Infrastructure.Provisioning;
+
+const string FrontendCorsPolicy = "Frontend";
+
+var builder = WebApplication.CreateBuilder(args);
+
+// Controllers
+builder.Services.AddControllers();
+
+// Add services to the container.
+// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
+
+// CORS. Sin orígenes configurados no se permite ningun origen.
+var allowedOrigins = builder.Configuration
+    .GetSection("Cors:AllowedOrigins").Get<string[]>()
+    ?? Array.Empty<string>();
+
+builder.Services.AddCors(options => options.AddPolicy(
+    FrontendCorsPolicy,
+    policy =>
+    {
+        if (allowedOrigins.Length == 0)
+        {
+            policy.SetIsOriginAllowed(_ => false);
+            return;
+        }
+
+        policy
+            .WithOrigins(allowedOrigins)
+            .AllowAnyHeader()
+            .AllowAnyMethod();
+    }));
+
+// Base de datos. BillingDbContext y AuthDbContext comparten resolutor y cadenas.
+builder.Services.AddConfiguredDatabaseContext<BillingDbContext>(
+    builder.Configuration);
+
+// Identity + JWT + Multi-tenant
+builder.Services.AddSaasAuthentication(builder.Configuration);
+
+// Application
+builder.Services.AddBillingApplication();
+
+// Infrastructure
+builder.Services.AddBillingRepositories();
+
+var app = builder.Build();
+
+// Configure the HTTP request pipeline.
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
+
+app.UseHttpsRedirection();
+
+app.UseCors(FrontendCorsPolicy);
+
+// Primero validamos el JWT.
+app.UseAuthentication();
+
+// Despues resolvemos el tenant autorizado.
+app.UseMiddleware<TenantResolutionMiddleware>();
+
+// La autorizacion se evalua con el tenant ya resuelto.
+app.UseAuthorization();
+
+// ==============================================
+// ENDPOINTS
+// ==============================================
+
+app.MapControllers();
+
+
+app.Run();
+
+// Required so that WebApplicationFactory<Program> can reference the entry point.
+public partial class Program { }

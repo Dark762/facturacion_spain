@@ -1,0 +1,15 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Facturacion.Api/Facturacion.Api.csproj" />
+    <Project Path="src/Facturacion.Application/Facturacion.Application.csproj" />
+    <Project Path="src/Facturacion.B2B/Facturacion.B2B.csproj" />
+    <Project Path="src/Facturacion.Domain/Facturacion.Domain.csproj" />
+    <Project Path="src/Facturacion.Infrastructure/Facturacion.Infrastructure.csproj" />
+    <Project Path="src/Facturacion.Verifactu/Facturacion.Verifactu.csproj" />
+    <Project Path="src/Facturacion.Workers/Facturacion.Workers.csproj" />
+  </Folder>
+  <Folder Name="/test/">
+    <Project Path="test/Facturacion.Integration.Test/Facturacion.Integration.Test.csproj" />
+    <Project Path="test/Facturacion.Tests/Facturacion.Tests.csproj" />
+  </Folder>
+</Solution>

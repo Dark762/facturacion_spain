@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UserSecretsId>dotnet-Facturacion.Api-4f2b6c1e-9a37-4d5e-8b10-2c6f0a7e3d84</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.31" />
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="8.0.31" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.31">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Facturacion.Application\Facturacion.Application.csproj" />
+    <ProjectReference Include="..\Facturacion.Infrastructure\Facturacion.Infrastructure.csproj" />
+    <ProjectReference Include="..\Facturacion.Verifactu\Facturacion.Verifactu.csproj" />
+    <ProjectReference Include="..\Facturacion.B2B\Facturacion.B2B.csproj" />
+  </ItemGroup>
+
+</Project>
