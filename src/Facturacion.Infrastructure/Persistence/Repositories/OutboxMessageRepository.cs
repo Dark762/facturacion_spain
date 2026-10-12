@@ -68,6 +68,7 @@ public sealed class OutboxMessageRepository : IOutboxMessageRepository
     {
         var now = DateTimeOffset.UtcNow;
         var limit = Math.Clamp(maxCount, 1, 500);
+        var isSqlite = _db.Database.ProviderName == "Microsoft.EntityFrameworkCore.Sqlite";
 
         var query = _db.OutboxMessages.AsNoTracking().IgnoreQueryFilters();
         if (!string.IsNullOrWhiteSpace(type))
@@ -75,22 +76,41 @@ public sealed class OutboxMessageRepository : IOutboxMessageRepository
             query = query.Where(x => x.Type == type);
         }
 
-        var window = await query
-            .Where(x => x.Status == OutboxStatus.Pending || x.Status == OutboxStatus.Processing)
-            .Take(Math.Clamp(limit * 4, 100, 2000))
-            .ToListAsync(ct);
+        IReadOnlyList<Candidate> candidates;
 
-        var now2 = now;
+        if (!isSqlite)
+        {
+            // Motores relacionales de produccion (MariaDB, MySQL 8, PostgreSQL, SQL Server):
+            // Filtrar mensajes elegibles y ordenarlos en SQL antes de Take,
+            // garantizando que leases vigentes no bloqueen mensajes pendientes.
+            candidates = await query
+                .Where(x => (x.Status == OutboxStatus.Pending && (x.NextAttemptAt == null || x.NextAttemptAt <= now))
+                         || (x.Status == OutboxStatus.Processing && x.NextAttemptAt != null && x.NextAttemptAt <= now))
+                .OrderBy(x => x.CreatedAt)
+                .ThenBy(x => x.Id)
+                .Take(limit)
+                .Select(x => new Candidate(x.Id, x.Status, x.ClaimToken))
+                .ToListAsync(ct);
+        }
+        else
+        {
+            // SQLite (pruebas en memoria): DateTimeOffset no tiene traductor de comparacion
+            // en el proveedor SQLite de EF Core. Se seleccionan los pendientes y procesando
+            // sin acotar artificialmente la ventana para no bloquear pendientes.
+            var window = await query
+                .Where(x => x.Status == OutboxStatus.Pending || x.Status == OutboxStatus.Processing)
+                .ToListAsync(ct);
 
-        var candidates = window
-            .Where(x => x.Status == OutboxStatus.Pending
-                        ? x.NextAttemptAt is null || x.NextAttemptAt <= now2
-                        : x.NextAttemptAt is not null && x.NextAttemptAt <= now2)
-            .OrderBy(x => x.CreatedAt)
-            .ThenBy(x => x.Id)
-            .Take(limit)
-            .Select(x => new { x.Id, x.Status, x.ClaimToken })
-            .ToList();
+            candidates = window
+                .Where(x => x.Status == OutboxStatus.Pending
+                            ? x.NextAttemptAt is null || x.NextAttemptAt <= now
+                            : x.NextAttemptAt is not null && x.NextAttemptAt <= now)
+                .OrderBy(x => x.CreatedAt)
+                .ThenBy(x => x.Id)
+                .Take(limit)
+                .Select(x => new Candidate(x.Id, x.Status, x.ClaimToken))
+                .ToList();
+        }
 
         var claimed = new List<OutboxMessage>(candidates.Count);
 
@@ -105,11 +125,27 @@ public sealed class OutboxMessageRepository : IOutboxMessageRepository
                 .IgnoreQueryFilters()
                 .Where(x => x.Id == candidateId && x.Status == candidateStatus);
 
-            if (candidateStatus == OutboxStatus.Processing)
+            if (!isSqlite)
             {
-                // Para reclamar un lease vencido, el ClaimToken debe coincidir con el
-                // observado: si otro worker se adelanto, su token ya es diferente.
-                updateQuery = updateQuery.Where(x => x.ClaimToken == candidateToken);
+                // En motores de servidor, incluir condicion de vencimiento y ClaimToken en el UPDATE atomico
+                if (candidateStatus == OutboxStatus.Processing)
+                {
+                    updateQuery = updateQuery.Where(x => x.ClaimToken == candidateToken
+                                                      && x.NextAttemptAt != null
+                                                      && x.NextAttemptAt <= now);
+                }
+                else
+                {
+                    updateQuery = updateQuery.Where(x => x.NextAttemptAt == null
+                                                      || x.NextAttemptAt <= now);
+                }
+            }
+            else
+            {
+                if (candidateStatus == OutboxStatus.Processing)
+                {
+                    updateQuery = updateQuery.Where(x => x.ClaimToken == candidateToken);
+                }
             }
 
             var affected = await updateQuery
@@ -131,6 +167,7 @@ public sealed class OutboxMessageRepository : IOutboxMessageRepository
         return claimed;
     }
 
+    [Obsolete("Requiere ClaimToken obligatorio para garantizar la propiedad del mensaje.")]
     public Task<bool> MarkProcessedAsync(Guid id, DateTimeOffset processedAt, CancellationToken ct) =>
         MarkProcessedAsync(id, null, processedAt, ct);
 
@@ -140,13 +177,14 @@ public sealed class OutboxMessageRepository : IOutboxMessageRepository
         DateTimeOffset processedAt,
         CancellationToken ct)
     {
-        var query = _db.OutboxMessages.IgnoreQueryFilters().Where(x => x.Id == id);
-        if (!string.IsNullOrWhiteSpace(claimToken))
+        if (string.IsNullOrWhiteSpace(claimToken))
         {
-            query = query.Where(x => x.Status == OutboxStatus.Processing && x.ClaimToken == claimToken);
+            return false;
         }
 
-        var affected = await query
+        var affected = await _db.OutboxMessages
+            .IgnoreQueryFilters()
+            .Where(x => x.Id == id && x.Status == OutboxStatus.Processing && x.ClaimToken == claimToken)
             .ExecuteUpdateAsync(setters => setters
                 .SetProperty(x => x.Status, OutboxStatus.Completed)
                 .SetProperty(x => x.ProcessedAt, (DateTimeOffset?)processedAt)
@@ -157,6 +195,7 @@ public sealed class OutboxMessageRepository : IOutboxMessageRepository
         return affected > 0;
     }
 
+    [Obsolete("Requiere ClaimToken obligatorio para garantizar la propiedad del mensaje.")]
     public Task<bool> MarkFailedAsync(
         Guid id,
         DateTimeOffset now,
@@ -174,13 +213,16 @@ public sealed class OutboxMessageRepository : IOutboxMessageRepository
         TimeSpan baseDelay,
         CancellationToken ct)
     {
-        var currentQuery = _db.OutboxMessages.AsNoTracking().IgnoreQueryFilters().Where(x => x.Id == id);
-        if (!string.IsNullOrWhiteSpace(claimToken))
+        if (string.IsNullOrWhiteSpace(claimToken))
         {
-            currentQuery = currentQuery.Where(x => x.ClaimToken == claimToken);
+            return false;
         }
 
-        var current = await currentQuery.FirstOrDefaultAsync(ct);
+        var current = await _db.OutboxMessages
+            .AsNoTracking()
+            .IgnoreQueryFilters()
+            .Where(x => x.Id == id && x.Status == OutboxStatus.Processing && x.ClaimToken == claimToken)
+            .FirstOrDefaultAsync(ct);
 
         if (current is null)
         {
@@ -195,13 +237,9 @@ public sealed class OutboxMessageRepository : IOutboxMessageRepository
         // convierte en un bucle que satura la cola y la base de datos.
         var delay = exhausted ? TimeSpan.Zero : baseDelay * Math.Pow(2, attempts - 1);
 
-        var updateQuery = _db.OutboxMessages.IgnoreQueryFilters().Where(x => x.Id == id);
-        if (!string.IsNullOrWhiteSpace(claimToken))
-        {
-            updateQuery = updateQuery.Where(x => x.Status == OutboxStatus.Processing && x.ClaimToken == claimToken);
-        }
-
-        var affected = await updateQuery
+        var affected = await _db.OutboxMessages
+            .IgnoreQueryFilters()
+            .Where(x => x.Id == id && x.Status == OutboxStatus.Processing && x.ClaimToken == claimToken)
             .ExecuteUpdateAsync(setters => setters
                 .SetProperty(x => x.Attempts, attempts)
                 .SetProperty(x => x.Status,
@@ -213,4 +251,6 @@ public sealed class OutboxMessageRepository : IOutboxMessageRepository
 
         return affected > 0;
     }
+
+    private sealed record Candidate(Guid Id, string Status, string? ClaimToken);
 }

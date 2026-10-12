@@ -257,21 +257,54 @@ public sealed class OutboxQueueTests : IDisposable
         }
     }
 
-    // ---------- Estados terminales ----------
+    // ---------- Estados terminales y propiedad de ClaimToken ----------
 
     [Fact]
-    public async Task Marcar_procesado_deja_el_mensaje_completado()
+    public async Task Marcar_procesado_con_claim_token_valido_deja_el_mensaje_completado()
     {
         var message = await SeedAsync();
 
         using var scope = _fixture.CreateScope(_tenantId);
-        await scope.ServiceProvider.GetRequiredService<IOutboxMessageRepository>()
-            .MarkProcessedAsync(message.Id, DateTimeOffset.UtcNow, CancellationToken.None);
+        var repo = scope.ServiceProvider.GetRequiredService<IOutboxMessageRepository>();
+        var claimed = await repo.ClaimPendingAsync(1, TimeSpan.FromMinutes(2), CancellationToken.None);
+        Assert.Single(claimed);
+
+        var success = await repo.MarkProcessedAsync(message.Id, claimed[0].ClaimToken, DateTimeOffset.UtcNow, CancellationToken.None);
+        Assert.True(success);
 
         var stored = await ReadAsync(message.Id);
         Assert.Equal(OutboxStatus.Completed, stored!.Status);
         Assert.NotNull(stored.ProcessedAt);
         Assert.Null(stored.NextAttemptAt);
+        Assert.Null(stored.ClaimToken);
+    }
+
+    [Fact]
+    public async Task Modificar_mensaje_sin_claim_token_valido_es_rechazado()
+    {
+        var message = await SeedAsync();
+
+        using var scope = _fixture.CreateScope(_tenantId);
+        var repo = scope.ServiceProvider.GetRequiredService<IOutboxMessageRepository>();
+
+        // Token nulo: rechazado
+        var nullProcessed = await repo.MarkProcessedAsync(message.Id, null, DateTimeOffset.UtcNow, CancellationToken.None);
+        Assert.False(nullProcessed);
+
+        // Token vacio: rechazado
+        var emptyProcessed = await repo.MarkProcessedAsync(message.Id, "   ", DateTimeOffset.UtcNow, CancellationToken.None);
+        Assert.False(emptyProcessed);
+
+        // Token invalido: rechazado
+        var wrongProcessed = await repo.MarkProcessedAsync(message.Id, "token-invalido", DateTimeOffset.UtcNow, CancellationToken.None);
+        Assert.False(wrongProcessed);
+
+        // Fallo con token nulo: rechazado
+        var nullFailed = await repo.MarkFailedAsync(message.Id, null, DateTimeOffset.UtcNow, "error", 5, TimeSpan.FromSeconds(10), CancellationToken.None);
+        Assert.False(nullFailed);
+
+        var stored = await ReadAsync(message.Id);
+        Assert.Equal(OutboxStatus.Pending, stored!.Status);
     }
 
     [Fact]
@@ -280,15 +313,16 @@ public sealed class OutboxQueueTests : IDisposable
         var message = await SeedAsync();
         using (var scope = _fixture.CreateScope(_tenantId))
         {
-            await scope.ServiceProvider.GetRequiredService<IOutboxMessageRepository>()
-                .MarkProcessedAsync(message.Id, DateTimeOffset.UtcNow, CancellationToken.None);
+            var repo = scope.ServiceProvider.GetRequiredService<IOutboxMessageRepository>();
+            var claimed = await repo.ClaimPendingAsync(1, TimeSpan.FromMinutes(2), CancellationToken.None);
+            await repo.MarkProcessedAsync(message.Id, claimed[0].ClaimToken, DateTimeOffset.UtcNow, CancellationToken.None);
         }
 
         using var again = _fixture.CreateScope(_tenantId);
-        var claimed = await again.ServiceProvider.GetRequiredService<IOutboxMessageRepository>()
+        var againClaimed = await again.ServiceProvider.GetRequiredService<IOutboxMessageRepository>()
             .ClaimPendingAsync(10, TimeSpan.FromMinutes(2), CancellationToken.None);
 
-        Assert.Empty(claimed);
+        Assert.Empty(againClaimed);
     }
 
     // ---------- Reintentos ----------
@@ -299,14 +333,19 @@ public sealed class OutboxQueueTests : IDisposable
         var message = await SeedAsync();
 
         using var scope = _fixture.CreateScope(_tenantId);
-        await scope.ServiceProvider.GetRequiredService<IOutboxMessageRepository>()
-            .MarkFailedAsync(message.Id, DateTimeOffset.UtcNow, "fallo transitorio",
-                maxAttempts: 5, baseDelay: TimeSpan.FromSeconds(30), CancellationToken.None);
+        var repo = scope.ServiceProvider.GetRequiredService<IOutboxMessageRepository>();
+        var claimed = await repo.ClaimPendingAsync(1, TimeSpan.FromMinutes(2), CancellationToken.None);
+        Assert.Single(claimed);
+
+        var success = await repo.MarkFailedAsync(message.Id, claimed[0].ClaimToken, DateTimeOffset.UtcNow, "fallo transitorio",
+            maxAttempts: 5, baseDelay: TimeSpan.FromSeconds(30), CancellationToken.None);
+        Assert.True(success);
 
         var stored = await ReadAsync(message.Id);
         Assert.Equal(OutboxStatus.Pending, stored!.Status);
         Assert.Equal(1, stored.Attempts);
         Assert.Equal("fallo transitorio", stored.LastError);
+        Assert.Null(stored.ClaimToken);
         Assert.True(stored.NextAttemptAt > DateTimeOffset.UtcNow,
             "El reintento debe estar programado en el futuro.");
     }
@@ -320,18 +359,21 @@ public sealed class OutboxQueueTests : IDisposable
         for (var attempt = 0; attempt < 3; attempt++)
         {
             using var scope = _fixture.CreateScope(_tenantId);
-            await scope.ServiceProvider.GetRequiredService<IOutboxMessageRepository>()
-                .MarkFailedAsync(message.Id, DateTimeOffset.UtcNow, "fallo",
-                    maxAttempts: 5, baseDelay: TimeSpan.FromSeconds(30), CancellationToken.None);
+            var repo = scope.ServiceProvider.GetRequiredService<IOutboxMessageRepository>();
+            var claimed = await repo.ClaimPendingAsync(1, TimeSpan.FromMinutes(2), CancellationToken.None);
+            Assert.Single(claimed);
+
+            await repo.MarkFailedAsync(message.Id, claimed[0].ClaimToken, DateTimeOffset.UtcNow, "fallo",
+                maxAttempts: 5, baseDelay: TimeSpan.FromSeconds(30), CancellationToken.None);
 
             var stored = await ReadAsync(message.Id);
-            // El mensaje queda en Pending con un NextAttemptAt futuro; se
-            // adelanta para poder simular el siguiente intento.
             delays.Add(stored!.NextAttemptAt!.Value - DateTimeOffset.UtcNow);
 
-            using var reset = _fixture.CreateScope(_tenantId);
-            await reset.ServiceProvider.GetRequiredService<IOutboxMessageRepository>()
-                .AddAsync(new OutboxMessage { Id = message.Id, TenantId = _tenantId, Type = "x" }, default);
+            // Reestablecer NextAttemptAt a null para permitir la siguiente reclamacion
+            using var resetScope = _fixture.CreateScope(_tenantId);
+            var db = resetScope.ServiceProvider.GetRequiredService<BillingDbContext>();
+            await db.OutboxMessages.Where(x => x.Id == message.Id)
+                .ExecuteUpdateAsync(s => s.SetProperty(x => x.NextAttemptAt, (DateTimeOffset?)null));
         }
 
         Assert.True(delays[1] > delays[0], $"El segundo reintento ({delays[1]}) debe esperar mas que el primero ({delays[0]}).");
@@ -345,9 +387,12 @@ public sealed class OutboxQueueTests : IDisposable
 
         using (var scope = _fixture.CreateScope(_tenantId))
         {
-            await scope.ServiceProvider.GetRequiredService<IOutboxMessageRepository>()
-                .MarkFailedAsync(message.Id, DateTimeOffset.UtcNow, "invalido",
-                    maxAttempts: 1, baseDelay: TimeSpan.FromSeconds(30), CancellationToken.None);
+            var repo = scope.ServiceProvider.GetRequiredService<IOutboxMessageRepository>();
+            var claimed = await repo.ClaimPendingAsync(1, TimeSpan.FromMinutes(2), CancellationToken.None);
+            Assert.Single(claimed);
+
+            await repo.MarkFailedAsync(message.Id, claimed[0].ClaimToken, DateTimeOffset.UtcNow, "invalido",
+                maxAttempts: 1, baseDelay: TimeSpan.FromSeconds(30), CancellationToken.None);
         }
 
         var stored = await ReadAsync(message.Id);
@@ -356,10 +401,57 @@ public sealed class OutboxQueueTests : IDisposable
 
         // Agotado, no vuelve a la cola.
         using var again = _fixture.CreateScope(_tenantId);
-        var claimed = await again.ServiceProvider.GetRequiredService<IOutboxMessageRepository>()
+        var againClaimed = await again.ServiceProvider.GetRequiredService<IOutboxMessageRepository>()
             .ClaimPendingAsync(10, TimeSpan.FromMinutes(2), CancellationToken.None);
 
-        Assert.Empty(claimed);
+        Assert.Empty(againClaimed);
+    }
+
+    [Fact]
+    public async Task Leases_vigentes_no_bloquean_la_seleccion_de_mensajes_pendientes()
+    {
+        // 1. Mensaje en Processing con lease activo en el futuro (1 hora)
+        var activeProcessing = new OutboxMessage
+        {
+            Id = Guid.NewGuid(),
+            TenantId = _tenantId,
+            Type = FiscalOutboxType,
+            AggregateId = Guid.NewGuid().ToString(),
+            Payload = "{}",
+            Status = OutboxStatus.Processing,
+            ClaimToken = "active-token",
+            CreatedAt = DateTimeOffset.UtcNow.AddMinutes(-10),
+            NextAttemptAt = DateTimeOffset.UtcNow.AddHours(1)
+        };
+
+        // 2. Mensaje en Pending listo para ser procesado
+        var eligiblePending = new OutboxMessage
+        {
+            Id = Guid.NewGuid(),
+            TenantId = _tenantId,
+            Type = FiscalOutboxType,
+            AggregateId = Guid.NewGuid().ToString(),
+            Payload = "{}",
+            Status = OutboxStatus.Pending,
+            CreatedAt = DateTimeOffset.UtcNow.AddMinutes(-5),
+            NextAttemptAt = null
+        };
+
+        using (var scope = _fixture.CreateScope(_tenantId))
+        {
+            var db = scope.ServiceProvider.GetRequiredService<BillingDbContext>();
+            await db.OutboxMessages.AddRangeAsync(activeProcessing, eligiblePending);
+            await db.SaveChangesAsync();
+        }
+
+        using (var claimScope = _fixture.CreateScope(_tenantId))
+        {
+            var repo = claimScope.ServiceProvider.GetRequiredService<IOutboxMessageRepository>();
+            var claimed = await repo.ClaimPendingAsync(1, TimeSpan.FromMinutes(2), CancellationToken.None);
+
+            Assert.Single(claimed);
+            Assert.Equal(eligiblePending.Id, claimed[0].Id);
+        }
     }
 
     // ---------- Aislamiento por tenant ----------
