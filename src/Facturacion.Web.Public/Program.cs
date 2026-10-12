@@ -1,14 +1,28 @@
 using Facturacion.Infrastructure.Billing;
 using Facturacion.Infrastructure.Email;
 using Facturacion.Infrastructure.Identity;
+using Facturacion.Infrastructure.Persistence.Providers;
 using Facturacion.Web.Public.Components;
 using Facturacion.Web.Public.Services;
+using Microsoft.AspNetCore.Identity;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddRazorComponents().AddInteractiveServerComponents();
 
-// La web pública ejecuta servicios en el servidor; no llama por HTTP a nuestra API.
-builder.Services.AddSaasAuthentication(builder.Configuration);
+// Identity solo para el registro: no depende de la configuración JWT de la API.
+builder.Services.AddConfiguredDatabaseContext<AuthDbContext>(builder.Configuration);
+builder.Services.AddIdentityCore<ApplicationUser>(options =>
+{
+    options.Password.RequiredLength = 12;
+    options.Password.RequireDigit = true;
+    options.Password.RequireUppercase = true;
+    options.Password.RequireNonAlphanumeric = true;
+    options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
+    options.Lockout.MaxFailedAccessAttempts = 5;
+    options.User.RequireUniqueEmail = true;
+}).AddEntityFrameworkStores<AuthDbContext>().AddDefaultTokenProviders();
+
+// Servicios compartidos del backend, ejecutados exclusivamente en servidor.
 builder.Services.AddSaasSelfService(builder.Configuration);
 builder.Services.AddFacturacionEmail(builder.Configuration);
 builder.Services.AddScoped<PublicPlansService>();
