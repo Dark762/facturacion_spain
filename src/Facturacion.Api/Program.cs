@@ -71,7 +71,10 @@ builder.Services.AddProblemDetails();
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
+// Swagger tambien en Local, para no perder la documentacion al cambiar el
+// entorno por defecto: antes, arrancar en local significaba Development y con
+// ello la carga de user-secrets con la base de datos real.
+if (app.Environment.IsDevelopment() || app.Environment.IsEnvironment("Local"))
 {
     app.UseSwagger();
     app.UseSwaggerUI();
