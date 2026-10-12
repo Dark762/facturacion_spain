@@ -12,5 +12,8 @@ public sealed class FiscalRecordConfiguration : IEntityTypeConfiguration<FiscalR
         e.Property(x => x.Hash).HasMaxLength(64);
         e.Property(x => x.PreviousHash).HasMaxLength(64);
         e.Property(x => x.XmlPayload).HasColumnType("longtext");
+            e.Property(x => x.InstallationId).HasMaxLength(100);
+            e.Property(x => x.SoftwareName).HasMaxLength(200);
+            e.Property(x => x.SoftwareVersion).HasMaxLength(50);
     }
 }

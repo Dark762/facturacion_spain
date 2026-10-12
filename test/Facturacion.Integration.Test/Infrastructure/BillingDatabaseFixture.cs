@@ -4,6 +4,7 @@ using Facturacion.Application.Services;
 using Facturacion.Domain.Entities;
 using Facturacion.Infrastructure.Identity;
 using Facturacion.Infrastructure.Persistence;
+using Facturacion.Verifactu;
 using Facturacion.Infrastructure.Persistence.Repositories;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
@@ -41,11 +42,18 @@ public sealed class BillingDatabaseFixture : IDisposable
 
         services.AddScoped<IUnitOfWork, UnitOfWork>();
         services.AddScoped<IInvoiceRepository, InvoiceRepository>();
+        services.AddScoped<IInvoiceSequenceRepository, InvoiceSequenceRepository>();
         services.AddScoped<ICompanyRepository, CompanyRepository>();
         services.AddScoped<ICustomerRepository, CustomerRepository>();
-        services.AddScoped<IOutboxMessageRepository, OutboxMessageRepository>();
+services.AddScoped<IOutboxMessageRepository, OutboxMessageRepository>();
         services.AddScoped<IFiscalRecordRepository, FiscalRecordRepository>();
+        services.AddScoped<IFiscalChainRepository, FiscalChainRepository>();
+
+        // Motor fiscal de PRUEBA: habilita la emision para poder ejercitar la
+        // numeracion. El motor real sigue bloqueado; ver FiscalEngineFailClosedTests.
+        services.AddScoped<IFiscalEngine, TestFiscalEngine>();
         services.AddScoped<IInvoiceApplicationService, InvoiceApplicationService>();
+        services.AddScoped<IInvoiceIssuanceService, InvoiceIssuanceService>();
 
         services.AddDbContext<BillingDbContext>(o => o.UseSqlite(Connection));
         services.AddDbContext<AuthDbContext>(o => o.UseSqlite(Connection));

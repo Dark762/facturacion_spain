@@ -1,4 +1,5 @@
 using Facturacion.Domain.Entities;
+using Facturacion.Infrastructure.Invitations;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 namespace Facturacion.Infrastructure.Identity;
@@ -7,6 +8,7 @@ public sealed class AuthDbContext : IdentityDbContext<ApplicationUser>
     public AuthDbContext(DbContextOptions<AuthDbContext> options) : base(options) { }
     public DbSet<TenantUser> TenantUsers => Set<TenantUser>();
     public DbSet<CompanyUser> CompanyUsers => Set<CompanyUser>();
+    public DbSet<TenantInvitation> TenantInvitations => Set<TenantInvitation>();
     protected override void OnModelCreating(ModelBuilder b)
     {
         base.OnModelCreating(b);
@@ -23,5 +25,6 @@ public sealed class AuthDbContext : IdentityDbContext<ApplicationUser>
             e.HasIndex(x => new { x.TenantId, x.CompanyId, x.UserId }).IsUnique();
             e.HasOne<ApplicationUser>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Restrict);
         });
+        InvitationModelMapping.Configure(b);
     }
 }

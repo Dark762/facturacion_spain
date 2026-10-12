@@ -10,5 +10,7 @@ public sealed class FiscalChainConfiguration : IEntityTypeConfiguration<FiscalCh
         e.HasAlternateKey(x => new { x.TenantId, x.Id });
         e.HasOne(x => x.Company).WithMany().HasForeignKey(x => new { x.TenantId, x.CompanyId }).HasPrincipalKey(x => new { x.TenantId, x.Id }).OnDelete(DeleteBehavior.Restrict);
         e.HasIndex(x => new { x.TenantId, x.CompanyId, x.InstallationId }).IsUnique();
+            e.Property(x => x.InstallationId).HasMaxLength(100);
+            e.Property(x => x.LastHash).HasMaxLength(64);
     }
 }

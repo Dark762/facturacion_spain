@@ -16,5 +16,6 @@ public sealed class InvoiceLineConfiguration : IEntityTypeConfiguration<InvoiceL
         e.Property(x => x.NetAmount).HasPrecision(18,2);
         e.Property(x => x.VatAmount).HasPrecision(18,2);
         e.Property(x => x.TotalAmount).HasPrecision(18,2);
+            e.Property(x => x.Description).HasMaxLength(1000);
     }
 }

@@ -10,5 +10,7 @@ public sealed class InvoicePaymentConfiguration : IEntityTypeConfiguration<Invoi
         e.HasAlternateKey(x => new { x.TenantId, x.Id });
         e.HasOne(x => x.Invoice).WithMany(x => x.Payments).HasForeignKey(x => new { x.TenantId, x.InvoiceId }).HasPrincipalKey(x => new { x.TenantId, x.Id }).OnDelete(DeleteBehavior.Restrict);
         e.Property(x => x.Amount).HasPrecision(18,2);
+            e.Property(x => x.ExternalReference).HasMaxLength(200);
+            e.Property(x => x.PaymentMethod).HasMaxLength(60);
     }
 }

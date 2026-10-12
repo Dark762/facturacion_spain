@@ -5,11 +5,11 @@
     <Project Path="src/Facturacion.B2B/Facturacion.B2B.csproj" />
     <Project Path="src/Facturacion.Domain/Facturacion.Domain.csproj" />
     <Project Path="src/Facturacion.Infrastructure/Facturacion.Infrastructure.csproj" />
+    <Project Path="src/Facturacion.Payments.Stripe/Facturacion.Payments.Stripe.csproj" Id="3ea60aaa-c084-49bc-b9e4-13eb5b093bd2" />
     <Project Path="src/Facturacion.Verifactu/Facturacion.Verifactu.csproj" />
     <Project Path="src/Facturacion.Workers/Facturacion.Workers.csproj" />
   </Folder>
   <Folder Name="/test/">
     <Project Path="test/Facturacion.Integration.Test/Facturacion.Integration.Test.csproj" />
-    <Project Path="test/Facturacion.Tests/Facturacion.Tests.csproj" />
   </Folder>
 </Solution>

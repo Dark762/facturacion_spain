@@ -27,4 +27,8 @@
     <Using Include="Xunit" />
   </ItemGroup>
 
+  <!-- Esquemas oficiales de la AEAT, usados para validar el XML fiscal. -->
+  <ItemGroup>
+    <None Include="xsd\**\*.xsd" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
 </Project>

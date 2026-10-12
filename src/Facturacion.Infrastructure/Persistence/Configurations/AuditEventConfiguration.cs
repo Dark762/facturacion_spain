@@ -10,5 +10,9 @@ public sealed class AuditEventConfiguration : IEntityTypeConfiguration<AuditEven
         e.HasAlternateKey(x => new { x.TenantId, x.Id });
         e.Property(x => x.PreviousValues).HasColumnType("longtext");
         e.Property(x => x.NewValues).HasColumnType("longtext");
+            e.Property(x => x.Action).HasMaxLength(100);
+            e.Property(x => x.EntityId).HasMaxLength(100);
+            e.Property(x => x.EntityType).HasMaxLength(100);
+            e.Property(x => x.UserId).HasMaxLength(450);
     }
 }

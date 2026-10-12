@@ -12,6 +12,10 @@ public sealed class FiscalChainRepository : IFiscalChainRepository
     public Task<FiscalChain?> GetByIdAsync(Guid id, CancellationToken ct) =>
         _db.FiscalChains.FirstOrDefaultAsync(x => x.Id == id, ct);
 
+    public Task<FiscalChain?> GetByCompanyAsync(Guid tenantId, Guid companyId, CancellationToken ct) =>
+        _db.FiscalChains.FirstOrDefaultAsync(
+            x => x.TenantId == tenantId && x.CompanyId == companyId, ct);
+
     public async Task AddAsync(FiscalChain entity, CancellationToken ct) =>
         await _db.FiscalChains.AddAsync(entity, ct);
 

@@ -11,5 +11,9 @@ public sealed class AeatSubmissionConfiguration : IEntityTypeConfiguration<AeatS
         e.HasOne(x => x.FiscalRecord).WithMany(x => x.Submissions).HasForeignKey(x => new { x.TenantId, x.FiscalRecordId }).HasPrincipalKey(x => new { x.TenantId, x.Id }).OnDelete(DeleteBehavior.Restrict);
         e.Property(x => x.RequestXml).HasColumnType("longtext");
         e.Property(x => x.ResponseXml).HasColumnType("longtext");
+            e.Property(x => x.Csv).HasMaxLength(150);
+            e.Property(x => x.Environment).HasMaxLength(20);
+            e.Property(x => x.ErrorCode).HasMaxLength(80);
+            e.Property(x => x.ErrorDescription).HasMaxLength(1000);
     }
 }

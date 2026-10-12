@@ -1,10 +1,12 @@
-using Facturacion.Api.Provisioning;
 using Facturacion.Api.Security;
 using Facturacion.Application.DependencyInjection;
+using Facturacion.Verifactu.DependencyInjection;
+using Facturacion.Infrastructure.Billing;
 using Facturacion.Infrastructure.DependencyInjection;
+using Facturacion.Infrastructure.Email;
+using Facturacion.Infrastructure.Invitations;
 using Facturacion.Infrastructure.Persistence;
 using Facturacion.Infrastructure.Persistence.Providers;
-using Facturacion.Infrastructure.Provisioning;
 
 const string FrontendCorsPolicy = "Frontend";
 
@@ -47,10 +49,24 @@ builder.Services.AddConfiguredDatabaseContext<BillingDbContext>(
 builder.Services.AddSaasAuthentication(builder.Configuration);
 
 // Application
+builder.Services.AddVerifactu();
+
 builder.Services.AddBillingApplication();
 
 // Infrastructure
 builder.Services.AddBillingRepositories();
+
+// Alta self-service + Stripe (inactivo si no hay sección Stripe configurada)
+builder.Services.AddSaasSelfService(builder.Configuration);
+
+// Invitaciones entre usuarios del tenant
+builder.Services.AddSaasInvitations();
+
+// Canal de correo (verificación de registro e invitaciones)
+builder.Services.AddFacturacionEmail(builder.Configuration);
+
+builder.Services.AddExceptionHandler<ApiExceptionHandler>();
+builder.Services.AddProblemDetails();
 
 var app = builder.Build();
 
@@ -62,6 +78,8 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+app.UseExceptionHandler();
 
 app.UseCors(FrontendCorsPolicy);
 
