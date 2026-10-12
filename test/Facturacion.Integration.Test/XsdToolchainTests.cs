@@ -35,14 +35,24 @@ public sealed class XsdToolchainTests
 
     private static string XsdDir => Path.Combine(AppContext.BaseDirectory, "xsd");
 
-    private static XmlSchemaSet LoadSchemas(bool resolve = false)
+    private static XmlSchemaSet LoadSchemas(bool resolver = false)
     {
         Assert.True(Directory.Exists(XsdDir), $"No se encuentra el directorio de XSD: {XsdDir}");
 
         var schemas = new XmlSchemaSet
         {
-            XmlResolver = resolve ? new XmlUrlResolver() : null
+            XmlResolver = resolver ? new XmlUrlResolver() : null
         };
+
+        // Orden importante: primero el esquema de firma XML de W3C, que
+        // SuministroInformacion.xsd importa por URL remota. Cargarlo aqui y de
+        // forma explicita evita depender de la red en tiempo de prueba.
+        var sig = Path.Combine(XsdDir, "xmldsig-core-schema.xsd");
+        if (File.Exists(sig))
+        {
+            using var sigReader = XmlReader.Create(sig);
+            schemas.Add("http://www.w3.org/2000/09/xmldsig#", sigReader);
+        }
 
         foreach (var file in new[] { "SuministroInformacion.xsd", "SuministroLR.xsd" })
         {
@@ -82,15 +92,14 @@ public sealed class XsdToolchainTests
     }
 
     [Fact]
-    public void El_esquema_no_compila_por_la_firma_xml_sin_importar()
+    public void El_esquema_compila_con_la_firma_xml_incorporada()
     {
-        // Bloqueo conocido. Cuando se incorpore xmldsig-core-schema.xsd al
-        // conjunto, esta prueba dejara de tener exito y habra que actualizarla.
-        var schemas = LoadSchemas(resolve: true);
+        var schemas = LoadSchemas();
+        schemas.Compile();
 
-        var ex = Assert.Throws<XmlSchemaException>(() => schemas.Compile());
+        var namespaces = new List<string?>();
+        foreach (XmlSchema schema in schemas.Schemas())
+            namespaces.Add(schema.TargetNamespace);
 
-        Assert.Contains("Signature", ex.Message);
-        Assert.Contains("not declared", ex.Message);
-    }
-}
+        Assert.Contains("http://www.w3.org/2000/09/xmldsig#", namespaces);
+    }}

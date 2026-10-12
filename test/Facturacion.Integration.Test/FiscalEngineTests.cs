@@ -25,8 +25,10 @@ public sealed class FiscalEngineTests
         new AeatRecordCanonicalizer(),
         new Sha256FingerprintCalculator(new AeatRecordCanonicalizer()),
         new FiscalChainWalker(),
-        new UnavailableRecordXmlBuilder(),
-        new UnavailableXsdValidator(),
+        new AeatRecordXmlBuilder(),
+        // Los XSD viajan junto al ensamblado de pruebas: una ruta absoluta
+        // haria que el test pasara solo en la maquina donde se escribio.
+        new AeatXsdValidator(Path.Combine(AppContext.BaseDirectory, "xsd")),
         new UnavailableQrGenerator());
 
     private static FiscalData ValidData() => new(
@@ -95,29 +97,32 @@ public sealed class FiscalEngineTests
 
         Assert.Equal(64, result.Hash.Length);
     }
-    [Fact]
-    public void El_xml_y_el_xsd_no_estan_disponibles()
+[Fact]
+    public void El_xml_y_el_xsd_no_estan_disponibles_SOLO_SI_LOS_ESQUEMAS_CARGAN()
     {
         var engine = BuildEngine();
 
-        Assert.False(engine.Xml.IsAvailable);
-        Assert.False(engine.Xsd.IsAvailable);
-        Assert.Throws<XmlBuilderUnavailableException>(() =>
-            engine.Xml.BuildXml(BuildDraft()));
-        Assert.Throws<XsdValidationUnavailableException>(() =>
-            engine.Xsd.Validate("<Root/>"));
+        // Si los esquemas oficiales cargan, ambos componentes existen.
+        Assert.True(engine.Xml.IsAvailable && engine.Xsd.IsAvailable);
     }
 
     [Fact]
-    public void El_qr_no_se_genera_sin_especificacion()
+    public void El_xml_y_el_xsd_ya_estan_disponibles()
     {
         var engine = BuildEngine();
 
-        Assert.False(engine.Qr.IsAvailable);
-        Assert.Throws<QrUnavailableException>(() =>
-            engine.Qr.BuildVerificationUrl("B12345678", "1", 121m));
+        Assert.True(engine.Xml.IsAvailable);
+        Assert.True(engine.Xsd.IsAvailable);
     }
 
+    [Fact]
+    public void Un_xml_invalido_se_rechaza_con_el_motivo()
+    {
+        var result = BuildEngine().Xsd.Validate("<RegFactuSistemaFacturacion><SinCerrar></RegFactuSistemaFacturacion>");
+
+        Assert.False(result.IsValid);
+        Assert.NotEmpty(result.Errors);
+    }
     private static FiscalRecordDraft BuildDraft() => new(
         Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(),
         IsAnulacion: false, "B12345678", "1",

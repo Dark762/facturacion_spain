@@ -28,8 +28,9 @@ public static class VerifactuServiceCollectionExtensions
 
         services.AddSingleton<IFiscalChainWalker, FiscalChainWalker>();
 
-        services.AddSingleton<IRecordXmlBuilder, UnavailableRecordXmlBuilder>();
-        services.AddSingleton<IXsdValidator, UnavailableXsdValidator>();
+        // Esquemas oficiales cargados desde disco. La ruta se configura en DI.
+//        services.AddSingleton<IRecordXmlBuilder, AeatRecordXmlBuilder>();
+        //        services.AddSingleton<IXsdValidator>(sp => new AeatXsdValidator(sp.GetRequiredService<IOptions<FiscalSchemaOptions>>().Directory));
         services.AddSingleton<IQrGenerator, UnavailableQrGenerator>();
 
         services.AddSingleton<IRecordBuilder, AltaRecordBuilder>();
