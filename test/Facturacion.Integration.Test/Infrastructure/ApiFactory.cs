@@ -1,5 +1,6 @@
 using Facturacion.Application.Interfaces;
 using Facturacion.Infrastructure.Identity;
+using Facturacion.Infrastructure.Billing;
 using Facturacion.Infrastructure.Multitenancy;
 using Facturacion.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authentication;
@@ -60,6 +61,19 @@ public sealed class ApiFactory : WebApplicationFactory<Program>
 
             ReplaceWithSqlite<BillingDbContext>(services, _connection);
             ReplaceWithSqlite<AuthDbContext>(services, _connection);
+
+            // SelfServiceDbContext TAMBIEN se registra con la cadena de
+            // configuracion (SelfServiceRegistration llama a
+            // AddConfiguredDatabaseContext). En pruebas esa cadena resuelve a
+            // los user-secrets de Development, es decir la base real, porque
+            // UseSetting tiene MENOR precedencia que user-secrets. Si no se
+            // sustituye aqui, el primer test que toque un endpoint de
+            // self-service escribe en la base de verdad.
+            ReplaceWithSqlite<SelfServiceDbContext>(services, _connection);
+
+            // Barrera fail-closed: se comprueba una vez construido el
+            // contenedor, antes de que ninguna prueba escriba nada.
+            TestIsolationGuard.AssertAllContextsAreSqlite(services.BuildServiceProvider());
 
             // AddSaasAuthentication ya registro TenantContext como concreto y
             // ITenantContext apuntando a esa misma instancia. Hay que conservar
