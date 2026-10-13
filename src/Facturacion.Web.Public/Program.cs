@@ -29,7 +29,7 @@ builder.Services.AddIdentityCore<ApplicationUser>(options =>
 builder.Services.AddScoped<ITenantContext, Facturacion.Infrastructure.Multitenancy.TenantContext>();
 
 // Servicios compartidos del backend, ejecutados exclusivamente en servidor.
-builder.Services.AddSaasSelfService(builder.Configuration);
+builder.Services.AddSaasSelfService(builder.Configuration, includeWebhookProcessing: false);
 builder.Services.AddFacturacionEmail(builder.Configuration);
 builder.Services.AddScoped<PublicPlansService>();
 
