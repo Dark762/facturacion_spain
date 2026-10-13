@@ -10,7 +10,7 @@ namespace Facturacion.Infrastructure.Billing;
 
 public static class SelfServiceRegistration
 {
-    public static IServiceCollection AddSaasSelfService(this IServiceCollection services, IConfiguration config)
+    public static IServiceCollection AddSaasSelfService(this IServiceCollection services, IConfiguration config, bool includeWebhookProcessing = true)
     {
         var section = config.GetSection("Stripe");
         var stripe = section.Get<StripeOptions>() ?? new StripeOptions();
@@ -45,8 +45,13 @@ public static class SelfServiceRegistration
 
         services.AddHttpClient<IPaymentGateway, StripeCheckoutGateway>();
         services.AddScoped<SaasRegistrationService>();
-        services.AddScoped<StripeEventProcessor>();
-        services.AddScoped<IProvisioningService, ProvisioningService>();
+        // El procesamiento de webhooks y el aprovisionamiento solo se habilitan en la API.
+        // La web pública necesita únicamente registro, planes y creación de checkout.
+        if (includeWebhookProcessing)
+        {
+            services.AddScoped<StripeEventProcessor>();
+            services.AddScoped<IProvisioningService, ProvisioningService>();
+        }
 
         return services;
     }
