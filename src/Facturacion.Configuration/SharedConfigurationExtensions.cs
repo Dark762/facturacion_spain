@@ -14,8 +14,8 @@ public static class SharedConfigurationExtensions
     public static ConfigurationManager AddFacturacionSharedConfiguration(
         this ConfigurationManager configuration, IHostEnvironment environment)
     {
-        // En desarrollo, el archivo vive en /config; al publicar se copia junto al host.
-        var repositoryConfig = Path.GetFullPath(Path.Combine(environment.ContentRootPath, "..", "..", "config", "appsettings.Shared.json"));
+        // En desarrollo, el archivo vive en Facturacion.Configuration; al publicar se copia junto al host.
+        var repositoryConfig = Path.GetFullPath(Path.Combine(environment.ContentRootPath, "..", "Facturacion.Configuration", "appsettings.Shared.json"));
         var publishedConfig = Path.Combine(environment.ContentRootPath, "appsettings.Shared.json");
         var configPath = File.Exists(publishedConfig) ? publishedConfig : repositoryConfig;
         if (!File.Exists(configPath))
