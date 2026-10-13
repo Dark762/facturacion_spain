@@ -1,4 +1,15 @@
 @inherits LayoutComponentBase
-<header class="topbar"><div class="container nav"><Brand /><nav class="navlinks" aria-label="Navegación principal"><a href="/precios">Precios</a><a class="hide-mobile" href="/#ventajas">Ventajas</a><a class="button" href="/registro">Crear cuenta</a></nav></div></header>
-<main>@Body</main>
-<footer class="footer"><div class="container">© @DateTime.UtcNow.Year Facturación ES · Plataforma de facturación</div></footer>
+<header class="topbar">
+    <div class="container nav">
+        <Brand />
+        <nav class="navlinks" aria-label="Navegación principal">
+            <a class="nav-link" href="/#ventajas">Funcionalidades</a>
+            <a class="nav-link" href="/precios">Precios</a>
+            <a class="button nav-cta" href="/registro">Crear cuenta <span aria-hidden="true">→</span></a>
+        </nav>
+    </div>
+</header>
+<main id="contenido">@Body</main>
+<footer class="footer">
+    <div class="container footer-inner"><Brand /><span>© @DateTime.UtcNow.Year · Una forma más sencilla de organizar tu facturación.</span></div>
+</footer>
