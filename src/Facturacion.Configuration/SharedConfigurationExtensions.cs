@@ -14,12 +14,19 @@ public static class SharedConfigurationExtensions
     public static ConfigurationManager AddFacturacionSharedConfiguration(
         this ConfigurationManager configuration, IHostEnvironment environment)
     {
+        // En desarrollo, el archivo vive en /config; al publicar se copia junto al host.
+        var repositoryConfig = Path.GetFullPath(Path.Combine(environment.ContentRootPath, "..", "..", "config", "appsettings.Shared.json"));
+        var publishedConfig = Path.Combine(environment.ContentRootPath, "appsettings.Shared.json");
+        var configPath = File.Exists(publishedConfig) ? publishedConfig : repositoryConfig;
+        if (!File.Exists(configPath))
+            throw new FileNotFoundException("No se encontró la configuración común appsettings.Shared.json.", configPath);
+
         var source = new JsonConfigurationSource
         {
             Path = "appsettings.Shared.json",
             Optional = false,
             ReloadOnChange = true,
-            FileProvider = new PhysicalFileProvider(environment.ContentRootPath)
+            FileProvider = new PhysicalFileProvider(Path.GetDirectoryName(configPath)!)
         };
 
         // El host ya cargó sus fuentes. Insertar al principio preserva la
