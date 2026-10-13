@@ -1,3 +1,4 @@
+using Facturacion.Configuration;
 using Facturacion.Api.Security;
 using Facturacion.Application.DependencyInjection;
 using Facturacion.Verifactu.DependencyInjection;
@@ -12,6 +13,7 @@ using Facturacion.Infrastructure.Persistence.Providers;
 const string FrontendCorsPolicy = "Frontend";
 
 var builder = WebApplication.CreateBuilder(args);
+builder.Configuration.AddFacturacionSharedConfiguration(builder.Environment);
 
 // Controllers
 builder.Services.AddControllers();

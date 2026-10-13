@@ -14,4 +14,8 @@
   <ItemGroup>
     <ProjectReference Include="..\Facturacion.Infrastructure\Facturacion.Infrastructure.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Facturacion.Configuration/Facturacion.Configuration.csproj" />
+    <Content Include="../../config/appsettings.Shared.json" Link="appsettings.Shared.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
 </Project>

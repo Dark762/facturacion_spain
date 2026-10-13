@@ -1,5 +1,7 @@
+using Facturacion.Configuration;
 using Facturacion.Web.App.Components;
 var builder = WebApplication.CreateBuilder(args);
+builder.Configuration.AddFacturacionSharedConfiguration(builder.Environment);
 builder.Services.AddRazorComponents();
 var app = builder.Build();
 if (!app.Environment.IsDevelopment()) { app.UseExceptionHandler("/error"); app.UseHsts(); }

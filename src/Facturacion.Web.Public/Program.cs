@@ -1,3 +1,4 @@
+using Facturacion.Configuration;
 using Facturacion.Application.Interfaces;
 using Facturacion.Infrastructure.Billing;
 using Facturacion.Infrastructure.Email;
@@ -10,6 +11,7 @@ using Facturacion.Web.Public.Services;
 using Microsoft.AspNetCore.Identity;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.Configuration.AddFacturacionSharedConfiguration(builder.Environment);
 builder.Services.AddRazorComponents().AddInteractiveServerComponents();
 
 // Identity solo para el registro: no depende de la configuración JWT de la API.
