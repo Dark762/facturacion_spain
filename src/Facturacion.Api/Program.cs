@@ -5,6 +5,7 @@ using Facturacion.Infrastructure.Billing;
 using Facturacion.Infrastructure.DependencyInjection;
 using Facturacion.Infrastructure.Email;
 using Facturacion.Infrastructure.Invitations;
+using Facturacion.Infrastructure.Multitenancy;
 using Facturacion.Infrastructure.Persistence;
 using Facturacion.Infrastructure.Persistence.Providers;
 

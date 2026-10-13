@@ -89,7 +89,7 @@ protected override void ConfigureWebHost(IWebHostBuilder builder)
             // UseSetting tiene MENOR precedencia que user-secrets. Si no se
             // sustituye aqui, el primer test que toque un endpoint de
             // self-service escribe en la base de verdad.
-ReplaceWithSqlite<SelfServiceDbContext>(services, _connection);
+            ReplaceWithSqlite<SelfServiceDbContext>(services, _connection);
 
             // AddSaasAuthentication ya registro TenantContext como concreto y
             // ITenantContext apuntando a esa misma instancia. Hay que conservar

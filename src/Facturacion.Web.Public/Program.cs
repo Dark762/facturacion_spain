@@ -1,6 +1,9 @@
+using Facturacion.Application.Interfaces;
 using Facturacion.Infrastructure.Billing;
 using Facturacion.Infrastructure.Email;
 using Facturacion.Infrastructure.Identity;
+using Facturacion.Infrastructure.Multitenancy;
+using Facturacion.Infrastructure.Persistence;
 using Facturacion.Infrastructure.Persistence.Providers;
 using Facturacion.Web.Public.Components;
 using Facturacion.Web.Public.Services;
@@ -22,10 +25,18 @@ builder.Services.AddIdentityCore<ApplicationUser>(options =>
     options.User.RequireUniqueEmail = true;
 }).AddEntityFrameworkStores<AuthDbContext>().AddDefaultTokenProviders();
 
+// Contexto de tenant requerido por BillingDbContext y servicios de self-service
+builder.Services.AddScoped<ITenantContext, Facturacion.Infrastructure.Multitenancy.TenantContext>();
+
 // Servicios compartidos del backend, ejecutados exclusivamente en servidor.
 builder.Services.AddSaasSelfService(builder.Configuration);
 builder.Services.AddFacturacionEmail(builder.Configuration);
 builder.Services.AddScoped<PublicPlansService>();
+
+// Base de datos. BillingDbContext y AuthDbContext comparten resolutor y cadenas.
+builder.Services.AddConfiguredDatabaseContext<BillingDbContext>(
+    builder.Configuration);
+
 
 var app = builder.Build();
 if (!app.Environment.IsDevelopment()) { app.UseExceptionHandler("/error"); app.UseHsts(); }

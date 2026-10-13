@@ -12,7 +12,7 @@ public static class SelfServiceRegistration
 {
     public static IServiceCollection AddSaasSelfService(this IServiceCollection services, IConfiguration config)
     {
-var section = config.GetSection("Stripe");
+        var section = config.GetSection("Stripe");
         var stripe = section.Get<StripeOptions>() ?? new StripeOptions();
 
         // Solo el par de credenciales marca Stripe como configurado. Tener las
