@@ -11,7 +11,7 @@ using Facturacion.Web.Public.Services;
 using Microsoft.AspNetCore.Identity;
 
 var builder = WebApplication.CreateBuilder(args);
-builder.Configuration.AddFacturacionSharedConfiguration(builder.Environment);
+builder.Configuration.AddFacturacionConfiguration(builder.Environment, "Web.Public");
 
 // Los ajustes locales son opcionales y nunca se versionan.
 // Se cargan solo en Development; las variables de entorno y los argumentos
