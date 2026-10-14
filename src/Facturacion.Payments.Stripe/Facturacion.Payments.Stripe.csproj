@@ -12,6 +12,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Facturacion.Application\Facturacion.Application.csproj" />
+    <ProjectReference Include="..\Facturacion.Configuration\Facturacion.Configuration.csproj" />
   </ItemGroup>
 
 </Project>

@@ -1,11 +1,12 @@
 using System.Security.Cryptography;
 using System.Text;
 using Facturacion.Application.Invitations;
+using Facturacion.Configuration.Options;
 using Facturacion.Infrastructure.Identity;
 using Facturacion.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Options;
 
 namespace Facturacion.Infrastructure.Invitations;
 
@@ -15,12 +16,17 @@ public sealed class UserInvitationService : IUserInvitationService
     private readonly BillingDbContext _billing;
     private readonly UserManager<ApplicationUser> _users;
     private readonly IInvitationEmailSender _email;
-    private readonly IConfiguration _config;
+    private readonly InvitationOptions _options;
 
+    /// <summary>
+    /// La configuracion entra ya validada por IOptions: ni claves sueltas ni
+    /// comprobaciones en cada peticion. Si algo esta mal, fallo al arrancar.
+    /// </summary>
     public UserInvitationService(AuthDbContext auth, BillingDbContext billing,
-        UserManager<ApplicationUser> users, IInvitationEmailSender email, IConfiguration config)
+        UserManager<ApplicationUser> users, IInvitationEmailSender email,
+        IOptions<InvitationOptions> options)
     {
-        _auth = auth; _billing = billing; _users = users; _email = email; _config = config;
+        _auth = auth; _billing = billing; _users = users; _email = email; _options = options.Value;
     }
 
     public async Task<InvitationCreatedResponse> InviteAsync(Guid tenantId, string invitedByUserId,
@@ -39,9 +45,7 @@ public sealed class UserInvitationService : IUserInvitationService
 
         var raw = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32)).TrimEnd('=').Replace('+', '-').Replace('/', '_');
         var now = DateTime.UtcNow;
-        var lifetime = _config.GetValue<int?>("Invitations:ExpirationHours") ?? 48;
-        if (lifetime is < 1 or > 720)
-            throw new InvalidOperationException("Invitations:ExpirationHours debe estar entre 1 y 720.");
+        var lifetime = _options.ExpirationHours;
 
         var invite = new TenantInvitation
         {
@@ -52,10 +56,7 @@ public sealed class UserInvitationService : IUserInvitationService
         _auth.Set<TenantInvitation>().Add(invite);
         await _auth.SaveChangesAsync(ct);
 
-        var baseUrl = _config["Invitations:AcceptUrl"]
-            ?? throw new InvalidOperationException("Configura Invitations:AcceptUrl.");
-        if (!Uri.TryCreate(baseUrl, UriKind.Absolute, out var parsed) || parsed.Scheme != Uri.UriSchemeHttps)
-            throw new InvalidOperationException("Invitations:AcceptUrl debe ser una URL HTTPS absoluta.");
+        var baseUrl = _options.AcceptUrl;
         var separator = baseUrl.Contains('?') ? "&" : "?";
         await _email.SendInvitationAsync(invite.Email, baseUrl + separator + "token=" + Uri.EscapeDataString(raw), invite.ExpiresAtUtc, ct);
         return new InvitationCreatedResponse(invite.Id, invite.ExpiresAtUtc);

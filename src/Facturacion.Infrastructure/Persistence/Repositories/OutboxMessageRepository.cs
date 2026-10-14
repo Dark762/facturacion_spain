@@ -182,9 +182,20 @@ public sealed class OutboxMessageRepository : IOutboxMessageRepository
             return false;
         }
 
-        var affected = await _db.OutboxMessages
+        var query = _db.OutboxMessages
             .IgnoreQueryFilters()
-            .Where(x => x.Id == id && x.Status == OutboxStatus.Processing && x.ClaimToken == claimToken && x.NextAttemptAt != null && x.NextAttemptAt > processedAt)
+            .Where(x => x.Id == id && x.Status == OutboxStatus.Processing && x.ClaimToken == claimToken);
+
+        // Un worker cuya lease ya caduco no debe poder completar el mensaje: otro
+        // podria haberlo reclamado ya. La comprobacion va en el propio UPDATE para
+        // que sea atomica. SQLite no traduce comparaciones de DateTimeOffset en
+        // ExecuteUpdate, asi que alli se omite y la contencion la da el ClaimToken.
+        if (_db.Database.ProviderName != "Microsoft.EntityFrameworkCore.Sqlite")
+        {
+            query = query.Where(x => x.NextAttemptAt != null && x.NextAttemptAt > processedAt);
+        }
+
+        var affected = await query
             .ExecuteUpdateAsync(setters => setters
                 .SetProperty(x => x.Status, OutboxStatus.Completed)
                 .SetProperty(x => x.ProcessedAt, (DateTimeOffset?)processedAt)

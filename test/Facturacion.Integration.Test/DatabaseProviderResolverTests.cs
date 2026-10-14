@@ -1,10 +1,13 @@
 using Facturacion.Application.Interfaces;
+using Facturacion.Configuration;
+using Facturacion.Configuration.Options;
 using Facturacion.Infrastructure.Persistence;
 using Facturacion.Infrastructure.Persistence.Providers;
 using Facturacion.Integration.Test.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 
 namespace Facturacion.Integration.Test;
 
@@ -111,18 +114,10 @@ public sealed class DatabaseProviderResolverTests
     [Fact]
     public void Missing_provider_setting_fails_with_an_actionable_message()
     {
-        var services = NewServices();
-        var configuration = new ConfigurationBuilder()
-            .AddInMemoryCollection().Build();
+        using var provider = BuildProvider(new Dictionary<string, string?>());
 
-        services.AddConfiguredDatabaseContext<BillingDbContext>(configuration);
-
-        var error = Assert.Throws<InvalidOperationException>(() =>
-        {
-            using var provider = services.BuildServiceProvider();
-            using var scope = provider.CreateScope();
-            _ = scope.ServiceProvider.GetRequiredService<BillingDbContext>();
-        });
+        var error = Assert.Throws<OptionsValidationException>(() =>
+            _ = provider.GetRequiredService<IOptions<DatabaseOptions>>().Value);
 
         Assert.Contains("Database:Provider", error.Message);
     }
@@ -130,35 +125,49 @@ public sealed class DatabaseProviderResolverTests
     [Fact]
     public void Missing_connection_string_fails_naming_the_expected_key()
     {
-        var services = NewServices();
-        var configuration = new ConfigurationBuilder()
-            .AddInMemoryCollection(new Dictionary<string, string?>
-            {
-                ["Database:Provider"] = "MySql",
-                ["Database:ConnectionStringName"] = "Default"
-            })
-            .Build();
-
-        services.AddConfiguredDatabaseContext<BillingDbContext>(configuration);
-
-        var error = Assert.Throws<InvalidOperationException>(() =>
+        using var provider = BuildProvider(new Dictionary<string, string?>
         {
-            using var provider = services.BuildServiceProvider();
-            using var scope = provider.CreateScope();
-            _ = scope.ServiceProvider.GetRequiredService<BillingDbContext>();
+            ["Database:Provider"] = "MySql",
+            ["Database:ConnectionStringName"] = "Default"
         });
+
+        var error = Assert.Throws<OptionsValidationException>(() =>
+            _ = provider.GetRequiredService<IOptions<DatabaseOptions>>().Value);
 
         Assert.Contains("ConnectionStrings:Default", error.Message);
     }
 
-    /// <summary>BillingDbContext exige ITenantContext en su constructor.</summary>
-    private static IServiceCollection NewServices()
+    [Fact]
+    public void Complete_database_settings_resolve_and_carry_the_connection_string()
+    {
+        using var provider = BuildProvider(new Dictionary<string, string?>
+        {
+            ["Database:Provider"] = "MySql",
+            ["Database:ConnectionStringName"] = "Default",
+            ["ConnectionStrings:Default"] = "Server=localhost;Database=test;"
+        });
+
+        var options = provider.GetRequiredService<IOptions<DatabaseOptions>>().Value;
+
+        Assert.Equal("MySql", options.Provider);
+        Assert.Equal("Server=localhost;Database=test;", options.ConnectionString);
+    }
+
+    /// <summary>
+    /// Monta el contenedor con la configuracion central. La validacion ocurre al
+    /// arrancar (ValidateOnStart), no al resolver el DbContext: el mensaje debe
+    /// llegar en el bootstrap y no en la primera peticion.
+    /// </summary>
+    private static ServiceProvider BuildProvider(Dictionary<string, string?> settings)
     {
         var services = new ServiceCollection();
         services.AddLogging();
-        services.AddSingleton<ITenantContext>(
-            new BillingDatabaseFixture.StubTenantContext());
-        return services;
+        services.AddSingleton<ITenantContext>(new BillingDatabaseFixture.StubTenantContext());
+        services.AddSingleton<IConfiguration>(
+            new ConfigurationBuilder().AddInMemoryCollection(settings).Build());
+        services.AddFacturacionOptions(ConfigurationScope.Database);
+
+        return services.BuildServiceProvider();
     }
 
     private sealed class RecordingProvider : IDatabaseProvider

@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Mail;
 using Facturacion.Application.Billing;
 using Facturacion.Application.Invitations;
+using Facturacion.Configuration.Options;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 

@@ -1,14 +1,13 @@
-﻿using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
+﻿using Facturacion.Configuration.Options;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Options;
 
 namespace Facturacion.Infrastructure.Persistence.Providers;
 
 public static class DatabaseProviderRegistration
 {
-    public const string DefaultConnectionStringName = "Default";
-
     public static IServiceCollection AddDatabaseProviders(
         this IServiceCollection services)
     {
@@ -34,32 +33,25 @@ public static class DatabaseProviderRegistration
         return services;
     }
 
+    /// <summary>
+    /// Configura un DbContext contra la base declarada en <see cref="DatabaseOptions"/>.
+    ///
+    /// Ya no se lee IConfiguration aqui ni se valida nada a mano: la resolucion
+    /// de la cadena y sus reglas viven en el validador central, que corre al
+    /// arrancar. Aqui solo se traducen los valores ya validados a EF Core.
+    /// </summary>
     public static IServiceCollection AddConfiguredDatabaseContext<TContext>(
-        this IServiceCollection services, IConfiguration configuration)
+        this IServiceCollection services)
         where TContext : DbContext
     {
         services.AddDatabaseProviders();
 
         services.AddDbContext<TContext>((serviceProvider, options) =>
         {
-            var resolver = serviceProvider
-                .GetRequiredService<DatabaseProviderResolver>();
+            var database = serviceProvider.GetRequiredService<IOptions<DatabaseOptions>>().Value;
+            var resolver = serviceProvider.GetRequiredService<DatabaseProviderResolver>();
 
-            var providerName = configuration["Database:Provider"];
-            if (string.IsNullOrWhiteSpace(providerName))
-                throw new InvalidOperationException(
-                    "Falta la configuración 'Database:Provider'.");
-
-            var connectionName = configuration["Database:ConnectionStringName"];
-            if (string.IsNullOrWhiteSpace(connectionName))
-                connectionName = DefaultConnectionStringName;
-
-            var connectionString = configuration.GetConnectionString(connectionName);
-            if (string.IsNullOrWhiteSpace(connectionString))
-                throw new InvalidOperationException(
-                    $"Falta la cadena de conexión 'ConnectionStrings:{connectionName}'.");
-
-            resolver.Configure(options, providerName, connectionString);
+            resolver.Configure(options, database.Provider, database.ConnectionString);
         });
 
         return services;

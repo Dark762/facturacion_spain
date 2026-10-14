@@ -10,18 +10,6 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Facturacion.Verifactu.DependencyInjection;
 
-/// <summary>
-/// Ubicacion de los XSD oficiales de la AEAT.
-/// </summary>
-public sealed class FiscalSchemaOptions
-{
-    /// <summary>Configuracion: Fiscal:SchemaDirectory.</summary>
-    public const string SectionName = "Fiscal";
-
-    /// <summary>Carpeta que contiene los XSD oficiales.</summary>
-    public string SchemaDirectory { get; set; } = "docs/verifactu/xsd";
-}
-
 public static class VerifactuServiceCollectionExtensions
 {
     /// <summary>
@@ -29,7 +17,12 @@ public static class VerifactuServiceCollectionExtensions
     /// registran igualmente para que DI resuelva y el fallo ocurra en la
     /// ejecucion con un mensaje util, no al construir el contenedor.
     /// </summary>
-    public static IServiceCollection AddVerifactu(this IServiceCollection services)
+    /// <param name="schemaDirectory">
+    /// Carpeta con los XSD oficiales de la AEAT. Se recibe como cadena y no
+    /// como <c>IOptions</c> para que este proyecto siga sin depender de la
+    /// configuracion: quien arranca decide, este proyecto solo ejecuta.
+    /// </param>
+    public static IServiceCollection AddVerifactu(this IServiceCollection services, string schemaDirectory)
     {
         services.AddSingleton<Verifier>();
         services.AddSingleton<IVerifier>(sp => sp.GetRequiredService<Verifier>());
@@ -42,10 +35,8 @@ public static class VerifactuServiceCollectionExtensions
 
         // Esquemas oficiales cargados desde disco. El constructor del validador
         // es lazy: si la carpeta no existe, falla al validar y no al arrancar.
-        services.AddSingleton<FiscalSchemaOptions>();
         services.AddSingleton<IRecordXmlBuilder, AeatRecordXmlBuilder>();
-        services.AddSingleton<IXsdValidator>(sp =>
-            new AeatXsdValidator(sp.GetRequiredService<FiscalSchemaOptions>().SchemaDirectory));
+        services.AddSingleton<IXsdValidator>(_ => new AeatXsdValidator(schemaDirectory));
 
         // El QR sigue sin implementar: el motor permanece bloqueado.
         services.AddSingleton<IQrGenerator, UnavailableQrGenerator>();

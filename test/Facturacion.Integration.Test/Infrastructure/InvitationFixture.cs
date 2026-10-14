@@ -1,5 +1,6 @@
 using Facturacion.Application.Invitations;
 using Facturacion.Application.Interfaces;
+using Facturacion.Configuration;
 using Facturacion.Infrastructure.Billing;
 using Facturacion.Infrastructure.Identity;
 using Facturacion.Infrastructure.Invitations;
@@ -40,6 +41,10 @@ public sealed class InvitationFixture : IDisposable
                 ["Invitations:AcceptUrl"] = "https://app.example.test/aceptar-invitacion"
             })
             .Build());
+
+        // El servicio ya no lee claves sueltas: se enlaza y valida por el
+        // registro central, igual que en los hosts.
+        services.AddFacturacionOptions(ConfigurationScope.Invitations);
 
         services.AddIdentityCore<ApplicationUser>(options =>
         {
