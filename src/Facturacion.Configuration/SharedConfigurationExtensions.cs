@@ -11,27 +11,28 @@ namespace Facturacion.Configuration;
 /// </summary>
 public static class SharedConfigurationExtensions
 {
-    public static ConfigurationManager AddFacturacionSharedConfiguration(
-        this ConfigurationManager configuration, IHostEnvironment environment)
+    public static ConfigurationManager AddFacturacionConfiguration(
+        this ConfigurationManager configuration, IHostEnvironment environment, string application)
     {
-        // En desarrollo, el archivo vive en Facturacion.Configuration; al publicar se copia junto al host.
-        var repositoryConfig = Path.GetFullPath(Path.Combine(environment.ContentRootPath, "..", "Facturacion.Configuration", "appsettings.Shared.json"));
-        var publishedConfig = Path.Combine(environment.ContentRootPath, "appsettings.Shared.json");
-        var configPath = File.Exists(publishedConfig) ? publishedConfig : repositoryConfig;
-        if (!File.Exists(configPath))
-            throw new FileNotFoundException("No se encontró la configuración común appsettings.Shared.json.", configPath);
-
-        var source = new JsonConfigurationSource
+        var names = new[] { "appsettings.Shared.json", $"appsettings.{application}.json" };
+        for (var index = 0; index < names.Length; index++)
         {
-            Path = "appsettings.Shared.json",
-            Optional = false,
-            ReloadOnChange = true,
-            FileProvider = new PhysicalFileProvider(Path.GetDirectoryName(configPath)!)
-        };
+            var name = names[index];
+            var published = Path.Combine(environment.ContentRootPath, name);
+            var repository = Path.GetFullPath(Path.Combine(
+                environment.ContentRootPath, "..", "Facturacion.Configuration", name));
+            var path = File.Exists(published) ? published : repository;
+            if (!File.Exists(path))
+                throw new FileNotFoundException($"No se encontró {name}.", path);
 
-        // El host ya cargó sus fuentes. Insertar al principio preserva la
-        // prioridad de los ajustes del proyecto, secretos y entorno.
-        configuration.Sources.Insert(0, source);
+            configuration.Sources.Insert(index, new JsonConfigurationSource
+            {
+                Path = name,
+                Optional = false,
+                ReloadOnChange = true,
+                FileProvider = new PhysicalFileProvider(Path.GetDirectoryName(path)!)
+            });
+        }
         return configuration;
     }
 }
