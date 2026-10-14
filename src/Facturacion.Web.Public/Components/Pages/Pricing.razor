@@ -6,7 +6,7 @@
 <section class="container section">
     <span class="eyebrow">Planes</span>
     <h1>Encuentra el plan adecuado</h1>
-    <p class="muted">Consulta los planes disponibles para tu negocio.</p>
+    <p class="muted">Precios mensuales orientativos, sin IVA. La contratación requiere que el plan esté configurado y activo.</p>
     @if (_loading)
     {
         <p role="status">Cargando planes…</p>
@@ -26,7 +26,15 @@
             {
                 <article class="card" @key="plan.Code">
                     <h2>@plan.Name</h2>
-                    <p class="muted">Código: @plan.Code</p>
+                    @if (GetOffer(plan.Code) is { } offer)
+                    {
+                        <p><strong>@offer.Price</strong> <span class="muted">/mes, sin IVA</span></p>
+                        <p class="muted">@offer.Details</p>
+                    }
+                    else
+                    {
+                        <p class="muted">Consulta las condiciones del plan.</p>
+                    }
                     <a class="button" href="/registro">Crear cuenta</a>
                 </article>
             }
@@ -34,6 +42,16 @@
     }
 </section>
 @code {
+    private sealed record Offer(string Price, string Details);
+    private static Offer? GetOffer(string code) => code.Trim().ToLowerInvariant() switch
+    {
+        "gratis" or "free" => new("0 €", "1 empresa · 1 usuario · hasta 5 facturas/mes"),
+        "autonomo" or "autónomo" => new("5,90 €", "1 empresa · 1 usuario · hasta 50 facturas/mes"),
+        "negocio" => new("12,90 €", "2 empresas · 3 usuarios · hasta 300 facturas/mes"),
+        "empresa" => new("24,90 €", "5 empresas · 10 usuarios · hasta 1.000 facturas/mes"),
+        "asesoria" or "asesoría" => new("Desde 39 €", "Hasta 10 empresas gestionadas"),
+        _ => null
+    };
     private List<PlanResponse> _plans = [];
     private bool _loading = true;
     private bool _error;
