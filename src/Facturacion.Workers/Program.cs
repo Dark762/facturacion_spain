@@ -10,7 +10,7 @@ using Facturacion.Workers;
 using Microsoft.Extensions.Options;
 
 var builder = Host.CreateApplicationBuilder(args);
-builder.Configuration.AddFacturacionSharedConfiguration(builder.Environment);
+builder.Configuration.AddFacturacionConfiguration(builder.Environment, "Workers");
 
 // El worker no lleva base de datos por defecto. Arrancar sin configuracion
 // contra una base que no es la suya seria peor que no arrancar: el worker
