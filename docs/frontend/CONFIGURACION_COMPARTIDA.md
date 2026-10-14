@@ -10,6 +10,18 @@
 - Web privada: por ahora solo interfaz, sin conexión de base de datos.
 - MAUI: en el futuro solo URL de API y opciones públicas, nunca secretos ni acceso a bases de datos.
 
+Para la web pública, `appsettings.Development.json` define `Database:Provider=MySql` y `Database:ConnectionStringName=Default`. Crea localmente (sin subir a Git) `src/Facturacion.Web.Public/appsettings.Development.local.json` con la cadena real:
+
+```json
+{
+  "ConnectionStrings": {
+    "Default": "Server=localhost;Port=3306;Database=TU_BD;User=TU_USUARIO;Password=TU_PASSWORD"
+  }
+}
+```
+
+La web solo carga este archivo opcional en `Development`; variables de entorno y argumentos tienen prioridad. El patrón `appsettings.*.local.json` ya está en `.gitignore`. No se añade ninguna conexión por defecto para evitar acceder accidentalmente a una base distinta.
+
 La antigua ruta `config/appsettings.Shared.json` se elimina del repositorio al mover el archivo; no es necesario conservarla.\n\nNo borrar `appsettings.Local.json`, `appsettings.Development.json`, `appsettings.Production.json`, User Secrets ni cadenas de conexión locales. Solo se eliminan del archivo base de API las secciones `Invitations` y `Subscriptions` que ahora proceden del común. Si una aplicación necesita un valor distinto, puede redefinirlo en su propio archivo.
 
 ## Seguridad

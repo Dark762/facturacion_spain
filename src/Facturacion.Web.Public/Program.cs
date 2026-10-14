@@ -12,6 +12,16 @@ using Microsoft.AspNetCore.Identity;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Configuration.AddFacturacionSharedConfiguration(builder.Environment);
+
+// Los ajustes locales son opcionales y nunca se versionan.
+// Se cargan solo en Development; las variables de entorno y los argumentos
+// siguen teniendo prioridad sobre este archivo.
+if (builder.Environment.IsDevelopment())
+{
+    builder.Configuration.AddJsonFile("appsettings.Development.local.json", optional: true, reloadOnChange: true);
+    builder.Configuration.AddEnvironmentVariables();
+    builder.Configuration.AddCommandLine(args);
+}
 builder.Services.AddRazorComponents().AddInteractiveServerComponents();
 
 // Identity solo para el registro: no depende de la configuración JWT de la API.
