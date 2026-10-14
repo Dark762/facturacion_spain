@@ -13,7 +13,7 @@ using Facturacion.Infrastructure.Persistence.Providers;
 const string FrontendCorsPolicy = "Frontend";
 
 var builder = WebApplication.CreateBuilder(args);
-builder.Configuration.AddFacturacionSharedConfiguration(builder.Environment);
+builder.Configuration.AddFacturacionConfiguration(builder.Environment, "Api");
 
 // Controllers
 builder.Services.AddControllers();
