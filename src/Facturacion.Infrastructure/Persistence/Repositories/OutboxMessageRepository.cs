@@ -248,9 +248,19 @@ public sealed class OutboxMessageRepository : IOutboxMessageRepository
         // convierte en un bucle que satura la cola y la base de datos.
         var delay = exhausted ? TimeSpan.Zero : baseDelay * Math.Pow(2, attempts - 1);
 
-        var affected = await _db.OutboxMessages
+        var updateQuery = _db.OutboxMessages
             .IgnoreQueryFilters()
-            .Where(x => x.Id == id && x.Status == OutboxStatus.Processing && x.ClaimToken == claimToken)
+            .Where(x => x.Id == id && x.Status == OutboxStatus.Processing && x.ClaimToken == claimToken);
+
+        // Comprobar la vigencia del lease en el mismo UPDATE que registra el fallo.
+        // De otro modo, un worker caducado puede reprogramar el mensaje antes
+        // de que otro worker llegue a reclamarlo.
+        if (_db.Database.ProviderName != "Microsoft.EntityFrameworkCore.Sqlite")
+        {
+            updateQuery = updateQuery.Where(x => x.NextAttemptAt != null && x.NextAttemptAt > now);
+        }
+
+        var affected = await updateQuery
             .ExecuteUpdateAsync(setters => setters
                 .SetProperty(x => x.Attempts, attempts)
                 .SetProperty(x => x.Status,
