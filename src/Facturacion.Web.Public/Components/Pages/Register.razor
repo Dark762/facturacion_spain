@@ -1,11 +1,157 @@
 @page "/registro"
+@using Facturacion.Application.Billing
+@using Facturacion.Configuration.Options
+@using Facturacion.Infrastructure.Billing
+@using Microsoft.Extensions.Options
+@inject SaasRegistrationService Registration
+@inject PublicPlansService Plans
+@inject IOptions<StripeOptions> Stripe
+@inject IOptions<EmailOptions> Email
+@inject NavigationManager Navigation
 <PageTitle>Registro | Facturación ES</PageTitle>
 <section class="container section">
     <span class="eyebrow">Crear cuenta</span>
     <h1>Empieza con tu organización</h1>
-    <div class="card" style="max-width:650px">
-        <p>El registro utilizará directamente el servicio de alta SaaS en el servidor, sin llamadas HTTP internas.</p>
-        <p class="muted">El formulario seguro de registro, verificación de correo y checkout se habilitará tras completar sus validaciones y controles antiabuso.</p>
-        <a class="button button-outline" href="/">Volver al inicio</a>
+    <div class="card" style="max-width:720px">
+        @if (!Email.Value.IsConfigured || string.IsNullOrWhiteSpace(Email.Value.Smtp.Host) || !Stripe.Value.IsConfigured)
+        {
+            <div class="notice" role="status">El alta online todavía no está disponible: es necesario configurar el envío de correo y Stripe. No se crearán cuentas incompletas.</div>
+        }
+        else if (_step == 0)
+        {
+            <h2>1. Tus datos y los de tu empresa</h2>
+            <EditForm Model="_form" OnValidSubmit="RegisterAsync" FormName="saas-register">
+                <DataAnnotationsValidator />
+                <ValidationSummary />
+                <div class="registration-fields">
+                    <label>Nombre completo <InputText @bind-Value="_form.DisplayName" /></label>
+                    <label>Correo electrónico <InputText type="email" @bind-Value="_form.Email" /></label>
+                    <label>Contraseña <InputText type="password" autocomplete="new-password" @bind-Value="_form.Password" /></label>
+                    <label>Organización <InputText @bind-Value="_form.TenantName" /></label>
+                    <label>Razón social <InputText @bind-Value="_form.LegalName" /></label>
+                    <label>NIF <InputText @bind-Value="_form.Nif" /></label>
+                    <label>Dirección <InputText @bind-Value="_form.Address" /></label>
+                    <label>Código postal <InputText @bind-Value="_form.PostalCode" /></label>
+                    <label>Ciudad <InputText @bind-Value="_form.City" /></label>
+                    <label>Provincia <InputText @bind-Value="_form.Province" /></label>
+                </div>
+                <p class="muted">Se enviará un correo de verificación. No se realizará ningún cobro en este paso.</p>
+                <button class="button" type="submit" disabled="@_busy">Continuar</button>
+            </EditForm>
+        }
+        else if (_step == 1)
+        {
+            <h2>2. Verifica tu correo</h2>
+            <p>Revisa el mensaje enviado a @_form.Email. Introduce el token de confirmación recibido.</p>
+            <label>Token de verificación <input @bind="_verificationToken" autocomplete="off" /></label>
+            <p><button class="button" disabled="@_busy" @onclick="VerifyAsync">Verificar correo</button></p>
+        }
+        else if (_step == 2)
+        {
+            <h2>3. Selecciona un plan</h2>
+            @if (_plans.Count == 0)
+            {
+                <p role="status">No hay planes activos configurados para contratación.</p>
+            }
+            else
+            {
+                <label>Plan
+                    <select @bind="_selectedPlan">
+                        @foreach (var plan in _plans)
+                        {
+                            <option value="@plan.Code">@plan.Name</option>
+                        }
+                    </select>
+                </label>
+                <p class="muted">El importe definitivo y los impuestos se mostrarán en Stripe antes de confirmar el pago.</p>
+                <p><button class="button" disabled="@_busy" @onclick="CheckoutAsync">Continuar al pago seguro</button></p>
+            }
+        }
+        @if (!string.IsNullOrEmpty(_error))
+        {
+            <div class="notice" role="alert">@_error</div>
+        }
     </div>
 </section>
+@code {
+    private sealed class RegistrationForm
+    {
+        [System.ComponentModel.DataAnnotations.Required] public string Email { get; set; } = "";
+        [System.ComponentModel.DataAnnotations.Required] public string Password { get; set; } = "";
+        [System.ComponentModel.DataAnnotations.Required] public string DisplayName { get; set; } = "";
+        [System.ComponentModel.DataAnnotations.Required] public string TenantName { get; set; } = "";
+        [System.ComponentModel.DataAnnotations.Required] public string Nif { get; set; } = "";
+        [System.ComponentModel.DataAnnotations.Required] public string LegalName { get; set; } = "";
+        [System.ComponentModel.DataAnnotations.Required] public string Address { get; set; } = "";
+        [System.ComponentModel.DataAnnotations.Required] public string PostalCode { get; set; } = "";
+        [System.ComponentModel.DataAnnotations.Required] public string City { get; set; } = "";
+        [System.ComponentModel.DataAnnotations.Required] public string Province { get; set; } = "";
+    }
+    private readonly RegistrationForm _form = new();
+    private int _step;
+    private bool _busy;
+    private string? _error;
+    private Guid _registrationId;
+    private string _verificationToken = "";
+    private string _checkoutToken = "";
+    private string _selectedPlan = "";
+    private List<PlanResponse> _plans = new();
+
+    private async Task RegisterAsync()
+    {
+        if (_busy) return;
+        _busy = true;
+        _error = null;
+        try
+        {
+            var response = await Registration.RegisterAsync(new RegisterSaasRequest(
+                _form.Email, _form.Password, _form.DisplayName, _form.TenantName,
+                _form.Nif, _form.LegalName, _form.Address, _form.PostalCode,
+                _form.City, _form.Province), CancellationToken.None);
+            _registrationId = response.RegistrationId;
+            _form.Password = "";
+            _step = 1;
+        }
+        catch (Exception)
+        {
+            _error = "No se ha podido iniciar el registro. Comprueba los datos o contacta con soporte.";
+        }
+        finally { _busy = false; }
+    }
+
+    private async Task VerifyAsync()
+    {
+        if (_busy || string.IsNullOrWhiteSpace(_verificationToken)) return;
+        _busy = true;
+        _error = null;
+        try
+        {
+            _checkoutToken = await Registration.VerifyEmailAsync(_registrationId, _verificationToken.Trim(), CancellationToken.None);
+            _verificationToken = "";
+            _plans = await Plans.GetActiveAsync();
+            _selectedPlan = _plans.FirstOrDefault()?.Code ?? "";
+            _step = 2;
+        }
+        catch (Exception) { _error = "No se pudo verificar el correo. Comprueba el token recibido."; }
+        finally { _busy = false; }
+    }
+
+    private async Task CheckoutAsync()
+    {
+        if (_busy || string.IsNullOrWhiteSpace(_selectedPlan) || string.IsNullOrEmpty(_checkoutToken)) return;
+        _busy = true;
+        _error = null;
+        try
+        {
+            var response = await Registration.CheckoutAsync(_registrationId, _checkoutToken, _selectedPlan, CancellationToken.None);
+            if (!Uri.TryCreate(response.Url, UriKind.Absolute, out var destination) ||
+                destination.Scheme != Uri.UriSchemeHttps ||
+                !(destination.Host.Equals("checkout.stripe.com", StringComparison.OrdinalIgnoreCase) ||
+                  destination.Host.EndsWith(".checkout.stripe.com", StringComparison.OrdinalIgnoreCase)))
+                throw new InvalidOperationException("Destino de pago no válido.");
+            Navigation.NavigateTo(destination.ToString(), forceLoad: true);
+        }
+        catch (Exception) { _error = "No se ha podido abrir el pago seguro. Inténtalo más tarde."; }
+        finally { _busy = false; }
+    }
+}
