@@ -1,3 +1,6 @@
+using System.Text;
+using System.Text.Json;
+using Facturacion.Payments.Stripe;
 using Facturacion.Application.Interfaces;
 using Facturacion.Configuration;
 using Facturacion.Configuration.Options;
@@ -57,8 +60,9 @@ builder.Services.AddIdentityCore<ApplicationUser>()
 builder.Services.AddScoped<TenantContext>();
 builder.Services.AddScoped<ITenantContext>(sp => sp.GetRequiredService<TenantContext>());
 
-// Alta self-service + Stripe. El webhook no se expone aqui, solo el checkout.
-builder.Services.AddSaasSelfService(includeWebhookProcessing: false);
+// Alta self-service + Stripe. La web publica recibe temporalmente el webhook
+// mientras la API no se ejecuta; reutiliza el procesador compartido.
+builder.Services.AddSaasSelfService(includeWebhookProcessing: true);
 builder.Services.AddFacturacionEmail();
 builder.Services.AddScoped<PublicPlansService>();
 
@@ -67,6 +71,37 @@ if (!app.Environment.IsDevelopment()) { app.UseExceptionHandler("/error"); app.U
 app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseAntiforgery();
+// Endpoint de Stripe en el host publico, sin depender de Facturacion.Api.
+// No se debe activar la suscripcion desde la URL de exito de Checkout.
+app.MapPost("/api/webhooks/stripe", async (
+    HttpRequest request,
+    StripeEventProcessor processor,
+    IOptions<StripeOptions> stripeOptions,
+    CancellationToken ct) =>
+{
+    using var buffer = new MemoryStream();
+    await request.Body.CopyToAsync(buffer, ct);
+    var payload = buffer.ToArray();
+
+    if (!StripeWebhookVerifier.Verify(
+            payload,
+            request.Headers["Stripe-Signature"].ToString(),
+            stripeOptions.Value.WebhookSecret))
+        return Results.BadRequest();
+
+    JsonDocument document;
+    try { document = JsonDocument.Parse(payload); }
+    catch (JsonException) { return Results.BadRequest(); }
+
+    using (document)
+    {
+        var outcome = await processor.HandleAsync(document.RootElement, ct);
+        return outcome == StripeEventOutcome.RetryLater
+            ? Results.StatusCode(StatusCodes.Status503ServiceUnavailable)
+            : Results.Ok();
+    }
+}).AllowAnonymous().DisableAntiforgery();
+
 app.MapRazorComponents<App>().AddInteractiveServerRenderMode();
 app.Run();
 
