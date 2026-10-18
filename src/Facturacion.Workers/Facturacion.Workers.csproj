@@ -19,4 +19,9 @@
     <Content Include="../Facturacion.Configuration/appsettings.Shared.json" Link="appsettings.Shared.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <Content Include="../Facturacion.Configuration/appsettings.Workers.json" Link="appsettings.Workers.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="../Facturacion.Configuration/Environments/appsettings.Shared.*.json" Link="Environments/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="../Facturacion.Configuration/Hosts/Workers/appsettings.*.json" Link="Hosts/Workers/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
 </Project>
