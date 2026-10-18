@@ -40,9 +40,9 @@ public static class SharedConfigurationExtensions
             ($"Hosts/{name}/appsettings.{env}.json", false)
         };
 
-        for (var i = 0; i < files.Length; i++)
+        var insertionIndex = 0;
+        foreach (var (relative, required) in files)
         {
-            var (relative, required) = files[i];
             var published = Path.Combine(environment.ContentRootPath, relative.Replace('/', Path.DirectorySeparatorChar));
             var repository = Path.GetFullPath(Path.Combine(
                 environment.ContentRootPath, "..", "Facturacion.Configuration",
@@ -56,7 +56,7 @@ public static class SharedConfigurationExtensions
                 continue;
             }
 
-            configuration.Sources.Insert(i, new JsonConfigurationSource
+            configuration.Sources.Insert(insertionIndex++, new JsonConfigurationSource
             {
                 Path = Path.GetFileName(path),
                 Optional = false,
