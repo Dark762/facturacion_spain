@@ -6,18 +6,12 @@ using Microsoft.Extensions.Hosting;
 namespace Facturacion.Configuration;
 
 /// <summary>
-/// Inserta los appsettings de cada host como configuracion de menor prioridad.
-/// Los appsettings de cada host, User Secrets y variables de entorno prevalecen.
+/// Configuracion centralizada por host y entorno.
+/// Prioridad (menor a mayor): Shared, Shared.Environment, Host, Host.Environment,
+/// User Secrets (Development), variables de entorno y argumentos.
 /// </summary>
 public static class SharedConfigurationExtensions
 {
-    /// <summary>
-    /// Carga appsettings.Shared.json y appsettings.&lt;host&gt;.json.
-    /// Se resuelven primero junto al binario (publicado) y despues en el
-    /// repositorio, para que el proyecto funcione sin copiar nada en local.
-    /// Si falta alguno se falla aqui: arrancar sin configuracion es peor que
-    /// no arrancar, porque parece que todo va bien.
-    /// </summary>
     public static ConfigurationManager AddFacturacionConfiguration(
         this ConfigurationManager configuration,
         IHostEnvironment environment,
@@ -26,22 +20,45 @@ public static class SharedConfigurationExtensions
         ArgumentNullException.ThrowIfNull(configuration);
         ArgumentNullException.ThrowIfNull(environment);
 
-        var names = new[] { SharedFileName, host.ToConfigurationFileName() };
-
-        for (var index = 0; index < names.Length; index++)
+        // El host ASP.NET carga appsettings.json por defecto. No permitimos que
+        // esos archivos dispersos sobrescriban los valores centralizados.
+        for (var i = configuration.Sources.Count - 1; i >= 0; i--)
         {
-            var name = names[index];
-            var published = Path.Combine(environment.ContentRootPath, name);
+            if (configuration.Sources[i] is JsonConfigurationSource json &&
+                (string.Equals(json.Path, "appsettings.json", StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(json.Path, $"appsettings.{environment.EnvironmentName}.json", StringComparison.OrdinalIgnoreCase)))
+                configuration.Sources.RemoveAt(i);
+        }
+
+        var name = host.ToConfigurationName();
+        var env = environment.EnvironmentName;
+        var files = new (string Path, bool Required)[]
+        {
+            ("appsettings.Shared.json", true),
+            ($"Environments/appsettings.Shared.{env}.json", false),
+            ($"appsettings.{name}.json", true),
+            ($"Hosts/{name}/appsettings.{env}.json", false)
+        };
+
+        for (var i = 0; i < files.Length; i++)
+        {
+            var (relative, required) = files[i];
+            var published = Path.Combine(environment.ContentRootPath, relative.Replace('/', Path.DirectorySeparatorChar));
             var repository = Path.GetFullPath(Path.Combine(
-                environment.ContentRootPath, "..", "Facturacion.Configuration", name));
+                environment.ContentRootPath, "..", "Facturacion.Configuration",
+                relative.Replace('/', Path.DirectorySeparatorChar)));
             var path = File.Exists(published) ? published : repository;
 
             if (!File.Exists(path))
-                throw new FileNotFoundException($"No se encontro {name}.", path);
-
-            configuration.Sources.Insert(index, new JsonConfigurationSource
             {
-                Path = name,
+                if (required)
+                    throw new FileNotFoundException($"No se encontro {relative}.", path);
+                continue;
+            }
+
+            configuration.Sources.Insert(i, new JsonConfigurationSource
+            {
+                Path = Path.GetFileName(path),
                 Optional = false,
                 ReloadOnChange = true,
                 FileProvider = new PhysicalFileProvider(Path.GetDirectoryName(path)!)
@@ -50,6 +67,4 @@ public static class SharedConfigurationExtensions
 
         return configuration;
     }
-
-    private const string SharedFileName = "appsettings.Shared.json";
 }
