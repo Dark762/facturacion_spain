@@ -10,7 +10,7 @@ public sealed class PublicPlansService(SelfServiceDbContext db)
     public Task<List<PlanResponse>> GetActiveAsync(CancellationToken cancellationToken = default) =>
         db.SubscriptionPlans.AsNoTracking()
             .Where(plan => plan.IsActive)
-            .OrderBy(plan => plan.Name)
-            .Select(plan => new PlanResponse(plan.Code, plan.Name))
+            .OrderBy(plan => plan.DisplayOrder).ThenBy(plan => plan.Name)
+            .Select(plan => new PlanResponse(plan.Code, plan.Name, plan.MonthlyPrice, plan.Currency, plan.MaxCompanies, plan.MaxUsers, plan.MaxInvoicesPerMonth, plan.Description))
             .ToListAsync(cancellationToken);
 }
