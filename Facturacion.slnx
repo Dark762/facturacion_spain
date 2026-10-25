@@ -1,5 +1,6 @@
 <Solution>
   <Folder Name="/src/">
+    <Project Path="src/Facturacion.AppHost/Facturacion.AppHost.csproj" />
     <Project Path="src/Facturacion.Api/Facturacion.Api.csproj" />
     <Project Path="src/Facturacion.Application/Facturacion.Application.csproj" />
     <Project Path="src/Facturacion.B2B/Facturacion.B2B.csproj" />
