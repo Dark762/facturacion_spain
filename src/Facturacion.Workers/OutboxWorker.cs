@@ -1,4 +1,5 @@
 using Facturacion.Configuration.Options;
+using Microsoft.Extensions.Options;
 
 namespace Facturacion.Workers;
 
@@ -17,11 +18,11 @@ public sealed class OutboxWorker : BackgroundService
 
     public OutboxWorker(
         FiscalOutboxProcessor processor,
-        OutboxOptions options,
+        IOptions<OutboxOptions> options,
         ILogger<OutboxWorker> logger)
     {
         _processor = processor;
-        _options = options;
+        _options = options.Value;
         _logger = logger;
     }
 
