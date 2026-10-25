@@ -1001,6 +1001,13 @@ CREATE TABLE `subscriptionplans` (
   `Name` varchar(150) NOT NULL,
   `StripePriceId` varchar(255) NOT NULL,
   `IsActive` tinyint(1) NOT NULL DEFAULT 1,
+  `MonthlyPrice` decimal(10,2) NOT NULL DEFAULT 0.00,
+  `Currency` varchar(3) NOT NULL DEFAULT 'EUR',
+  `MaxCompanies` int NOT NULL DEFAULT 0,
+  `MaxUsers` int NOT NULL DEFAULT 0,
+  `MaxInvoicesPerMonth` int NOT NULL DEFAULT 0,
+  `Description` varchar(500) NOT NULL DEFAULT '',
+  `DisplayOrder` int NOT NULL DEFAULT 0,
   PRIMARY KEY (`Code`),
   UNIQUE KEY `UX_SubscriptionPlans_Price` (`StripePriceId`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
