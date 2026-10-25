@@ -34,9 +34,9 @@ public static class SharedConfigurationExtensions
         var env = environment.EnvironmentName;
         var files = new (string Path, bool Required)[]
         {
-            ("appsettings.Shared.json", true),
-            ($"Environments/appsettings.Shared.{env}.json", false),
-            ($"appsettings.{name}.json", true),
+            ("Shared/appsettings.json", true),
+            ($"Shared/appsettings.{env}.json", false),
+            ($"Hosts/{name}/appsettings.json", true),
             ($"Hosts/{name}/appsettings.{env}.json", false)
         };
 
