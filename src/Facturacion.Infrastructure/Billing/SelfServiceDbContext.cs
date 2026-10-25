@@ -48,6 +48,13 @@ public sealed class SubscriptionPlan
     public string Name { get; set; } = "";
     public string StripePriceId { get; set; } = "";
     public bool IsActive { get; set; } = true;
+    public decimal MonthlyPrice { get; set; }
+    public string Currency { get; set; } = "EUR";
+    public int MaxCompanies { get; set; }
+    public int MaxUsers { get; set; }
+    public int MaxInvoicesPerMonth { get; set; }
+    public string Description { get; set; } = "";
+    public int DisplayOrder { get; set; }
 }
 public sealed class ProcessedPaymentEvent
 {
