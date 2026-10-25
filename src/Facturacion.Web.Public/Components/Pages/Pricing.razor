@@ -6,7 +6,7 @@
 <section class="container section">
     <span class="eyebrow">Planes</span>
     <h1>Encuentra el plan adecuado</h1>
-    <p class="muted">Precios mensuales orientativos, sin IVA. La contratación requiere que el plan esté configurado y activo.</p>
+    <p class="muted">Precios mensuales, sin IVA. La contratación requiere que el plan esté configurado y activo.</p>
     @if (_loading)
     {
         <p role="status">Cargando planes…</p>
@@ -26,15 +26,12 @@
             {
                 <article class="card" @key="plan.Code">
                     <h2>@plan.Name</h2>
-                    @if (GetOffer(plan.Code) is { } offer)
+                    <p><strong>@plan.MonthlyPrice.ToString("N2", System.Globalization.CultureInfo.GetCultureInfo("es-ES")) @CurrencySymbol(plan.Currency)</strong> <span class="muted">/mes, sin IVA</span></p>
+                    @if (!string.IsNullOrWhiteSpace(plan.Description))
                     {
-                        <p><strong>@offer.Price</strong> <span class="muted">/mes, sin IVA</span></p>
-                        <p class="muted">@offer.Details</p>
+                        <p class="muted">@plan.Description</p>
                     }
-                    else
-                    {
-                        <p class="muted">Consulta las condiciones del plan.</p>
-                    }
+                    <p class="muted">@PlanLimits(plan)</p>
                     <a class="button" href="/registro">Crear cuenta</a>
                 </article>
             }
@@ -42,16 +39,17 @@
     }
 </section>
 @code {
-    private sealed record Offer(string Price, string Details);
-    private static Offer? GetOffer(string code) => code.Trim().ToLowerInvariant() switch
+    private static string CurrencySymbol(string currency) =>
+        string.Equals(currency, "EUR", StringComparison.OrdinalIgnoreCase) ? "€" : currency;
+
+    private static string PlanLimits(PlanResponse plan)
     {
-        "gratis" or "free" => new("0 €", "1 empresa · 1 usuario · hasta 5 facturas/mes"),
-        "autonomo" or "autónomo" => new("5,90 €", "1 empresa · 1 usuario · hasta 50 facturas/mes"),
-        "negocio" => new("12,90 €", "2 empresas · 3 usuarios · hasta 300 facturas/mes"),
-        "empresa" => new("24,90 €", "5 empresas · 10 usuarios · hasta 1.000 facturas/mes"),
-        "asesoria" or "asesoría" => new("Desde 39 €", "Hasta 10 empresas gestionadas"),
-        _ => null
-    };
+        var parts = new List<string>();
+        if (plan.MaxCompanies > 0) parts.Add($"{plan.MaxCompanies} empresa(s)");
+        if (plan.MaxUsers > 0) parts.Add($"{plan.MaxUsers} usuario(s)");
+        if (plan.MaxInvoicesPerMonth > 0) parts.Add($"hasta {plan.MaxInvoicesPerMonth:N0} facturas/mes");
+        return string.Join(" · ", parts);
+    }
     private List<PlanResponse> _plans = [];
     private bool _loading = true;
     private bool _error;
