@@ -11,24 +11,28 @@
 @inject IOptions<EmailOptions> Email
 @inject NavigationManager Navigation
 <PageTitle>Registro | Facturación ES</PageTitle>
-<section class="container section">
+<section class="container section registration-page">
     <span class="eyebrow">Crear cuenta</span>
     <h1>Empieza con tu organización</h1>
-    <div class="card" style="max-width:720px">
+    <div class="card registration-card">
         @if (!Email.Value.IsConfigured || string.IsNullOrWhiteSpace(Email.Value.Smtp.Host) || !Stripe.Value.IsConfigured)
         {
             <div class="notice" role="status">El alta online todavía no está disponible: es necesario configurar el envío de correo y Stripe. No se crearán cuentas incompletas.</div>
         }
         else if (_step == 0)
         {
-            <h2>1. Tus datos y los de tu empresa</h2>
+            <h2>1. Crea tu cuenta</h2>
             <EditForm Model="_form" OnValidSubmit="RegisterAsync" FormName="saas-register">
                 <DataAnnotationsValidator />
                 <ValidationSummary />
-                <div class="registration-fields">
+                <div class="registration-group-title">Datos de acceso</div>
+                <div class="registration-fields registration-fields-access">
                     <label>Nombre completo <InputText @bind-Value="_form.DisplayName" /></label>
                     <label>Correo electrónico <InputText type="email" @bind-Value="_form.Email" /></label>
                     <label>Contraseña <InputText type="password" autocomplete="new-password" @bind-Value="_form.Password" /></label>
+                </div>
+                <div class="registration-group-title">Datos de la empresa</div>
+                <div class="registration-fields registration-fields-company">
                     <label>Organización <InputText @bind-Value="_form.TenantName" /></label>
                     <label>Razón social <InputText @bind-Value="_form.LegalName" /></label>
                     <label>NIF <InputText @bind-Value="_form.Nif" /></label>
