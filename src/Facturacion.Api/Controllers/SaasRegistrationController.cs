@@ -19,13 +19,25 @@ public sealed class SaasRegistrationController : ControllerBase
     private readonly SelfServiceDbContext _db;
     public SaasRegistrationController(SaasRegistrationService registration, SelfServiceDbContext db)
     { _registration=registration; _db=db; }
-    /// <summary>Devuelve el catálogo completo de planes activos ordenado para su presentación.</summary>
+    /// <summary>Devuelve los códigos y nombres de los planes activos.</summary>
     [HttpGet("plans")]
     public async Task<IActionResult> Plans(CancellationToken ct) =>
-        Ok(await _db.SubscriptionPlans.AsNoTracking().Where(x=>x.IsActive)
-            .OrderBy(x=>x.DisplayOrder).ThenBy(x=>x.Name)
-            .Select(x=>new PlanResponse(x.Code,x.Name,x.MonthlyPrice,x.Currency,
-                x.MaxCompanies,x.MaxUsers,x.MaxInvoicesPerMonth,x.Description)).ToListAsync(ct));
+    Ok(await _db.SubscriptionPlans
+        .AsNoTracking()
+        .Where(x => x.IsActive)
+        .OrderBy(x => x.DisplayOrder)
+        .ThenBy(x => x.Name)
+        .Select(x => new PlanResponse(
+            x.Code,
+            x.Name,
+            x.MonthlyPrice,
+            x.Currency,
+            x.MaxCompanies,
+            x.MaxUsers,
+            x.MaxInvoicesPerMonth,
+            x.Description))
+        .ToListAsync(ct));
+
     /// <summary>Inicia el registro; delega las validaciones y la persistencia en el servicio.</summary>
     [HttpPost("register")]
     public async Task<IActionResult> Register([FromBody] RegisterSaasRequest request,CancellationToken ct) =>

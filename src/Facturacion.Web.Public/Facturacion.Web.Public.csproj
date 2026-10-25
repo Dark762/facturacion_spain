@@ -1,4 +1,17 @@
-<Project Sdk="Microsoft.NET.Sdk.Web"><PropertyGroup><TargetFramework>net8.0</TargetFramework><Nullable>enable</Nullable><ImplicitUsings>enable</ImplicitUsings></PropertyGroup><ItemGroup><ProjectReference Include="../Facturacion.UI.Shared/Facturacion.UI.Shared.csproj" /><ProjectReference Include="../Facturacion.Client/Facturacion.Client.csproj" /><ProjectReference Include="..\Facturacion.Application\Facturacion.Application.csproj" /><ProjectReference Include="..\Facturacion.Infrastructure\Facturacion.Infrastructure.csproj" /></ItemGroup>  <ItemGroup>
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UserSecretsId>dc389852-fc49-4bef-9a12-bb5e604635a7</UserSecretsId>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Facturacion.UI.Shared/Facturacion.UI.Shared.csproj" />
+    <ProjectReference Include="../Facturacion.Client/Facturacion.Client.csproj" />
+    <ProjectReference Include="..\Facturacion.Application\Facturacion.Application.csproj" />
+    <ProjectReference Include="..\Facturacion.Infrastructure\Facturacion.Infrastructure.csproj" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="../Facturacion.Configuration/Facturacion.Configuration.csproj" />
     <Content Include="../Facturacion.Configuration/Shared/appsettings.json" Link="Shared/appsettings.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <Content Include="../Facturacion.Configuration/Hosts/Web.Public/appsettings.json" Link="Hosts/Web.Public/appsettings.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
