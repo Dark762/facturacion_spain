@@ -1,3 +1,5 @@
+using Aspire.Hosting;
+
 // Orquestacion local: utiliza la base MySQL/MariaDB y Mailpit ya instalados
 // en Windows. No crea contenedores ni modifica datos existentes.
 var builder = DistributedApplication.CreateBuilder(args);
