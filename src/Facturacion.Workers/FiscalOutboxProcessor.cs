@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Facturacion.Application.Interfaces;
 using Facturacion.Configuration.Options;
+using Microsoft.Extensions.Options;
 using Facturacion.Domain.Entities;
 using Facturacion.Infrastructure.Multitenancy;
 using Facturacion.Infrastructure.Persistence;
@@ -34,11 +35,11 @@ public sealed class FiscalOutboxProcessor
     public FiscalOutboxProcessor(
         IServiceScopeFactory scopes,
         ILogger<FiscalOutboxProcessor> logger,
-        OutboxOptions options)
+        IOptions<OutboxOptions> options)
     {
         _scopes = scopes;
         _logger = logger;
-        _options = options;
+        _options = options.Value;
     }
 
     /// <summary>Reclama mensajes de tipo fiscal de todos los tenants y los procesa con aislamiento estricto.</summary>
