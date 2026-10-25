@@ -1,23 +1,24 @@
-// Orquestacion local: utiliza la base MySQL/MariaDB y Mailpit ya instalados
-// en Windows. No crea contenedores ni modifica datos existentes.
 using Aspire.Hosting;
 
+// Aspire solo orquesta procesos locales; MySQL/MariaDB y Mailpit se gestionan fuera.
+// El entorno seleccionado en launchSettings se propaga a todos los recursos.
 var builder = DistributedApplication.CreateBuilder(args);
+var environmentName = builder.Environment.EnvironmentName;
 
-// Cada host mantiene sus propios appsettings centralizados y User Secrets.
-// Development evita el perfil "Local" historico de la API.
-var api = builder.AddProject<Projects.Facturacion_Api>("api")
-    .WithEnvironment("ASPNETCORE_ENVIRONMENT", "Development");
+builder.AddProject<Projects.Facturacion_Api>("api")
+    .WithEnvironment("ASPNETCORE_ENVIRONMENT", environmentName)
+    .WithEnvironment("DOTNET_ENVIRONMENT", environmentName);
 
-var publicWeb = builder.AddProject<Projects.Facturacion_Web_Public>("web-public")
-    .WithEnvironment("ASPNETCORE_ENVIRONMENT", "Development");
+builder.AddProject<Projects.Facturacion_Web_Public>("web-public")
+    .WithEnvironment("ASPNETCORE_ENVIRONMENT", environmentName)
+    .WithEnvironment("DOTNET_ENVIRONMENT", environmentName);
 
-var privateWeb = builder.AddProject<Projects.Facturacion_Web_App>("web-app")
-    .WithEnvironment("ASPNETCORE_ENVIRONMENT", "Development");
+builder.AddProject<Projects.Facturacion_Web_App>("web-app")
+    .WithEnvironment("ASPNETCORE_ENVIRONMENT", environmentName)
+    .WithEnvironment("DOTNET_ENVIRONMENT", environmentName);
 
-var workers = builder.AddProject<Projects.Facturacion_Workers>("workers")
-    .WithEnvironment("DOTNET_ENVIRONMENT", "Development");
+builder.AddProject<Projects.Facturacion_Workers>("workers")
+    .WithEnvironment("DOTNET_ENVIRONMENT", environmentName);
 
-// No se usa WithReference a MySQL ni a Mailpit: son servicios externos
-// accesibles desde localhost mediante los ajustes de Facturacion.Configuration.
+// Los servicios externos se conectan con la configuracion centralizada por host/entorno.
 builder.Build().Run();
