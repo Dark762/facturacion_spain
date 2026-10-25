@@ -4,7 +4,7 @@ public sealed record RegisterSaasRequest(string Email, string Password, string D
     string City, string Province);
 public sealed record RegistrationResponse(Guid RegistrationId, string Message);
 public sealed record CheckoutResponse(string Url);
-public sealed record PlanResponse(string Code, string Name);
+public sealed record PlanResponse(string Code, string Name, decimal MonthlyPrice, string Currency, int MaxCompanies, int MaxUsers, int MaxInvoicesPerMonth, string Description);
 public interface IPaymentGateway
 {
     Task<(string SessionId, string Url)> CreateSubscriptionCheckoutAsync(
