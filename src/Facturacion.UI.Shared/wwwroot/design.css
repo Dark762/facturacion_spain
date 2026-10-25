@@ -5,3 +5,15 @@
 @media(max-width:760px){.container{width:min(100% - 36px,1180px)}.nav{min-height:68px}.navlinks{gap:12px}.navlinks .nav-link{display:none}.nav-cta{padding:10px 13px;font-size:.82rem}.brand{font-size:1rem}.hero-grid{grid-template-columns:1fr;gap:36px;min-height:auto;padding-block:62px 65px}.hero-copy{max-width:640px}.hero-copy h1{font-size:clamp(2.55rem,9vw,3.7rem);margin:22px 0 17px}.hero-copy>p:not(.hero-footnote){font-size:1rem}.hero-visual{max-width:580px;width:100%;margin:auto}.product-preview{transform:none;height:330px}.preview-heading{padding:14px 0}.preview-table{margin-top:10px}.section{padding:55px 0}.cards{grid-template-columns:1fr}.footer-inner{flex-direction:column;align-items:flex-start}.shell{display:block;padding-bottom:70px}.sidebar{display:none}.workspace{padding:28px 20px}.mobile-nav{display:flex;position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid #e6eaf2;justify-content:space-around;padding:14px 8px;z-index:10;font-size:.85rem}.cta-inner{align-items:flex-start;flex-direction:column}}
 @media(max-width:440px){.hero-copy h1{font-size:2.5rem}.hero-actions .button{flex:1;padding-inline:12px;font-size:.88rem}.product-preview{grid-template-columns:68px minmax(0,1fr);height:300px}.preview-sidebar{padding:12px 4px}.preview-logo{margin:0 0 22px 7px}.preview-side-item{justify-content:center;padding:9px 3px}.preview-side-item span:last-child{display:none}.preview-main{padding-inline:9px}.preview-heading h2{font-size:1.05rem}.preview-metric{padding:9px}.preview-metric strong{font-size:1.05rem}.preview-row{font-size:.48rem;gap:4px;padding:10px 6px}.preview-pill{font-size:.45rem;padding:4px}.preview-table-title{padding:10px 6px}.preview-heading p{font-size:.58rem}}
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}.button{transition:none}.button:hover{transform:none}}
+
+
+/* Alta publica: campos alineados, legibles y adaptables a movil. */
+.registration-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px 20px;margin:24px 0}
+.registration-fields label{display:flex;flex-direction:column;gap:7px;min-width:0;font-size:.88rem;font-weight:650;color:#334155}
+.registration-fields input{display:block;width:100%;min-width:0;min-height:44px;padding:10px 12px;border:1px solid #cbd5e1;border-radius:10px;background:#fff;color:#18243b;font:inherit;transition:border-color .15s ease,box-shadow .15s ease}
+.registration-fields input:focus{outline:none;border-color:#5145e7;box-shadow:0 0 0 3px rgba(81,69,231,.13)}
+.registration-fields input.invalid{border-color:#dc2626}
+.registration-fields .validation-message{font-size:.78rem;color:#b91c1c;font-weight:400}
+.registration-fields label:nth-child(5),.registration-fields label:nth-child(7){grid-column:1/-1}
+.registration-fields + .muted{line-height:1.6}
+@media(max-width:620px){.registration-fields{grid-template-columns:1fr;gap:15px}.registration-fields label:nth-child(5),.registration-fields label:nth-child(7){grid-column:auto}}
