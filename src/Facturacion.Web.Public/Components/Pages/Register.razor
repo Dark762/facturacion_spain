@@ -9,6 +9,7 @@
 @inject IOptions<StripeOptions> Stripe
 @inject IOptions<EmailOptions> Email
 @inject NavigationManager Navigation
+@inject ILogger<Register> Logger
 <PageTitle>Registro | Facturación ES</PageTitle>
 <section class="container section registration-page">
     <span class="eyebrow">Crear cuenta</span>
@@ -135,9 +136,10 @@
             _error = ex.Message;
             _fieldErrors = ex.Errors;
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            _error = "No se ha podido iniciar el registro. Comprueba los datos o contacta con soporte.";
+            Logger.LogError(ex, "Error inesperado al iniciar el registro SaaS.");
+            _error = "No se ha podido iniciar el registro por un problema técnico. Inténtalo de nuevo más tarde.";
         }
         finally { _busy = false; }
     }
