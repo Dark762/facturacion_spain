@@ -15,9 +15,9 @@ namespace Facturacion.Api.Controllers;
 [ApiController, Route("api/saas"), AllowAnonymous]
 public sealed class SaasRegistrationController : ControllerBase
 {
-    private readonly SaasRegistrationService _registration;
+    private readonly ISaasRegistrationService _registration;
     private readonly SelfServiceDbContext _db;
-    public SaasRegistrationController(SaasRegistrationService registration, SelfServiceDbContext db)
+    public SaasRegistrationController(ISaasRegistrationService registration, SelfServiceDbContext db)
     { _registration=registration; _db=db; }
     /// <summary>Devuelve los códigos y nombres de los planes activos.</summary>
     [HttpGet("plans")]
@@ -40,8 +40,11 @@ public sealed class SaasRegistrationController : ControllerBase
 
     /// <summary>Inicia el registro; delega las validaciones y la persistencia en el servicio.</summary>
     [HttpPost("register")]
-    public async Task<IActionResult> Register([FromBody] RegisterSaasRequest request,CancellationToken ct) =>
-        Ok(await _registration.RegisterAsync(request,ct));
+    public async Task<IActionResult> Register([FromBody] RegisterSaasRequest request, CancellationToken ct)
+    {
+        try { return Ok(await _registration.RegisterAsync(request, ct)); }
+        catch (RegistrationValidationException ex) { return ValidationProblem(new ValidationProblemDetails(ex.Errors.ToDictionary(x => x.Key, x => x.Value))); }
+    }
     /// <summary>Datos de identificación del registro y confirmación del correo.</summary>
     public sealed record VerifyRequest(Guid RegistrationId,string Token);
     /// <summary>Verifica el correo y devuelve el token que autoriza continuar al checkout.</summary>
