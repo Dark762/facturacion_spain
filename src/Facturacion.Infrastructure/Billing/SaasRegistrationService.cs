@@ -18,7 +18,7 @@ public sealed class SaasRegistrationService
     private readonly StripeOptions _stripe;
     public SaasRegistrationService(SelfServiceDbContext db, UserManager<ApplicationUser> users,
         IRegistrationEmailSender emails, IPaymentGateway gateway, IOptions<StripeOptions> stripe)
-    { _db=db; _users=users; _emails=emails; _gateway=gateway; _stripe=stripe.Value; }
+    { _db = db; _users = users; _emails = emails; _gateway = gateway; _stripe = stripe.Value; }
 
     public async Task<RegistrationResponse> RegisterAsync(RegisterSaasRequest r, CancellationToken ct)
     {
@@ -30,12 +30,20 @@ public sealed class SaasRegistrationService
         var email = r.Email.Trim();
         if (await _users.FindByEmailAsync(email) is not null)
             throw new InvalidOperationException("No se puede completar el registro con estos datos.");
-        var user = new ApplicationUser { Email=email, UserName=email, DisplayName=r.DisplayName, IsActive=true, EmailConfirmed=false };
+        var user = new ApplicationUser { Email = email, UserName = email, DisplayName = r.DisplayName, IsActive = true, EmailConfirmed = false };
         var result = await _users.CreateAsync(user, r.Password);
-        if (!result.Succeeded) throw new ArgumentException(string.Join("; ", result.Errors.Select(e=>e.Description)));
-        var intent = new RegistrationIntent { UserId=user.Id, TenantName=r.TenantName.Trim(),
-            Nif=r.Nif.Trim(), LegalName=r.LegalName.Trim(), Address=r.Address.Trim(),
-            PostalCode=r.PostalCode.Trim(), City=r.City.Trim(), Province=r.Province.Trim() };
+        if (!result.Succeeded) throw new ArgumentException(string.Join("; ", result.Errors.Select(e => e.Description)));
+        var intent = new RegistrationIntent
+        {
+            UserId = user.Id,
+            TenantName = r.TenantName.Trim(),
+            Nif = r.Nif.Trim(),
+            LegalName = r.LegalName.Trim(),
+            Address = r.Address.Trim(),
+            PostalCode = r.PostalCode.Trim(),
+            City = r.City.Trim(),
+            Province = r.Province.Trim()
+        };
         _db.RegistrationIntents.Add(intent);
         await _db.SaveChangesAsync(ct);
         var token = await _users.GenerateEmailConfirmationTokenAsync(user);
@@ -45,10 +53,10 @@ public sealed class SaasRegistrationService
 
     public async Task<string> VerifyEmailAsync(Guid id, string token, CancellationToken ct)
     {
-        var intent = await _db.RegistrationIntents.SingleOrDefaultAsync(x=>x.Id==id,ct)
+        var intent = await _db.RegistrationIntents.SingleOrDefaultAsync(x => x.Id == id, ct)
             ?? throw new KeyNotFoundException("Registro inexistente.");
         var user = await _users.FindByIdAsync(intent.UserId) ?? throw new KeyNotFoundException("Usuario inexistente.");
-        var result = await _users.ConfirmEmailAsync(user,token);
+        var result = await _users.ConfirmEmailAsync(user, token);
         // Un token invalido NUNCA puede reemitir un token de checkout, ni siquiera
         // si el correo ya estaba confirmado: en ese caso la condicion combined
         // dejaba pasar cualquier cadena vacia de token.
@@ -63,7 +71,7 @@ public sealed class SaasRegistrationService
 
     public async Task<CheckoutResponse> CheckoutAsync(Guid id, string checkoutToken, string planCode, CancellationToken ct)
     {
-        var intent = await _db.RegistrationIntents.SingleOrDefaultAsync(x=>x.Id==id,ct)
+        var intent = await _db.RegistrationIntents.SingleOrDefaultAsync(x => x.Id == id, ct)
             ?? throw new KeyNotFoundException("Registro inexistente.");
         if (intent.Status != "EmailVerified" || intent.CheckoutTokenHash is null ||
             !CryptographicOperations.FixedTimeEquals(Encoding.UTF8.GetBytes(intent.CheckoutTokenHash),
@@ -71,14 +79,14 @@ public sealed class SaasRegistrationService
             throw new UnauthorizedAccessException("Registro no verificado.");
         if (intent.CheckoutSessionId is not null)
             throw new InvalidOperationException("Ya existe una sesión de pago. Consulta su estado antes de crear otra.");
-        var plan = await _db.SubscriptionPlans.SingleOrDefaultAsync(x=>x.Code==planCode && x.IsActive,ct)
+        var plan = await _db.SubscriptionPlans.SingleOrDefaultAsync(x => x.Code == planCode && x.IsActive, ct)
             ?? throw new KeyNotFoundException("Plan no disponible.");
         var user = await _users.FindByIdAsync(intent.UserId) ?? throw new KeyNotFoundException("Usuario inexistente.");
-        var (sessionId,url) = await _gateway.CreateSubscriptionCheckoutAsync(plan.StripePriceId,user.Email!,
-            id.ToString("D"),_stripe.SuccessUrl,_stripe.CancelUrl,ct);
-        intent.PlanCode=plan.Code;
-        intent.CheckoutSessionId=sessionId;
-        intent.Status="CheckoutCreated";
+        var (sessionId, url) = await _gateway.CreateSubscriptionCheckoutAsync(plan.StripePriceId, user.Email!,
+            id.ToString("D"), _stripe.SuccessUrl, _stripe.CancelUrl, ct);
+        intent.PlanCode = plan.Code;
+        intent.CheckoutSessionId = sessionId;
+        intent.Status = "CheckoutCreated";
         await _db.SaveChangesAsync(ct);
         return new CheckoutResponse(url);
     }
