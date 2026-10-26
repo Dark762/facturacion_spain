@@ -24,7 +24,10 @@
             <h2>1. Crea tu cuenta</h2>
             <EditForm EditContext="_editContext" OnValidSubmit="RegisterAsync" FormName="saas-register">
                 <DataAnnotationsValidator />
-
+                @if (!string.IsNullOrWhiteSpace(_error))
+                {
+                    <div class="registration-error-banner" role="alert"><strong>No hemos podido continuar.</strong> @_error</div>
+                }
                 <div class="registration-group-title">Datos de acceso</div>
                 <div class="registration-fields registration-fields-access">
                     <label>Nombre completo <InputText @bind-Value="_form.DisplayName" /><ValidationMessage For="@(() => _form.DisplayName)" /></label>
@@ -39,6 +42,7 @@
         {
             <h2>2. Verifica tu correo</h2>
             <p>Revisa el mensaje enviado a @_form.Email. Introduce el token de confirmación recibido.</p>
+            @if (!string.IsNullOrWhiteSpace(_error)) { <div class="registration-error-banner" role="alert">@_error</div> }
             <label>Token de verificación <input @bind="_verificationToken" autocomplete="off" /></label>
             <p><button class="button" disabled="@_busy" @onclick="VerifyAsync">Verificar correo</button></p>
         }
@@ -48,6 +52,10 @@
             <p class="muted">Necesitamos estos datos fiscales antes de contratar un plan y emitir facturas.</p>
             <EditForm EditContext="_companyEditContext" OnValidSubmit="CompleteCompanyAsync" FormName="saas-company">
                 <DataAnnotationsValidator />
+                @if (!string.IsNullOrWhiteSpace(_error))
+                {
+                    <div class="registration-error-banner" role="alert">@_error</div>
+                }
                 <div class="registration-group-title">Tipo de titular fiscal</div>
                 <div class="registration-holder-types">
                     <InputRadioGroup @bind-Value="_company.HolderType">
@@ -73,6 +81,7 @@
         else if (_step == 3)
         {
             <h2>4. Selecciona un plan</h2>
+            @if (!string.IsNullOrWhiteSpace(_error)) { <div class="registration-error-banner" role="alert">@_error</div> }
             @if (_plans.Count == 0)
             {
                 <p role="status">No hay planes activos configurados para contratación.</p>
@@ -91,10 +100,7 @@
                 <p><button class="button" disabled="@_busy" @onclick="CheckoutAsync">Continuar al pago seguro</button></p>
             }
         }
-        @if (!string.IsNullOrEmpty(_error))
-        {
-            <div class="notice" role="alert">@_error</div>
-        }
+
     </div>
 </section>
 @code {
@@ -174,8 +180,8 @@
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "Error inesperado al iniciar el registro SaaS.");
-            _error = "No se ha podido iniciar el registro por un problema técnico. Inténtalo de nuevo más tarde.";
+            Logger.LogError(ex, "Error inesperado al iniciar el registro SaaS. Revisar logs de web-public en Aspire.");
+            _error = "Se ha producido un error interno. Revisa los registros de web-public en Aspire para conocer la causa. Si acabas de actualizar la aplicación, comprueba también las migraciones de la base de datos.";
         }
         finally { _busy = false; }
     }
