@@ -47,7 +47,9 @@ public static class RegistrationValidation
             if (string.IsNullOrWhiteSpace(value))
                 errors[key] = new[] { $"El campo {name} es obligatorio." };
         }
-        Required(nameof(request.LegalName), request.LegalName, "razón social");
+        Required(nameof(request.LegalName), request.LegalName, request.HolderType == "Individual" ? "nombre y apellidos" : "razón social");
+        if (request.HolderType is not ("Individual" or "LegalEntity"))
+            errors[nameof(request.HolderType)] = new[] { "Selecciona persona física o persona jurídica." };
         Required(nameof(request.Nif), request.Nif, "NIF");
         Required(nameof(request.Address), request.Address, "dirección");
         Required(nameof(request.PostalCode), request.PostalCode, "código postal");
@@ -56,9 +58,17 @@ public static class RegistrationValidation
         if (!errors.ContainsKey(nameof(request.PostalCode)) &&
             !Regex.IsMatch(request.PostalCode.Trim(), @"^\d{5}$"))
             errors[nameof(request.PostalCode)] = new[] { "El código postal debe contener 5 dígitos." };
-        if (!errors.ContainsKey(nameof(request.Nif)) &&
-            !Regex.IsMatch(request.Nif.Trim().ToUpperInvariant(), @"^[A-Z0-9]{8,9}$"))
-            errors[nameof(request.Nif)] = new[] { "Introduce un NIF o CIF con formato válido." };
+        if (!errors.ContainsKey(nameof(request.Nif)))
+        {
+            var nif = request.Nif.Trim().ToUpperInvariant();
+            var validFormat = request.HolderType == "Individual"
+                ? Regex.IsMatch(nif, @"^(?:[0-9]{8}[A-Z]|[XYZ][0-9]{7}[A-Z])$")
+                : Regex.IsMatch(nif, @"^[ABCDEFGHJNPQRSUVW][0-9]{7}[0-9A-J]$");
+            if (!validFormat)
+                errors[nameof(request.Nif)] = new[] { request.HolderType == "Individual"
+                    ? "Introduce un NIF o NIE de persona física con formato válido."
+                    : "Introduce un NIF de entidad con formato válido." };
+        }
         return errors;
     }
 
