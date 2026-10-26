@@ -27,29 +27,29 @@
                 <ValidationSummary />
                 <div class="registration-group-title">Datos de acceso</div>
                 <div class="registration-fields registration-fields-access">
-                    <label>Nombre completo <InputText @bind-Value="_form.DisplayName" /></label><ValidationMessage For="@(() => _form.DisplayName)" />
-                    @if (_fieldErrors.TryGetValue("DisplayName", out var DisplayNameErrors)) { <span class="validation-message" role="alert">@string.Join(" ", DisplayNameErrors)</span> }
-                    <label>Correo electrónico <InputText type="email" @bind-Value="_form.Email" /></label><ValidationMessage For="@(() => _form.Email)" />
-                    @if (_fieldErrors.TryGetValue("Email", out var EmailErrors)) { <span class="validation-message" role="alert">@string.Join(" ", EmailErrors)</span> }
-                    <label>Contraseña <InputText type="password" autocomplete="new-password" @bind-Value="_form.Password" /></label><ValidationMessage For="@(() => _form.Password)" />
-                    @if (_fieldErrors.TryGetValue("Password", out var PasswordErrors)) { <span class="validation-message" role="alert">@string.Join(" ", PasswordErrors)</span> }
+                    <label>Nombre completo <InputText @bind-Value="_form.DisplayName" /><ValidationMessage For="@(() => _form.DisplayName)" />
+                    @if (_fieldErrors.TryGetValue("DisplayName", out var DisplayNameErrors)) { <span class="validation-message" role="alert">@string.Join(" ", DisplayNameErrors)</span> }</label>
+                    <label>Correo electrónico <InputText type="email" @bind-Value="_form.Email" /><ValidationMessage For="@(() => _form.Email)" />
+                    @if (_fieldErrors.TryGetValue("Email", out var EmailErrors)) { <span class="validation-message" role="alert">@string.Join(" ", EmailErrors)</span> }</label>
+                    <label>Contraseña <InputText type="password" autocomplete="new-password" @bind-Value="_form.Password" /><ValidationMessage For="@(() => _form.Password)" />
+                    @if (_fieldErrors.TryGetValue("Password", out var PasswordErrors)) { <span class="validation-message" role="alert">@string.Join(" ", PasswordErrors)</span> }</label>
                 </div>
                 <div class="registration-group-title">Datos de la empresa</div>
                 <div class="registration-fields registration-fields-company">
-                    <label>Organización <InputText @bind-Value="_form.TenantName" /></label><ValidationMessage For="@(() => _form.TenantName)" />
-                    @if (_fieldErrors.TryGetValue("TenantName", out var TenantNameErrors)) { <span class="validation-message" role="alert">@string.Join(" ", TenantNameErrors)</span> }
-                    <label>Razón social <InputText @bind-Value="_form.LegalName" /></label><ValidationMessage For="@(() => _form.LegalName)" />
-                    @if (_fieldErrors.TryGetValue("LegalName", out var LegalNameErrors)) { <span class="validation-message" role="alert">@string.Join(" ", LegalNameErrors)</span> }
-                    <label>NIF <InputText @bind-Value="_form.Nif" /></label><ValidationMessage For="@(() => _form.Nif)" />
-                    @if (_fieldErrors.TryGetValue("Nif", out var NifErrors)) { <span class="validation-message" role="alert">@string.Join(" ", NifErrors)</span> }
-                    <label>Dirección <InputText @bind-Value="_form.Address" /></label><ValidationMessage For="@(() => _form.Address)" />
-                    @if (_fieldErrors.TryGetValue("Address", out var AddressErrors)) { <span class="validation-message" role="alert">@string.Join(" ", AddressErrors)</span> }
-                    <label>Código postal <InputText @bind-Value="_form.PostalCode" /></label><ValidationMessage For="@(() => _form.PostalCode)" />
-                    @if (_fieldErrors.TryGetValue("PostalCode", out var PostalCodeErrors)) { <span class="validation-message" role="alert">@string.Join(" ", PostalCodeErrors)</span> }
-                    <label>Ciudad <InputText @bind-Value="_form.City" /></label><ValidationMessage For="@(() => _form.City)" />
-                    @if (_fieldErrors.TryGetValue("City", out var CityErrors)) { <span class="validation-message" role="alert">@string.Join(" ", CityErrors)</span> }
-                    <label>Provincia <InputText @bind-Value="_form.Province" /></label><ValidationMessage For="@(() => _form.Province)" />
-                    @if (_fieldErrors.TryGetValue("Province", out var ProvinceErrors)) { <span class="validation-message" role="alert">@string.Join(" ", ProvinceErrors)</span> }
+                    <label>Organización <InputText @bind-Value="_form.TenantName" /><ValidationMessage For="@(() => _form.TenantName)" />
+                    @if (_fieldErrors.TryGetValue("TenantName", out var TenantNameErrors)) { <span class="validation-message" role="alert">@string.Join(" ", TenantNameErrors)</span> }</label>
+                    <label>Razón social <InputText @bind-Value="_form.LegalName" /><ValidationMessage For="@(() => _form.LegalName)" />
+                    @if (_fieldErrors.TryGetValue("LegalName", out var LegalNameErrors)) { <span class="validation-message" role="alert">@string.Join(" ", LegalNameErrors)</span> }</label>
+                    <label>NIF <InputText @bind-Value="_form.Nif" /><ValidationMessage For="@(() => _form.Nif)" />
+                    @if (_fieldErrors.TryGetValue("Nif", out var NifErrors)) { <span class="validation-message" role="alert">@string.Join(" ", NifErrors)</span> }</label>
+                    <label>Dirección <InputText @bind-Value="_form.Address" /><ValidationMessage For="@(() => _form.Address)" />
+                    @if (_fieldErrors.TryGetValue("Address", out var AddressErrors)) { <span class="validation-message" role="alert">@string.Join(" ", AddressErrors)</span> }</label>
+                    <label>Código postal <InputText @bind-Value="_form.PostalCode" /><ValidationMessage For="@(() => _form.PostalCode)" />
+                    @if (_fieldErrors.TryGetValue("PostalCode", out var PostalCodeErrors)) { <span class="validation-message" role="alert">@string.Join(" ", PostalCodeErrors)</span> }</label>
+                    <label>Ciudad <InputText @bind-Value="_form.City" /><ValidationMessage For="@(() => _form.City)" />
+                    @if (_fieldErrors.TryGetValue("City", out var CityErrors)) { <span class="validation-message" role="alert">@string.Join(" ", CityErrors)</span> }</label>
+                    <label>Provincia <InputText @bind-Value="_form.Province" /><ValidationMessage For="@(() => _form.Province)" />
+                    @if (_fieldErrors.TryGetValue("Province", out var ProvinceErrors)) { <span class="validation-message" role="alert">@string.Join(" ", ProvinceErrors)</span> }</label>
                 </div>
                 <p class="muted">Se enviará un correo de verificación. No se realizará ningún cobro en este paso.</p>
                 <button class="button" type="submit" disabled="@_busy">Continuar</button>
