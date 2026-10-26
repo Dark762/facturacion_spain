@@ -3,9 +3,8 @@
 @using Microsoft.AspNetCore.Components.Forms
 @using Facturacion.Application.Billing
 @using Facturacion.Configuration.Options
-@using Facturacion.Infrastructure.Billing
 @using Microsoft.Extensions.Options
-@inject SaasRegistrationService Registration
+@inject ISaasRegistrationService Registration
 @inject PublicPlansService Plans
 @inject IOptions<StripeOptions> Stripe
 @inject IOptions<EmailOptions> Email
@@ -24,22 +23,33 @@
             <h2>1. Crea tu cuenta</h2>
             <EditForm Model="_form" OnValidSubmit="RegisterAsync" FormName="saas-register">
                 <DataAnnotationsValidator />
+
                 <ValidationSummary />
                 <div class="registration-group-title">Datos de acceso</div>
                 <div class="registration-fields registration-fields-access">
-                    <label>Nombre completo <InputText @bind-Value="_form.DisplayName" /></label>
-                    <label>Correo electrónico <InputText type="email" @bind-Value="_form.Email" /></label>
-                    <label>Contraseña <InputText type="password" autocomplete="new-password" @bind-Value="_form.Password" /></label>
+                    <label>Nombre completo <InputText @bind-Value="_form.DisplayName" /><ValidationMessage For="@(() => _form.DisplayName)" />
+                    @if (_fieldErrors.TryGetValue("DisplayName", out var DisplayNameErrors)) { <span class="validation-message" role="alert">@string.Join(" ", DisplayNameErrors)</span> }</label>
+                    <label>Correo electrónico <InputText type="email" @bind-Value="_form.Email" /><ValidationMessage For="@(() => _form.Email)" />
+                    @if (_fieldErrors.TryGetValue("Email", out var EmailErrors)) { <span class="validation-message" role="alert">@string.Join(" ", EmailErrors)</span> }</label>
+                    <label>Contraseña <InputText type="password" autocomplete="new-password" @bind-Value="_form.Password" /><ValidationMessage For="@(() => _form.Password)" />
+                    @if (_fieldErrors.TryGetValue("Password", out var PasswordErrors)) { <span class="validation-message" role="alert">@string.Join(" ", PasswordErrors)</span> }</label>
                 </div>
                 <div class="registration-group-title">Datos de la empresa</div>
                 <div class="registration-fields registration-fields-company">
-                    <label>Organización <InputText @bind-Value="_form.TenantName" /></label>
-                    <label>Razón social <InputText @bind-Value="_form.LegalName" /></label>
-                    <label>NIF <InputText @bind-Value="_form.Nif" /></label>
-                    <label>Dirección <InputText @bind-Value="_form.Address" /></label>
-                    <label>Código postal <InputText @bind-Value="_form.PostalCode" /></label>
-                    <label>Ciudad <InputText @bind-Value="_form.City" /></label>
-                    <label>Provincia <InputText @bind-Value="_form.Province" /></label>
+                    <label>Organización <InputText @bind-Value="_form.TenantName" /><ValidationMessage For="@(() => _form.TenantName)" />
+                    @if (_fieldErrors.TryGetValue("TenantName", out var TenantNameErrors)) { <span class="validation-message" role="alert">@string.Join(" ", TenantNameErrors)</span> }</label>
+                    <label>Razón social <InputText @bind-Value="_form.LegalName" /><ValidationMessage For="@(() => _form.LegalName)" />
+                    @if (_fieldErrors.TryGetValue("LegalName", out var LegalNameErrors)) { <span class="validation-message" role="alert">@string.Join(" ", LegalNameErrors)</span> }</label>
+                    <label>NIF <InputText @bind-Value="_form.Nif" /><ValidationMessage For="@(() => _form.Nif)" />
+                    @if (_fieldErrors.TryGetValue("Nif", out var NifErrors)) { <span class="validation-message" role="alert">@string.Join(" ", NifErrors)</span> }</label>
+                    <label>Dirección <InputText @bind-Value="_form.Address" /><ValidationMessage For="@(() => _form.Address)" />
+                    @if (_fieldErrors.TryGetValue("Address", out var AddressErrors)) { <span class="validation-message" role="alert">@string.Join(" ", AddressErrors)</span> }</label>
+                    <label>Código postal <InputText @bind-Value="_form.PostalCode" /><ValidationMessage For="@(() => _form.PostalCode)" />
+                    @if (_fieldErrors.TryGetValue("PostalCode", out var PostalCodeErrors)) { <span class="validation-message" role="alert">@string.Join(" ", PostalCodeErrors)</span> }</label>
+                    <label>Ciudad <InputText @bind-Value="_form.City" /><ValidationMessage For="@(() => _form.City)" />
+                    @if (_fieldErrors.TryGetValue("City", out var CityErrors)) { <span class="validation-message" role="alert">@string.Join(" ", CityErrors)</span> }</label>
+                    <label>Provincia <InputText @bind-Value="_form.Province" /><ValidationMessage For="@(() => _form.Province)" />
+                    @if (_fieldErrors.TryGetValue("Province", out var ProvinceErrors)) { <span class="validation-message" role="alert">@string.Join(" ", ProvinceErrors)</span> }</label>
                 </div>
                 <p class="muted">Se enviará un correo de verificación. No se realizará ningún cobro en este paso.</p>
                 <button class="button" type="submit" disabled="@_busy">Continuar</button>
@@ -82,18 +92,19 @@
 @code {
     private sealed class RegistrationForm
     {
-        [System.ComponentModel.DataAnnotations.Required] public string Email { get; set; } = "";
-        [System.ComponentModel.DataAnnotations.Required] public string Password { get; set; } = "";
+        [System.ComponentModel.DataAnnotations.Required, System.ComponentModel.DataAnnotations.EmailAddress] public string Email { get; set; } = "";
+        [System.ComponentModel.DataAnnotations.Required, System.ComponentModel.DataAnnotations.MinLength(8)] public string Password { get; set; } = "";
         [System.ComponentModel.DataAnnotations.Required] public string DisplayName { get; set; } = "";
         [System.ComponentModel.DataAnnotations.Required] public string TenantName { get; set; } = "";
         [System.ComponentModel.DataAnnotations.Required] public string Nif { get; set; } = "";
         [System.ComponentModel.DataAnnotations.Required] public string LegalName { get; set; } = "";
         [System.ComponentModel.DataAnnotations.Required] public string Address { get; set; } = "";
-        [System.ComponentModel.DataAnnotations.Required] public string PostalCode { get; set; } = "";
+        [System.ComponentModel.DataAnnotations.Required, System.ComponentModel.DataAnnotations.RegularExpression(@"^\d{5}$", ErrorMessage = "El código postal debe contener 5 dígitos.")] public string PostalCode { get; set; } = "";
         [System.ComponentModel.DataAnnotations.Required] public string City { get; set; } = "";
         [System.ComponentModel.DataAnnotations.Required] public string Province { get; set; } = "";
     }
     private readonly RegistrationForm _form = new();
+    private IReadOnlyDictionary<string, string[]> _fieldErrors = new Dictionary<string, string[]>();
     private int _step;
     private bool _busy;
     private string? _error;
@@ -108,6 +119,7 @@
         if (_busy) return;
         _busy = true;
         _error = null;
+        _fieldErrors = new Dictionary<string, string[]>();
         try
         {
             var response = await Registration.RegisterAsync(new RegisterSaasRequest(
@@ -117,6 +129,11 @@
             _registrationId = response.RegistrationId;
             _form.Password = "";
             _step = 1;
+        }
+        catch (RegistrationValidationException ex)
+        {
+            _error = ex.Message;
+            _fieldErrors = ex.Errors;
         }
         catch (Exception)
         {

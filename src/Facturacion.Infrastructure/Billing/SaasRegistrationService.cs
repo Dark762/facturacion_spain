@@ -9,7 +9,7 @@ using Microsoft.Extensions.Options;
 using Facturacion.Payments.Stripe;
 
 namespace Facturacion.Infrastructure.Billing;
-public sealed class SaasRegistrationService
+public sealed class SaasRegistrationService : ISaasRegistrationService
 {
     private readonly SelfServiceDbContext _db;
     private readonly UserManager<ApplicationUser> _users;
@@ -30,9 +30,13 @@ public sealed class SaasRegistrationService
         var email = r.Email.Trim();
         if (await _users.FindByEmailAsync(email) is not null)
             throw new InvalidOperationException("No se puede completar el registro con estos datos.");
+
         var user = new ApplicationUser { Email = email, UserName = email, DisplayName = r.DisplayName, IsActive = true, EmailConfirmed = false };
+
         var result = await _users.CreateAsync(user, r.Password);
+
         if (!result.Succeeded) throw new ArgumentException(string.Join("; ", result.Errors.Select(e => e.Description)));
+
         var intent = new RegistrationIntent
         {
             UserId = user.Id,
