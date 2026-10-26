@@ -88,7 +88,9 @@ public sealed class SaasRegistrationService : ISaasRegistrationService
                 Convert.FromHexString(intent.CheckoutTokenHash),
                 Convert.FromHexString(Hash(checkoutToken))))
             throw new UnauthorizedAccessException("Registro no verificado.");
-        intent.TenantName = request.LegalName.Trim();
+        intent.TenantName = string.IsNullOrWhiteSpace(request.TradeName) ? request.LegalName.Trim() : request.TradeName.Trim();
+        intent.HolderType = request.HolderType;
+        intent.TradeName = request.TradeName?.Trim() ?? "";
         intent.LegalName = request.LegalName.Trim();
         intent.Nif = request.Nif.Trim().ToUpperInvariant();
         intent.Address = request.Address.Trim();
@@ -106,7 +108,7 @@ public sealed class SaasRegistrationService : ISaasRegistrationService
             !CryptographicOperations.FixedTimeEquals(Encoding.UTF8.GetBytes(intent.CheckoutTokenHash),
                 Encoding.UTF8.GetBytes(Hash(checkoutToken))))
             throw new UnauthorizedAccessException("Registro no verificado.");
-        if (string.IsNullOrWhiteSpace(intent.LegalName) || string.IsNullOrWhiteSpace(intent.Nif) ||
+        if (intent.HolderType is not ("Individual" or "LegalEntity") || string.IsNullOrWhiteSpace(intent.LegalName) || string.IsNullOrWhiteSpace(intent.Nif) ||
             string.IsNullOrWhiteSpace(intent.Address) || string.IsNullOrWhiteSpace(intent.PostalCode) ||
             string.IsNullOrWhiteSpace(intent.City) || string.IsNullOrWhiteSpace(intent.Province))
             throw new InvalidOperationException("Completa los datos fiscales antes de contratar.");
