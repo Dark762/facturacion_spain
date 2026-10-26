@@ -32,3 +32,8 @@
 .registration-fields-company label:nth-child(5),.registration-fields-company label:nth-child(7){grid-column:auto}
 @media(max-width:760px){.registration-card{padding:25px 22px}.registration-page>h1{font-size:clamp(1.7rem,5vw,2.2rem)}}
 @media(max-width:620px){.registration-fields-company label:nth-child(2),.registration-fields-company label:nth-child(4){grid-column:auto}}
+
+/* Alta en dos formularios: acceso y empresa, sin reglas posicionales heredadas. */
+.registration-fields-access label,.registration-fields-company label{grid-column:auto}
+.registration-fields-company label:nth-child(1),.registration-fields-company label:nth-child(3){grid-column:1/-1}
+@media(max-width:620px){.registration-fields-company label:nth-child(1),.registration-fields-company label:nth-child(3){grid-column:auto}}

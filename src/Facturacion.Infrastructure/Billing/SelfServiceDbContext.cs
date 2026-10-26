@@ -29,6 +29,8 @@ public sealed class RegistrationIntent
     public Guid Id { get; set; } = Guid.NewGuid();
     public string UserId { get; set; } = "";
     public string TenantName { get; set; } = "";
+    public string HolderType { get; set; } = "Individual";
+    public string TradeName { get; set; } = "";
     public string Nif { get; set; } = "";
     public string LegalName { get; set; } = "";
     public string Address { get; set; } = "";

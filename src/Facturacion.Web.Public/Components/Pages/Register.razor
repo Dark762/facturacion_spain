@@ -22,35 +22,14 @@
         else if (_step == 0)
         {
             <h2>1. Crea tu cuenta</h2>
-            <EditForm Model="_form" OnValidSubmit="RegisterAsync" FormName="saas-register">
+            <EditForm EditContext="_editContext" OnValidSubmit="RegisterAsync" FormName="saas-register">
                 <DataAnnotationsValidator />
 
-                <ValidationSummary />
                 <div class="registration-group-title">Datos de acceso</div>
                 <div class="registration-fields registration-fields-access">
-                    <label>Nombre completo <InputText @bind-Value="_form.DisplayName" /><ValidationMessage For="@(() => _form.DisplayName)" />
-                    @if (_fieldErrors.TryGetValue("DisplayName", out var DisplayNameErrors)) { <span class="validation-message" role="alert">@string.Join(" ", DisplayNameErrors)</span> }</label>
-                    <label>Correo electrónico <InputText type="email" @bind-Value="_form.Email" /><ValidationMessage For="@(() => _form.Email)" />
-                    @if (_fieldErrors.TryGetValue("Email", out var EmailErrors)) { <span class="validation-message" role="alert">@string.Join(" ", EmailErrors)</span> }</label>
-                    <label>Contraseña <InputText type="password" autocomplete="new-password" @bind-Value="_form.Password" /><ValidationMessage For="@(() => _form.Password)" />
-                    @if (_fieldErrors.TryGetValue("Password", out var PasswordErrors)) { <span class="validation-message" role="alert">@string.Join(" ", PasswordErrors)</span> }</label>
-                </div>
-                <div class="registration-group-title">Datos de la empresa</div>
-                <div class="registration-fields registration-fields-company">
-                    <label>Organización <InputText @bind-Value="_form.TenantName" /><ValidationMessage For="@(() => _form.TenantName)" />
-                    @if (_fieldErrors.TryGetValue("TenantName", out var TenantNameErrors)) { <span class="validation-message" role="alert">@string.Join(" ", TenantNameErrors)</span> }</label>
-                    <label>Razón social <InputText @bind-Value="_form.LegalName" /><ValidationMessage For="@(() => _form.LegalName)" />
-                    @if (_fieldErrors.TryGetValue("LegalName", out var LegalNameErrors)) { <span class="validation-message" role="alert">@string.Join(" ", LegalNameErrors)</span> }</label>
-                    <label>NIF <InputText @bind-Value="_form.Nif" /><ValidationMessage For="@(() => _form.Nif)" />
-                    @if (_fieldErrors.TryGetValue("Nif", out var NifErrors)) { <span class="validation-message" role="alert">@string.Join(" ", NifErrors)</span> }</label>
-                    <label>Dirección <InputText @bind-Value="_form.Address" /><ValidationMessage For="@(() => _form.Address)" />
-                    @if (_fieldErrors.TryGetValue("Address", out var AddressErrors)) { <span class="validation-message" role="alert">@string.Join(" ", AddressErrors)</span> }</label>
-                    <label>Código postal <InputText @bind-Value="_form.PostalCode" /><ValidationMessage For="@(() => _form.PostalCode)" />
-                    @if (_fieldErrors.TryGetValue("PostalCode", out var PostalCodeErrors)) { <span class="validation-message" role="alert">@string.Join(" ", PostalCodeErrors)</span> }</label>
-                    <label>Ciudad <InputText @bind-Value="_form.City" /><ValidationMessage For="@(() => _form.City)" />
-                    @if (_fieldErrors.TryGetValue("City", out var CityErrors)) { <span class="validation-message" role="alert">@string.Join(" ", CityErrors)</span> }</label>
-                    <label>Provincia <InputText @bind-Value="_form.Province" /><ValidationMessage For="@(() => _form.Province)" />
-                    @if (_fieldErrors.TryGetValue("Province", out var ProvinceErrors)) { <span class="validation-message" role="alert">@string.Join(" ", ProvinceErrors)</span> }</label>
+                    <label>Nombre completo <InputText @bind-Value="_form.DisplayName" /><ValidationMessage For="@(() => _form.DisplayName)" /></label>
+                    <label>Correo electrónico <InputText type="email" @bind-Value="_form.Email" /><ValidationMessage For="@(() => _form.Email)" /></label>
+                    <label>Contraseña <InputText type="password" autocomplete="new-password" @bind-Value="_form.Password" /><ValidationMessage For="@(() => _form.Password)" /></label>
                 </div>
                 <p class="muted">Se enviará un correo de verificación. No se realizará ningún cobro en este paso.</p>
                 <button class="button" type="submit" disabled="@_busy">Continuar</button>
@@ -65,7 +44,35 @@
         }
         else if (_step == 2)
         {
-            <h2>3. Selecciona un plan</h2>
+            <h2>3. Configura tu empresa</h2>
+            <p class="muted">Necesitamos estos datos fiscales antes de contratar un plan y emitir facturas.</p>
+            <EditForm EditContext="_companyEditContext" OnValidSubmit="CompleteCompanyAsync" FormName="saas-company">
+                <DataAnnotationsValidator />
+                <div class="registration-group-title">Tipo de titular fiscal</div>
+                <div class="registration-holder-types">
+                    <InputRadioGroup @bind-Value="_company.HolderType">
+                        <label><InputRadio Value="@("Individual")" /> Persona física (autónomo o profesional)</label>
+                        <label><InputRadio Value="@("LegalEntity")" /> Persona jurídica (sociedad o entidad)</label>
+                    </InputRadioGroup>
+                    <ValidationMessage For="@(() => _company.HolderType)" />
+                </div>
+                <div class="registration-group-title">Datos fiscales</div>
+                <div class="registration-fields registration-fields-company">
+                    <label>@(_company.HolderType == "Individual" ? "Nombre y apellidos" : "Razón social") <InputText @bind-Value="_company.LegalName" /><ValidationMessage For="@(() => _company.LegalName)" /></label>
+                    <label>@(_company.HolderType == "Individual" ? "NIF o NIE" : "NIF de la entidad") <InputText @bind-Value="_company.Nif" /><ValidationMessage For="@(() => _company.Nif)" /></label>
+                    <label>Nombre comercial (opcional) <InputText @bind-Value="_company.TradeName" /></label>
+                    <label>Dirección <InputText @bind-Value="_company.Address" /><ValidationMessage For="@(() => _company.Address)" /></label>
+                    <label>Código postal <InputText @bind-Value="_company.PostalCode" /><ValidationMessage For="@(() => _company.PostalCode)" /></label>
+                    <label>Ciudad <InputText @bind-Value="_company.City" /><ValidationMessage For="@(() => _company.City)" /></label>
+                    <label>Provincia <InputText @bind-Value="_company.Province" /><ValidationMessage For="@(() => _company.Province)" /></label>
+                </div>
+
+                <button class="button" type="submit" disabled="@_busy">Guardar y elegir plan</button>
+            </EditForm>
+        }
+        else if (_step == 3)
+        {
+            <h2>4. Selecciona un plan</h2>
             @if (_plans.Count == 0)
             {
                 <p role="status">No hay planes activos configurados para contratación.</p>
@@ -93,19 +100,45 @@
 @code {
     private sealed class RegistrationForm
     {
-        [System.ComponentModel.DataAnnotations.Required, System.ComponentModel.DataAnnotations.EmailAddress] public string Email { get; set; } = "";
-        [System.ComponentModel.DataAnnotations.Required, System.ComponentModel.DataAnnotations.MinLength(8)] public string Password { get; set; } = "";
-        [System.ComponentModel.DataAnnotations.Required] public string DisplayName { get; set; } = "";
-        [System.ComponentModel.DataAnnotations.Required] public string TenantName { get; set; } = "";
-        [System.ComponentModel.DataAnnotations.Required] public string Nif { get; set; } = "";
-        [System.ComponentModel.DataAnnotations.Required] public string LegalName { get; set; } = "";
-        [System.ComponentModel.DataAnnotations.Required] public string Address { get; set; } = "";
-        [System.ComponentModel.DataAnnotations.Required, System.ComponentModel.DataAnnotations.RegularExpression(@"^\d{5}$", ErrorMessage = "El código postal debe contener 5 dígitos.")] public string PostalCode { get; set; } = "";
-        [System.ComponentModel.DataAnnotations.Required] public string City { get; set; } = "";
-        [System.ComponentModel.DataAnnotations.Required] public string Province { get; set; } = "";
+        [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "El campo correo electrónico es obligatorio."), System.ComponentModel.DataAnnotations.EmailAddress] public string Email { get; set; } = "";
+        [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "El campo contraseña es obligatorio."), System.ComponentModel.DataAnnotations.MinLength(8)] public string Password { get; set; } = "";
+        [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "El campo nombre completo es obligatorio.")] public string DisplayName { get; set; } = "";
+    }
+    private sealed class CompanyForm
+    {
+        [System.ComponentModel.DataAnnotations.Required] public string HolderType { get; set; } = "Individual";
+        public string TradeName { get; set; } = "";
+        [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "El campo NIF es obligatorio."), System.ComponentModel.DataAnnotations.RegularExpression(@"^[A-Za-z0-9]{8,9}$", ErrorMessage = "Introduce un NIF o CIF con formato válido.")] public string Nif { get; set; } = "";
+        [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "El campo razón social es obligatorio.")] public string LegalName { get; set; } = "";
+        [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "El campo dirección es obligatorio.")] public string Address { get; set; } = "";
+        [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "El campo código postal es obligatorio."), System.ComponentModel.DataAnnotations.RegularExpression(@"^\d{5}$", ErrorMessage = "El código postal debe contener 5 dígitos.")] public string PostalCode { get; set; } = "";
+        [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "El campo ciudad es obligatorio.")] public string City { get; set; } = "";
+        [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "El campo provincia es obligatorio.")] public string Province { get; set; } = "";
     }
     private readonly RegistrationForm _form = new();
-    private IReadOnlyDictionary<string, string[]> _fieldErrors = new Dictionary<string, string[]>();
+    private readonly CompanyForm _company = new();
+    private EditContext _companyEditContext = default!;
+    private ValidationMessageStore _companyServerErrors = default!;
+    private EditContext _editContext = default!;
+    private ValidationMessageStore _serverErrors = default!;
+
+    protected override void OnInitialized()
+    {
+        _editContext = new EditContext(_form);
+        _companyEditContext = new EditContext(_company);
+        _companyServerErrors = new ValidationMessageStore(_companyEditContext);
+        _companyEditContext.OnFieldChanged += (_, args) =>
+        {
+            _companyServerErrors.Clear(args.FieldIdentifier);
+            _companyEditContext.NotifyValidationStateChanged();
+        };
+        _serverErrors = new ValidationMessageStore(_editContext);
+        _editContext.OnFieldChanged += (_, args) =>
+        {
+            _serverErrors.Clear(args.FieldIdentifier);
+            _editContext.NotifyValidationStateChanged();
+        };
+    }
     private int _step;
     private bool _busy;
     private string? _error;
@@ -120,21 +153,24 @@
         if (_busy) return;
         _busy = true;
         _error = null;
-        _fieldErrors = new Dictionary<string, string[]>();
+        _serverErrors.Clear();
+        _editContext.NotifyValidationStateChanged();
         try
         {
             var response = await Registration.RegisterAsync(new RegisterSaasRequest(
-                _form.Email, _form.Password, _form.DisplayName, _form.TenantName,
-                _form.Nif, _form.LegalName, _form.Address, _form.PostalCode,
-                _form.City, _form.Province), CancellationToken.None);
+                _form.Email, _form.Password, _form.DisplayName), CancellationToken.None);
             _registrationId = response.RegistrationId;
             _form.Password = "";
             _step = 1;
         }
         catch (RegistrationValidationException ex)
         {
-            _error = ex.Message;
-            _fieldErrors = ex.Errors;
+            _error = null;
+            foreach (var field in ex.Errors)
+            {
+                _serverErrors.Add(new FieldIdentifier(_form, field.Key), field.Value);
+            }
+            _editContext.NotifyValidationStateChanged();
         }
         catch (Exception ex)
         {
@@ -153,11 +189,39 @@
         {
             _checkoutToken = await Registration.VerifyEmailAsync(_registrationId, _verificationToken.Trim(), CancellationToken.None);
             _verificationToken = "";
-            _plans = await Plans.GetActiveAsync();
-            _selectedPlan = _plans.FirstOrDefault()?.Code ?? "";
             _step = 2;
         }
         catch (Exception) { _error = "No se pudo verificar el correo. Comprueba el token recibido."; }
+        finally { _busy = false; }
+    }
+
+    private async Task CompleteCompanyAsync()
+    {
+        if (_busy) return;
+        _busy = true;
+        _error = null;
+        _companyServerErrors.Clear();
+        _companyEditContext.NotifyValidationStateChanged();
+        try
+        {
+            await Registration.CompleteCompanyAsync(_registrationId, _checkoutToken,
+                new CompleteCompanyRequest(_company.LegalName, _company.Nif, _company.Address,
+                    _company.PostalCode, _company.City, _company.Province, _company.HolderType, _company.TradeName), CancellationToken.None);
+            _plans = await Plans.GetActiveAsync();
+            _selectedPlan = _plans.FirstOrDefault()?.Code ?? "";
+            _step = 3;
+        }
+        catch (RegistrationValidationException ex)
+        {
+            foreach (var field in ex.Errors)
+                _companyServerErrors.Add(new FieldIdentifier(_company, field.Key), field.Value);
+            _companyEditContext.NotifyValidationStateChanged();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error al guardar los datos fiscales del registro.");
+            _error = "No se han podido guardar los datos de la empresa. Inténtalo de nuevo.";
+        }
         finally { _busy = false; }
     }
 

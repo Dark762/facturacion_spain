@@ -51,6 +51,20 @@ public sealed class SaasRegistrationController : ControllerBase
     [HttpPost("verify-email")]
     public async Task<IActionResult> Verify([FromBody] VerifyRequest r,CancellationToken ct) =>
         Ok(new { CheckoutToken=await _registration.VerifyEmailAsync(r.RegistrationId,r.Token,ct) });
+    public sealed record CompleteCompanyBody(Guid RegistrationId, string CheckoutToken, CompleteCompanyRequest Company);
+    [HttpPost("company")]
+    public async Task<IActionResult> CompleteCompany([FromBody] CompleteCompanyBody request, CancellationToken ct)
+    {
+        try
+        {
+            await _registration.CompleteCompanyAsync(request.RegistrationId, request.CheckoutToken, request.Company, ct);
+            return NoContent();
+        }
+        catch (RegistrationValidationException ex)
+        {
+            return ValidationProblem(new ValidationProblemDetails(ex.Errors.ToDictionary(x => x.Key, x => x.Value)));
+        }
+    }
     /// <summary>Registro, token de checkout y código del plan elegido.</summary>
     public sealed record CheckoutRequest(Guid RegistrationId,string CheckoutToken,string PlanCode);
     /// <summary>Crea una sesión de Stripe Checkout, sin activar todavía la cuenta.</summary>
