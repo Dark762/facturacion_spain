@@ -9,7 +9,7 @@ using Microsoft.Extensions.Options;
 using Facturacion.Payments.Stripe;
 
 namespace Facturacion.Infrastructure.Billing;
-public sealed class SaasRegistrationService
+public sealed class SaasRegistrationService : ISaasRegistrationService
 {
     private readonly SelfServiceDbContext _db;
     private readonly UserManager<ApplicationUser> _users;
@@ -22,17 +22,13 @@ public sealed class SaasRegistrationService
 
     public async Task<RegistrationResponse> RegisterAsync(RegisterSaasRequest r, CancellationToken ct)
     {
-        if (string.IsNullOrWhiteSpace(r.Email) || string.IsNullOrWhiteSpace(r.TenantName) ||
-            string.IsNullOrWhiteSpace(r.Nif) || string.IsNullOrWhiteSpace(r.LegalName) ||
-            string.IsNullOrWhiteSpace(r.Address) || string.IsNullOrWhiteSpace(r.PostalCode) ||
-            string.IsNullOrWhiteSpace(r.City) || string.IsNullOrWhiteSpace(r.Province))
-            throw new ArgumentException("Faltan datos obligatorios de registro.");
+        RegistrationValidation.ThrowIfInvalid(r);
         var email = r.Email.Trim();
         if (await _users.FindByEmailAsync(email) is not null)
-            throw new InvalidOperationException("No se puede completar el registro con estos datos.");
+            throw new RegistrationValidationException(new Dictionary<string, string[]> { ["Email"] = new[] { "No se puede completar el registro con este correo." } });
         var user = new ApplicationUser { Email=email, UserName=email, DisplayName=r.DisplayName, IsActive=true, EmailConfirmed=false };
         var result = await _users.CreateAsync(user, r.Password);
-        if (!result.Succeeded) throw new ArgumentException(string.Join("; ", result.Errors.Select(e=>e.Description)));
+        if (!result.Succeeded) throw new RegistrationValidationException(new Dictionary<string, string[]> { ["Password"] = result.Errors.Select(e => e.Description).ToArray() });
         var intent = new RegistrationIntent { UserId=user.Id, TenantName=r.TenantName.Trim(),
             Nif=r.Nif.Trim(), LegalName=r.LegalName.Trim(), Address=r.Address.Trim(),
             PostalCode=r.PostalCode.Trim(), City=r.City.Trim(), Province=r.Province.Trim() };
