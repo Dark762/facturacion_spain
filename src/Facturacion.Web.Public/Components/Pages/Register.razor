@@ -82,16 +82,16 @@
 @code {
     private sealed class RegistrationForm
     {
-        [System.ComponentModel.DataAnnotations.Required, System.ComponentModel.DataAnnotations.EmailAddress] public string Email { get; set; } = "";
-        [System.ComponentModel.DataAnnotations.Required, System.ComponentModel.DataAnnotations.MinLength(8)] public string Password { get; set; } = "";
-        [System.ComponentModel.DataAnnotations.Required] public string DisplayName { get; set; } = "";
-        [System.ComponentModel.DataAnnotations.Required] public string TenantName { get; set; } = "";
-        [System.ComponentModel.DataAnnotations.Required] public string Nif { get; set; } = "";
-        [System.ComponentModel.DataAnnotations.Required] public string LegalName { get; set; } = "";
-        [System.ComponentModel.DataAnnotations.Required] public string Address { get; set; } = "";
-        [System.ComponentModel.DataAnnotations.Required, System.ComponentModel.DataAnnotations.RegularExpression(@"^\d{5}$", ErrorMessage = "El código postal debe contener 5 dígitos.")] public string PostalCode { get; set; } = "";
-        [System.ComponentModel.DataAnnotations.Required] public string City { get; set; } = "";
-        [System.ComponentModel.DataAnnotations.Required] public string Province { get; set; } = "";
+        [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "El campo correo electrónico es obligatorio."), System.ComponentModel.DataAnnotations.EmailAddress] public string Email { get; set; } = "";
+        [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "El campo contraseña es obligatorio."), System.ComponentModel.DataAnnotations.MinLength(8)] public string Password { get; set; } = "";
+        [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "El campo nombre completo es obligatorio.")] public string DisplayName { get; set; } = "";
+        [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "El campo organización es obligatorio.")] public string TenantName { get; set; } = "";
+        [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "El campo NIF es obligatorio."), System.ComponentModel.DataAnnotations.RegularExpression(@"^[A-Za-z0-9]{8,9}$", ErrorMessage = "Introduce un NIF o CIF con formato válido.")] public string Nif { get; set; } = "";
+        [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "El campo razón social es obligatorio.")] public string LegalName { get; set; } = "";
+        [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "El campo dirección es obligatorio.")] public string Address { get; set; } = "";
+        [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "El campo código postal es obligatorio."), System.ComponentModel.DataAnnotations.RegularExpression(@"^\d{5}$", ErrorMessage = "El código postal debe contener 5 dígitos.")] public string PostalCode { get; set; } = "";
+        [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "El campo ciudad es obligatorio.")] public string City { get; set; } = "";
+        [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "El campo provincia es obligatorio.")] public string Province { get; set; } = "";
     }
     private readonly RegistrationForm _form = new();
     private EditContext _editContext = default!;
