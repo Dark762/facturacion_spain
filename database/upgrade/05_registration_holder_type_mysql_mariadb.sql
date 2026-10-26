@@ -1,6 +1,6 @@
 -- Ejecutar una sola vez sobre una base de datos MySQL/MariaDB existente.
 -- No elimina registros ni modifica las columnas fiscales actuales.
-ALTER TABLE RegistrationIntents
+ALTER TABLE `registrationintents`
     ADD COLUMN HolderType VARCHAR(24) NOT NULL DEFAULT 'Individual',
     ADD COLUMN TradeName VARCHAR(255) NOT NULL DEFAULT '';
 
