@@ -959,6 +959,8 @@ CREATE TABLE `registrationintents` (
   `Id` char(36) NOT NULL,
   `UserId` varchar(255) NOT NULL,
   `TenantName` varchar(250) NOT NULL,
+  `HolderType` varchar(24) NOT NULL DEFAULT 'Individual',
+  `TradeName` varchar(255) NOT NULL DEFAULT '',
   `Nif` varchar(30) NOT NULL,
   `LegalName` varchar(250) NOT NULL,
   `Address` varchar(500) NOT NULL,
