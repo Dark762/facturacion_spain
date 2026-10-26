@@ -45,13 +45,13 @@ public sealed class SaasRegistrationService : ISaasRegistrationService
         var intent = new RegistrationIntent
         {
             UserId = user.Id,
-            TenantName = r.TenantName.Trim(),
-            Nif = r.Nif.Trim(),
-            LegalName = r.LegalName.Trim(),
-            Address = r.Address.Trim(),
-            PostalCode = r.PostalCode.Trim(),
-            City = r.City.Trim(),
-            Province = r.Province.Trim()
+            TenantName = r.DisplayName.Trim(),
+            Nif = "",
+            LegalName = "",
+            Address = "",
+            PostalCode = "",
+            City = "",
+            Province = ""
         };
         _db.RegistrationIntents.Add(intent);
         await _db.SaveChangesAsync(ct);
@@ -78,6 +78,26 @@ public sealed class SaasRegistrationService : ISaasRegistrationService
         return secret; // Solo entregar tras verificar el token del correo; nunca registrar en logs.
     }
 
+    public async Task CompleteCompanyAsync(Guid id, string checkoutToken, CompleteCompanyRequest request, CancellationToken ct)
+    {
+        RegistrationValidation.ThrowIfInvalidCompany(request);
+        var intent = await _db.RegistrationIntents.SingleOrDefaultAsync(x => x.Id == id, ct)
+            ?? throw new KeyNotFoundException("Registro inexistente.");
+        if (intent.Status != "EmailVerified" || intent.CheckoutTokenHash is null ||
+            !CryptographicOperations.FixedTimeEquals(
+                Convert.FromHexString(intent.CheckoutTokenHash),
+                Convert.FromHexString(Hash(checkoutToken))))
+            throw new UnauthorizedAccessException("Registro no verificado.");
+        intent.TenantName = request.LegalName.Trim();
+        intent.LegalName = request.LegalName.Trim();
+        intent.Nif = request.Nif.Trim().ToUpperInvariant();
+        intent.Address = request.Address.Trim();
+        intent.PostalCode = request.PostalCode.Trim();
+        intent.City = request.City.Trim();
+        intent.Province = request.Province.Trim();
+        await _db.SaveChangesAsync(ct);
+    }
+
     public async Task<CheckoutResponse> CheckoutAsync(Guid id, string checkoutToken, string planCode, CancellationToken ct)
     {
         var intent = await _db.RegistrationIntents.SingleOrDefaultAsync(x => x.Id == id, ct)
@@ -86,6 +106,10 @@ public sealed class SaasRegistrationService : ISaasRegistrationService
             !CryptographicOperations.FixedTimeEquals(Encoding.UTF8.GetBytes(intent.CheckoutTokenHash),
                 Encoding.UTF8.GetBytes(Hash(checkoutToken))))
             throw new UnauthorizedAccessException("Registro no verificado.");
+        if (string.IsNullOrWhiteSpace(intent.LegalName) || string.IsNullOrWhiteSpace(intent.Nif) ||
+            string.IsNullOrWhiteSpace(intent.Address) || string.IsNullOrWhiteSpace(intent.PostalCode) ||
+            string.IsNullOrWhiteSpace(intent.City) || string.IsNullOrWhiteSpace(intent.Province))
+            throw new InvalidOperationException("Completa los datos fiscales antes de contratar.");
         if (intent.CheckoutSessionId is not null)
             throw new InvalidOperationException("Ya existe una sesión de pago. Consulta su estado antes de crear otra.");
         var plan = await _db.SubscriptionPlans.SingleOrDefaultAsync(x => x.Code == planCode && x.IsActive, ct)
