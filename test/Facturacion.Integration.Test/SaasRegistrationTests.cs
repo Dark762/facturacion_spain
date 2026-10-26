@@ -128,15 +128,31 @@ public sealed class SaasRegistrationTests : IClassFixture<RegistrationFixture>
     }
 
     [Fact]
-    public async Task Missing_mandatory_fields_are_rejected()
+    public async Task Register_solo_exige_datos_de_acceso_no_fiscales()
     {
         using var scope = _fixture.CreateScope();
         var service = scope.ServiceProvider.GetRequiredService<SaasRegistrationService>();
 
+        // Paso 1: fiscal data puede ir vacia; se valida despues en CompleteCompanyAsync.
         var incomplete = Request($"incompleto-{Guid.NewGuid():N}@example.test") with
         { Nif = "   ", City = "" };
 
-        await Assert.ThrowsAsync<ArgumentException>(() =>
-            service.RegisterAsync(incomplete, CancellationToken.None));
+        var response = await service.RegisterAsync(incomplete, CancellationToken.None);
+        Assert.NotEqual(Guid.Empty, response.RegistrationId);
+    }
+
+    [Fact]
+    public async Task CompleteCompanyAsync_rechaza_datos_fiscales_incompletos()
+    {
+        using var scope = _fixture.CreateScope();
+        var service = scope.ServiceProvider.GetRequiredService<SaasRegistrationService>();
+
+        var response = await service.RegisterAsync(Request($"empresa-{Guid.NewGuid():N}@example.test"), CancellationToken.None);
+
+        var incomplete = new CompleteCompanyRequest(
+            "", "   ", "", "", "", "", "Individual", "");
+
+        await Assert.ThrowsAsync<RegistrationValidationException>(() =>
+            service.CompleteCompanyAsync(response.RegistrationId, "cualquier-token", incomplete, CancellationToken.None));
     }
 }

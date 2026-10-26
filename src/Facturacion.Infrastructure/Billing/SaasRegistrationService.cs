@@ -22,10 +22,10 @@ public sealed class SaasRegistrationService : ISaasRegistrationService
 
     public async Task<RegistrationResponse> RegisterAsync(RegisterSaasRequest r, CancellationToken ct)
     {
-        if (string.IsNullOrWhiteSpace(r.Email) || string.IsNullOrWhiteSpace(r.TenantName) ||
-            string.IsNullOrWhiteSpace(r.Nif) || string.IsNullOrWhiteSpace(r.LegalName) ||
-            string.IsNullOrWhiteSpace(r.Address) || string.IsNullOrWhiteSpace(r.PostalCode) ||
-            string.IsNullOrWhiteSpace(r.City) || string.IsNullOrWhiteSpace(r.Province))
+        // Paso 1: solo se exigen los datos de acceso. Los datos fiscales se
+        // validan despues en CompleteCompanyAsync (paso 3).
+        if (string.IsNullOrWhiteSpace(r.Email) || string.IsNullOrWhiteSpace(r.Password) ||
+            string.IsNullOrWhiteSpace(r.DisplayName))
             throw new ArgumentException("Faltan datos obligatorios de registro.");
         var email = r.Email.Trim();
         if (await _users.FindByEmailAsync(email) is not null)

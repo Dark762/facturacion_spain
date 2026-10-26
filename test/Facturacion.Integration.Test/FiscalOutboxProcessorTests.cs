@@ -10,6 +10,7 @@ using Facturacion.Workers;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using Xunit;
 
 namespace Facturacion.Integration.Test;
@@ -36,10 +37,11 @@ public sealed class FiscalOutboxProcessorTests : IDisposable
     {
         var scope = _fixture.CreateScope();
         var scopeFactory = scope.ServiceProvider.GetRequiredService<IServiceScopeFactory>();
+        var opts = options ?? new OutboxOptions { BatchSize = 50, Lease = TimeSpan.FromMinutes(2), BaseDelay = TimeSpan.FromSeconds(1) };
         return new FiscalOutboxProcessor(
             scopeFactory,
             NullLogger<FiscalOutboxProcessor>.Instance,
-            options ?? new OutboxOptions { BatchSize = 50, Lease = TimeSpan.FromMinutes(2), BaseDelay = TimeSpan.FromSeconds(1) });
+            Options.Create(opts));
     }
 
     private async Task<Guid> CreateDraftInvoiceAsync(BillingDatabaseFixture.SeededCompany company)
