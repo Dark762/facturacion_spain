@@ -48,10 +48,19 @@
             <p class="muted">Necesitamos estos datos fiscales antes de contratar un plan y emitir facturas.</p>
             <EditForm EditContext="_companyEditContext" OnValidSubmit="CompleteCompanyAsync" FormName="saas-company">
                 <DataAnnotationsValidator />
-                <div class="registration-group-title">Datos fiscales de tu empresa</div>
+                <div class="registration-group-title">Tipo de titular fiscal</div>
+                <div class="registration-holder-types">
+                    <InputRadioGroup @bind-Value="_company.HolderType">
+                        <label><InputRadio Value="@("Individual")" /> Persona física (autónomo o profesional)</label>
+                        <label><InputRadio Value="@("LegalEntity")" /> Persona jurídica (sociedad o entidad)</label>
+                    </InputRadioGroup>
+                    <ValidationMessage For="@(() => _company.HolderType)" />
+                </div>
+                <div class="registration-group-title">Datos fiscales</div>
                 <div class="registration-fields registration-fields-company">
-                    <label>Razón social <InputText @bind-Value="_company.LegalName" /><ValidationMessage For="@(() => _company.LegalName)" /></label>
-                    <label>NIF <InputText @bind-Value="_company.Nif" /><ValidationMessage For="@(() => _company.Nif)" /></label>
+                    <label>@(_company.HolderType == "Individual" ? "Nombre y apellidos" : "Razón social") <InputText @bind-Value="_company.LegalName" /><ValidationMessage For="@(() => _company.LegalName)" /></label>
+                    <label>@(_company.HolderType == "Individual" ? "NIF o NIE" : "NIF de la entidad") <InputText @bind-Value="_company.Nif" /><ValidationMessage For="@(() => _company.Nif)" /></label>
+                    <label>Nombre comercial (opcional) <InputText @bind-Value="_company.TradeName" /></label>
                     <label>Dirección <InputText @bind-Value="_company.Address" /><ValidationMessage For="@(() => _company.Address)" /></label>
                     <label>Código postal <InputText @bind-Value="_company.PostalCode" /><ValidationMessage For="@(() => _company.PostalCode)" /></label>
                     <label>Ciudad <InputText @bind-Value="_company.City" /><ValidationMessage For="@(() => _company.City)" /></label>
@@ -97,6 +106,8 @@
     }
     private sealed class CompanyForm
     {
+        [System.ComponentModel.DataAnnotations.Required] public string HolderType { get; set; } = "Individual";
+        public string TradeName { get; set; } = "";
         [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "El campo NIF es obligatorio."), System.ComponentModel.DataAnnotations.RegularExpression(@"^[A-Za-z0-9]{8,9}$", ErrorMessage = "Introduce un NIF o CIF con formato válido.")] public string Nif { get; set; } = "";
         [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "El campo razón social es obligatorio.")] public string LegalName { get; set; } = "";
         [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "El campo dirección es obligatorio.")] public string Address { get; set; } = "";
@@ -195,7 +206,7 @@
         {
             await Registration.CompleteCompanyAsync(_registrationId, _checkoutToken,
                 new CompleteCompanyRequest(_company.LegalName, _company.Nif, _company.Address,
-                    _company.PostalCode, _company.City, _company.Province), CancellationToken.None);
+                    _company.PostalCode, _company.City, _company.Province, _company.HolderType, _company.TradeName), CancellationToken.None);
             _plans = await Plans.GetActiveAsync();
             _selectedPlan = _plans.FirstOrDefault()?.Code ?? "";
             _step = 3;
