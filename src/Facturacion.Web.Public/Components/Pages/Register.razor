@@ -92,14 +92,14 @@
 @code {
     private sealed class RegistrationForm
     {
-        [System.ComponentModel.DataAnnotations.Required] public string Email { get; set; } = "";
-        [System.ComponentModel.DataAnnotations.Required] public string Password { get; set; } = "";
+        [System.ComponentModel.DataAnnotations.Required, System.ComponentModel.DataAnnotations.EmailAddress] public string Email { get; set; } = "";
+        [System.ComponentModel.DataAnnotations.Required, System.ComponentModel.DataAnnotations.MinLength(8)] public string Password { get; set; } = "";
         [System.ComponentModel.DataAnnotations.Required] public string DisplayName { get; set; } = "";
         [System.ComponentModel.DataAnnotations.Required] public string TenantName { get; set; } = "";
         [System.ComponentModel.DataAnnotations.Required] public string Nif { get; set; } = "";
         [System.ComponentModel.DataAnnotations.Required] public string LegalName { get; set; } = "";
         [System.ComponentModel.DataAnnotations.Required] public string Address { get; set; } = "";
-        [System.ComponentModel.DataAnnotations.Required] public string PostalCode { get; set; } = "";
+        [System.ComponentModel.DataAnnotations.Required, System.ComponentModel.DataAnnotations.RegularExpression(@"^\d{5}$", ErrorMessage = "El código postal debe contener 5 dígitos.")] public string PostalCode { get; set; } = "";
         [System.ComponentModel.DataAnnotations.Required] public string City { get; set; } = "";
         [System.ComponentModel.DataAnnotations.Required] public string Province { get; set; } = "";
     }
