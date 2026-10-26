@@ -28,7 +28,7 @@ public static class SelfServiceRegistration
         services.AddConfiguredDatabaseContext<SelfServiceDbContext>();
 
         services.AddHttpClient<IPaymentGateway, StripeCheckoutGateway>();
-        services.AddScoped<SaasRegistrationService>();
+        services.AddScoped<ISaasRegistrationService, SaasRegistrationService>();
 
         if (includeWebhookProcessing)
         {
