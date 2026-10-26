@@ -3,9 +3,8 @@
 @using Microsoft.AspNetCore.Components.Forms
 @using Facturacion.Application.Billing
 @using Facturacion.Configuration.Options
-@using Facturacion.Infrastructure.Billing
 @using Microsoft.Extensions.Options
-@inject SaasRegistrationService Registration
+@inject ISaasRegistrationService Registration
 @inject PublicPlansService Plans
 @inject IOptions<StripeOptions> Stripe
 @inject IOptions<EmailOptions> Email
