@@ -2,9 +2,11 @@
 @using Facturacion.Web.Public.Services
 @using Microsoft.AspNetCore.Components.Forms
 @using Facturacion.Application.Billing
+@using Facturacion.Application.Common.Results
+@using Facturacion.Application.Interfaces
 @using Facturacion.Configuration.Options
 @using Microsoft.Extensions.Options
-@inject ISaasRegistrationService Registration
+@inject ISaaSRegistrationApplicationService Registration
 @inject PublicPlansService Plans
 @inject IOptions<StripeOptions> Stripe
 @inject IOptions<EmailOptions> Email
@@ -162,16 +164,17 @@
         _formEditContext.NotifyValidationStateChanged();
         try
         {
-            var response = await Registration.RegisterAsync(new RegisterSaasRequest(
+            var result = await Registration.RegisterAsync(new RegisterSaasRequest(
                 _form.Email, _form.Password, _form.DisplayName), CancellationToken.None);
-            _registrationId = response.RegistrationId;
+            if (result.IsFailure)
+            {
+                foreach (var err in result.Errors)
+                    _formServerErrors.Add(new FieldIdentifier(_form, err.Field ?? "request"), new[] { err.Message });
+                return;
+            }
+            _registrationId = result.Value.RegistrationId;
             _form.Password = "";
             _step = 1;
-        }
-        catch (RegistrationValidationException ex)
-        {
-            foreach (var field in ex.Errors)
-                _formServerErrors.Add(new FieldIdentifier(_form, field.Key), field.Value);
         }
         catch (Exception)
         {
@@ -187,7 +190,13 @@
         _error = null;
         try
         {
-            _checkoutToken = await Registration.VerifyEmailAsync(_registrationId, _verificationToken.Trim(), CancellationToken.None);
+            var result = await Registration.VerifyEmailAsync(_registrationId, _verificationToken.Trim(), CancellationToken.None);
+            if (result.IsFailure)
+            {
+                _error = result.Errors.FirstOrDefault()?.Message ?? "No se pudo verificar el correo.";
+                return;
+            }
+            _checkoutToken = result.Value;
             _verificationToken = "";
             _plans = await Plans.GetActiveAsync();
             _selectedPlan = _plans.FirstOrDefault()?.Code ?? "";
@@ -206,17 +215,18 @@
         _companyEditContext.NotifyValidationStateChanged();
         try
         {
-            await Registration.CompleteCompanyAsync(_registrationId, _checkoutToken,
+            var result = await Registration.CompleteCompanyAsync(_registrationId, _checkoutToken,
                 new CompleteCompanyRequest(_company.LegalName, _company.Nif, _company.Address,
                     _company.PostalCode, _company.City, _company.Province, _company.HolderType, _company.TradeName), CancellationToken.None);
+            if (result.IsFailure)
+            {
+                foreach (var err in result.Errors)
+                    _companyServerErrors.Add(new FieldIdentifier(_company, err.Field ?? "request"), new[] { err.Message });
+                return;
+            }
             _plans = await Plans.GetActiveAsync();
             _selectedPlan = _plans.FirstOrDefault()?.Code ?? "";
             _step = 3;
-        }
-        catch (RegistrationValidationException ex)
-        {
-            foreach (var field in ex.Errors)
-                _companyServerErrors.Add(new FieldIdentifier(_company, field.Key), field.Value);
         }
         catch (Exception)
         {
@@ -232,7 +242,13 @@
         _error = null;
         try
         {
-            var response = await Registration.CheckoutAsync(_registrationId, _checkoutToken, _selectedPlan, CancellationToken.None);
+            var result = await Registration.CheckoutAsync(_registrationId, _checkoutToken, _selectedPlan, CancellationToken.None);
+            if (result.IsFailure)
+            {
+                _error = result.Errors.FirstOrDefault()?.Message ?? "No se ha podido abrir el pago seguro.";
+                return;
+            }
+            var response = result.Value;
             if (!Uri.TryCreate(response.Url, UriKind.Absolute, out var destination) ||
                 destination.Scheme != Uri.UriSchemeHttps ||
                 !(destination.Host.Equals("checkout.stripe.com", StringComparison.OrdinalIgnoreCase) ||

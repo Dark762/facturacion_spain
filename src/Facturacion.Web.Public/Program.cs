@@ -2,6 +2,7 @@ using System.Text;
 using System.Text.Json;
 using Facturacion.Payments.Stripe;
 using Facturacion.Application.Interfaces;
+using Facturacion.Application.DependencyInjection;
 using Facturacion.Configuration;
 using Facturacion.Configuration.Options;
 using Facturacion.Infrastructure.Billing;
@@ -63,6 +64,7 @@ builder.Services.AddScoped<ITenantContext>(sp => sp.GetRequiredService<TenantCon
 // Alta self-service + Stripe. La web publica recibe temporalmente el webhook
 // mientras la API no se ejecuta; reutiliza el procesador compartido.
 builder.Services.AddSaasSelfService(includeWebhookProcessing: true);
+builder.Services.AddBillingApplication();
 builder.Services.AddFacturacionEmail();
 builder.Services.AddScoped<PublicPlansService>();
 

@@ -12,6 +12,7 @@ public static class ApplicationServiceCollectionExtensions
         services.AddScoped<IFiscalRecordService, FiscalRecordService>();
         services.AddScoped<IAeatSubmissionService, AeatSubmissionService>();
         services.AddScoped<IB2BInvoiceService, B2BInvoiceService>();
+        services.AddScoped<ISaaSRegistrationApplicationService, SaasRegistrationApplicationService>();
 
         return services;
     }
