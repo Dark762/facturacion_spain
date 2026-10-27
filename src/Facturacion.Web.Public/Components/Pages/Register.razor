@@ -21,14 +21,14 @@
         else if (_step == 0)
         {
             <h2>1. Crea tu cuenta</h2>
-            <EditForm Model="_form" OnValidSubmit="RegisterAsync" FormName="saas-register">
+            <EditForm EditContext="_formEditContext" OnValidSubmit="RegisterAsync" FormName="saas-register">
                 <DataAnnotationsValidator />
                 <ValidationSummary />
                 <div class="registration-group-title">Datos de acceso</div>
                 <div class="registration-fields registration-fields-access">
-                    <label>Nombre completo <InputText @bind-Value="_form.DisplayName" /></label>
-                    <label>Correo electrónico <InputText type="email" @bind-Value="_form.Email" /></label>
-                    <label>Contraseña <InputText type="password" autocomplete="new-password" @bind-Value="_form.Password" /></label>
+                    <label>Nombre completo <InputText @bind-Value="_form.DisplayName" /><ValidationMessage For="@(() => _form.DisplayName)" /></label>
+                    <label>Correo electrónico <InputText type="email" @bind-Value="_form.Email" /><ValidationMessage For="@(() => _form.Email)" /></label>
+                    <label>Contraseña <InputText type="password" autocomplete="new-password" @bind-Value="_form.Password" /><ValidationMessage For="@(() => _form.Password)" /></label>
                 </div>
                 <p class="muted">Se enviará un correo de verificación. No se realizará ningún cobro en este paso.</p>
                 <button class="button" type="submit" disabled="@_busy">Continuar</button>
@@ -121,6 +121,8 @@
     }
     private readonly RegistrationForm _form = new();
     private readonly CompanyForm _company = new();
+    private EditContext _formEditContext = default!;
+    private ValidationMessageStore _formServerErrors = default!;
     private EditContext _companyEditContext = default!;
     private ValidationMessageStore _companyServerErrors = default!;
     private int _step;
@@ -134,6 +136,14 @@
 
     protected override void OnInitialized()
     {
+        _formEditContext = new EditContext(_form);
+        _formServerErrors = new ValidationMessageStore(_formEditContext);
+        _formEditContext.OnFieldChanged += (_, args) =>
+        {
+            _formServerErrors.Clear(args.FieldIdentifier);
+            _formEditContext.NotifyValidationStateChanged();
+        };
+
         _companyEditContext = new EditContext(_company);
         _companyServerErrors = new ValidationMessageStore(_companyEditContext);
         _companyEditContext.OnFieldChanged += (_, args) =>
@@ -148,6 +158,8 @@
         if (_busy) return;
         _busy = true;
         _error = null;
+        _formServerErrors.Clear();
+        _formEditContext.NotifyValidationStateChanged();
         try
         {
             var response = await Registration.RegisterAsync(new RegisterSaasRequest(
@@ -158,7 +170,8 @@
         }
         catch (RegistrationValidationException ex)
         {
-            _error = string.Join(" ", ex.Errors.SelectMany(kv => kv.Value));
+            foreach (var field in ex.Errors)
+                _formServerErrors.Add(new FieldIdentifier(_form, field.Key), field.Value);
         }
         catch (Exception)
         {
