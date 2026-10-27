@@ -25,12 +25,18 @@ public sealed class AuthController : ControllerBase
     public async Task<IActionResult> Login(LoginRequest input, CancellationToken ct)
     {
         var user = await _users.FindByEmailAsync(input.Email);
+
         if (user is null || !user.IsActive) return Unauthorized();
+
         var check = await _signIn.CheckPasswordSignInAsync(user, input.Password, lockoutOnFailure: true);
+
         if (!check.Succeeded) return Unauthorized();
+
         if (!await _auth.TenantUsers.AsNoTracking().AnyAsync(x => x.TenantId == input.TenantId && x.UserId == user.Id && x.IsActive, ct))
             return Unauthorized();
+
         var token = _tokens.Create(user, input.TenantId);
+
         return Ok(new TokenResponse(token.Token, token.ExpiresUtc));
     }
 
