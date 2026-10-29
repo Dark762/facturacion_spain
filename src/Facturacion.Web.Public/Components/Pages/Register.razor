@@ -43,7 +43,7 @@
         {
             <h2>2. Verifica tu correo</h2>
             <p>Revisa el mensaje enviado a @_form.Email e introduce el código de 6 dígitos. Caduca en pocos minutos.</p>
-            <label class="registration-code-label">Código de verificación <input class="registration-code-input" @bind="_verificationToken" inputmode="numeric" pattern="@($"[0-9]{{{RegistrationRules.VerificationCodeLength}}}")" maxlength="@RegistrationRules.VerificationCodeLength" autocomplete="one-time-code" placeholder="000000" aria-describedby="verification-help" /></label>
+            <label class="registration-code-label">Código de verificación <input class="registration-code-input" @bind="_verificationToken" inputmode="numeric" pattern="@RegistrationRules.VerificationCodePattern" maxlength="@RegistrationRules.VerificationCodeLength" autocomplete="one-time-code" placeholder="000000" aria-describedby="verification-help" /></label>
             <p id="verification-help" class="muted">Consulta el correo más reciente y no compartas este código.</p>
             <p><button class="button" disabled="@_busy" @onclick="VerifyAsync">Verificar correo</button></p>
         }
