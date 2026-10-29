@@ -28,8 +28,8 @@ public static class RegistrationValidation
         if (!errors.ContainsKey(nameof(request.Email)) &&
             !new EmailAddressAttribute().IsValid(request.Email.Trim()))
             errors[nameof(request.Email)] = new[] { "Introduce un correo electrónico válido." };
-        if (!errors.ContainsKey(nameof(request.Password)) && request.Password.Length < 8)
-            errors[nameof(request.Password)] = new[] { "La contraseña debe tener al menos 8 caracteres." };
+        if (!errors.ContainsKey(nameof(request.Password)) && request.Password.Length < RegistrationRules.MinimumPasswordLength)
+            errors[nameof(request.Password)] = new[] { "La contraseña debe tener al menos 12 caracteres." };
         return errors;
     }
 
@@ -47,8 +47,8 @@ public static class RegistrationValidation
             if (string.IsNullOrWhiteSpace(value))
                 errors[key] = new[] { $"El campo {name} es obligatorio." };
         }
-        Required(nameof(request.LegalName), request.LegalName, request.HolderType == "Individual" ? "nombre y apellidos" : "razón social");
-        if (request.HolderType is not ("Individual" or "LegalEntity"))
+        Required(nameof(request.LegalName), request.LegalName, request.HolderType.Is(FiscalHolderType.Individual) ? "nombre y apellidos" : "razón social");
+        if (!RegistrationValues.IsValidFiscalHolder(request.HolderType))
             errors[nameof(request.HolderType)] = new[] { "Selecciona persona física o persona jurídica." };
         Required(nameof(request.Nif), request.Nif, "NIF");
         Required(nameof(request.Address), request.Address, "dirección");
