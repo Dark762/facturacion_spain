@@ -15,6 +15,7 @@ public sealed class BillingDbContext : DbContext
     public DbSet<Tenant> Tenants => Set<Tenant>();
     public DbSet<Company> Companys => Set<Company>();
     public DbSet<Customer> Customers => Set<Customer>();
+    public DbSet<Product> Products => Set<Product>();
     public DbSet<Invoice> Invoices => Set<Invoice>();
     public DbSet<InvoiceLine> InvoiceLines => Set<InvoiceLine>();
     public DbSet<InvoiceTaxBreakdown> InvoiceTaxBreakdowns => Set<InvoiceTaxBreakdown>();
@@ -33,6 +34,7 @@ public sealed class BillingDbContext : DbContext
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(BillingDbContext).Assembly);
         modelBuilder.Entity<Company>().HasQueryFilter(x => x.TenantId == TenantId);
         modelBuilder.Entity<Customer>().HasQueryFilter(x => x.TenantId == TenantId);
+        modelBuilder.Entity<Product>().HasQueryFilter(x => x.TenantId == TenantId);
         modelBuilder.Entity<Invoice>().HasQueryFilter(x => x.TenantId == TenantId);
         modelBuilder.Entity<InvoiceLine>().HasQueryFilter(x => x.TenantId == TenantId);
         modelBuilder.Entity<InvoiceTaxBreakdown>().HasQueryFilter(x => x.TenantId == TenantId);
