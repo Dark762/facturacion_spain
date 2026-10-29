@@ -1,0 +1,31 @@
+@using Facturacion.Client
+
+@if (Customers is null)
+{
+    <p class="muted">Cargando clientes…</p>
+}
+else if (Customers.Count == 0)
+{
+    <p class="muted">Todavía no hay clientes registrados para esta empresa.</p>
+}
+else
+{
+    <table class="data-table">
+        <thead><tr><th scope="col">Cliente</th><th scope="col">NIF</th><th scope="col">Ciudad</th><th scope="col">Correo</th></tr></thead>
+        <tbody>
+            @foreach (var customer in Customers)
+            {
+                <tr>
+                    <td>@customer.LegalName</td>
+                    <td>@customer.TaxId</td>
+                    <td>@customer.City</td>
+                    <td>@customer.Email</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    [Parameter] public IReadOnlyList<CustomerDto>? Customers { get; set; }
+}
