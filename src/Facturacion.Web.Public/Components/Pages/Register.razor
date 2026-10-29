@@ -25,7 +25,6 @@
             <h2>1. Crea tu cuenta</h2>
             <EditForm EditContext="_formEditContext" OnValidSubmit="RegisterAsync" FormName="saas-register">
                 <DataAnnotationsValidator />
-                <ValidationSummary />
                 <div class="registration-group-title">Datos de acceso</div>
                 <div class="registration-fields registration-fields-access">
                     <label>Nombre completo <InputText @bind-Value="_form.DisplayName" /><ValidationMessage For="@(() => _form.DisplayName)" /></label>
@@ -106,7 +105,7 @@
         [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "El campo correo electrónico es obligatorio.")]
         [System.ComponentModel.DataAnnotations.EmailAddress] public string Email { get; set; } = "";
         [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "El campo contraseña es obligatorio.")]
-        [System.ComponentModel.DataAnnotations.MinLength(8)] public string Password { get; set; } = "";
+        [System.ComponentModel.DataAnnotations.MinLength(12, ErrorMessage = "La contraseña debe tener al menos 12 caracteres.")] public string Password { get; set; } = "";
         [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "El campo nombre completo es obligatorio.")] public string DisplayName { get; set; } = "";
     }
     private sealed class CompanyForm
@@ -173,7 +172,13 @@
             if (result.IsFailure)
             {
                 foreach (var err in result.Errors)
-                    _formServerErrors.Add(new FieldIdentifier(_form, err.Field ?? "request"), new[] { err.Message });
+                {
+                    if (err.Field is "Password")
+                        _formServerErrors.Add(new FieldIdentifier(_form, nameof(_form.Password)), err.Message);
+                    else
+                        _error = err.Message;
+                }
+                _formEditContext.NotifyValidationStateChanged();
                 return;
             }
             _registrationId = result.Value.RegistrationId;
