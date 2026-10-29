@@ -40,7 +40,8 @@
         {
             <h2>2. Verifica tu correo</h2>
             <p>Revisa el mensaje enviado a @_form.Email e introduce el código de 6 dígitos. Caduca en pocos minutos.</p>
-            <label class="registration-code-label">Código de verificación <input class="registration-code-input" @bind="_verificationToken" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code" placeholder="000000" aria-describedby="verification-help" /></label>\n            <p id="verification-help" class="muted">Consulta el correo más reciente y no compartas este código.</p>
+            <label class="registration-code-label">Código de verificación <input class="registration-code-input" @bind="_verificationToken" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code" placeholder="000000" aria-describedby="verification-help" /></label>
+            <p id="verification-help" class="muted">Consulta el correo más reciente y no compartas este código.</p>
             <p><button class="button" disabled="@_busy" @onclick="VerifyAsync">Verificar correo</button></p>
         }
         else if (_step == 2)
@@ -185,7 +186,12 @@
 
     private async Task VerifyAsync()
     {
-        if (_busy) return;\n        if (_verificationToken.Length != 6 || !_verificationToken.All(char.IsAsciiDigit))\n        {\n            _error = "Introduce un código de 6 dígitos.";\n            return;\n        }
+        if (_busy) return;
+        if (_verificationToken.Length != 6 || !_verificationToken.All(char.IsAsciiDigit))
+        {
+            _error = "Introduce un código de 6 dígitos.";
+            return;
+        }
         _busy = true;
         _error = null;
         try
