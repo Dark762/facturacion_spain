@@ -25,6 +25,12 @@ public sealed class ApiClient
     public Task<ApiResult<T>> PostAsync<T>(string path, object body, CancellationToken ct = default) =>
         SendAsync<T>(HttpMethod.Post, path, body, ct);
 
+    public Task<ApiResult<T>> PutAsync<T>(string path, object body, CancellationToken ct = default) =>
+        SendAsync<T>(HttpMethod.Put, path, body, ct);
+
+    public Task<ApiResult<T>> DeleteAsync<T>(string path, CancellationToken ct = default) =>
+        SendAsync<T>(HttpMethod.Delete, path, null, ct);
+
     public async Task<ApiResult<T>> SendAsync<T>(HttpMethod method, string path, object? body = null, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(path) || Uri.TryCreate(path, UriKind.Absolute, out _) || path.StartsWith("//", StringComparison.Ordinal))
