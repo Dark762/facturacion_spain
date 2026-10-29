@@ -1,0 +1,32 @@
+@using Facturacion.Client
+
+@if (Products is null)
+{
+    <p class="muted">Cargando productos…</p>
+}
+else if (Products.Count == 0)
+{
+    <p class="muted">No hay productos registrados para esta empresa.</p>
+}
+else
+{
+    <table class="data-table">
+        <thead><tr><th scope="col">Código</th><th scope="col">Producto</th><th scope="col">Precio</th><th scope="col">IVA</th><th scope="col">Estado</th></tr></thead>
+        <tbody>
+            @foreach (var product in Products)
+            {
+                <tr>
+                    <td>@product.Code</td>
+                    <td>@product.Name</td>
+                    <td>@product.UnitPrice.ToString("N2")</td>
+                    <td>@product.VatRate.ToString("N0") %</td>
+                    <td>@(product.IsActive ? "Activo" : "Inactivo")</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    [Parameter] public IReadOnlyList<ProductDto>? Products { get; set; }
+}

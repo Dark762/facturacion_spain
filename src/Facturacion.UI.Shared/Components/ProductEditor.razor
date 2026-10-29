@@ -1,0 +1,22 @@
+@using Facturacion.Client
+@using Microsoft.AspNetCore.Components.Forms
+
+<EditForm Model="Model" OnValidSubmit="SaveAsync">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+    <div><label>Código <InputText @bind-Value="Model.Code" /></label></div>
+    <div><label>Nombre <InputText @bind-Value="Model.Name" /></label></div>
+    <div><label>Descripción <InputText @bind-Value="Model.Description" /></label></div>
+    <div><label>Precio sin IVA <InputNumber @bind-Value="Model.UnitPrice" /></label></div>
+    <div><label>IVA (%) <InputNumber @bind-Value="Model.VatRate" /></label></div>
+    <div><label><InputCheckbox @bind-Value="Model.IsActive" /> Activo</label></div>
+    <button type="submit" disabled="@Saving">@(Saving ? "Guardando…" : "Guardar producto")</button>
+</EditForm>
+
+@code {
+    [Parameter, EditorRequired] public ProductEditModel Model { get; set; } = new();
+    [Parameter] public bool Saving { get; set; }
+    [Parameter] public EventCallback<SaveProductDto> OnSave { get; set; }
+    private Task SaveAsync() => OnSave.InvokeAsync(new SaveProductDto(
+        Model.Code, Model.Name, Model.Description, Model.UnitPrice, Model.VatRate, Model.IsActive));
+}

@@ -1,3 +1,4 @@
+using Facturacion.Client;
 using Facturacion.Configuration;
 using Facturacion.Web.App.Components;
 
@@ -8,12 +9,17 @@ builder.Configuration.AddFacturacionConfiguration(builder.Environment, Facturaci
 // no toca base de datos. No declara ninguna seccion obligatoria.
 builder.Services.AddFacturacionOptions(ConfigurationScope.None);
 
-builder.Services.AddRazorComponents();
+builder.Services.AddRazorComponents().AddInteractiveServerComponents();
+
+// Configurable por host: en móvil/escritorio se utiliza el mismo registro con su URL.
+var apiBaseUrl = builder.Configuration["Facturacion:ApiBaseUrl"];
+if (!string.IsNullOrWhiteSpace(apiBaseUrl))
+    builder.Services.AddFacturacionApiClient(new Uri(apiBaseUrl, UriKind.Absolute));
 
 var app = builder.Build();
 if (!app.Environment.IsDevelopment()) { app.UseExceptionHandler("/error"); app.UseHsts(); }
 app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseAntiforgery();
-app.MapRazorComponents<App>();
+app.MapRazorComponents<App>().AddInteractiveServerRenderMode();
 app.Run();
