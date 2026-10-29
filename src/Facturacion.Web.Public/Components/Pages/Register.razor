@@ -6,12 +6,15 @@
 @using Facturacion.Application.Interfaces
 @using Facturacion.Configuration.Options
 @using Microsoft.Extensions.Options
+
 @inject ISaaSRegistrationApplicationService Registration
 @inject PublicPlansService Plans
 @inject IOptions<StripeOptions> Stripe
 @inject IOptions<EmailOptions> Email
 @inject NavigationManager Navigation
+
 <PageTitle>Registro | Facturación ES</PageTitle>
+
 <section class="container section registration-page">
     <span class="eyebrow">Crear cuenta</span>
     <h1>Empieza con tu organización</h1>

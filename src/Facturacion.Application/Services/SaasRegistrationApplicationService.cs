@@ -116,6 +116,7 @@ public sealed class SaasRegistrationApplicationService : ISaaSRegistrationApplic
         {
             var response = await _registration.CheckoutAsync(
                 registrationId, checkoutToken, planCode, cancellationToken);
+
             return Result<CheckoutResponse>.Success(response);
         }
         catch (KeyNotFoundException)

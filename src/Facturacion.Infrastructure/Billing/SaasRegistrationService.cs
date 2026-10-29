@@ -118,21 +118,28 @@ public sealed class SaasRegistrationService : ISaasRegistrationService
     {
         var intent = await _db.RegistrationIntents.SingleOrDefaultAsync(x => x.Id == id, ct)
             ?? throw new KeyNotFoundException("Registro inexistente.");
+
         if (!intent.Status.Is(RegistrationStatus.EmailVerified) || intent.CheckoutTokenHash is null ||
             !CryptographicOperations.FixedTimeEquals(Encoding.UTF8.GetBytes(intent.CheckoutTokenHash),
                 Encoding.UTF8.GetBytes(Hash(checkoutToken))))
             throw new UnauthorizedAccessException("Registro no verificado.");
+
         if (!RegistrationValues.IsValidFiscalHolder(intent.HolderType) || string.IsNullOrWhiteSpace(intent.LegalName) || string.IsNullOrWhiteSpace(intent.Nif) ||
             string.IsNullOrWhiteSpace(intent.Address) || string.IsNullOrWhiteSpace(intent.PostalCode) ||
             string.IsNullOrWhiteSpace(intent.City) || string.IsNullOrWhiteSpace(intent.Province))
             throw new InvalidOperationException("Completa los datos fiscales antes de contratar.");
+
         if (intent.CheckoutSessionId is not null)
             throw new InvalidOperationException("Ya existe una sesión de pago. Consulta su estado antes de crear otra.");
+
         var plan = await _db.SubscriptionPlans.SingleOrDefaultAsync(x => x.Code == planCode && x.IsActive, ct)
             ?? throw new KeyNotFoundException("Plan no disponible.");
+
         var user = await _users.FindByIdAsync(intent.UserId) ?? throw new KeyNotFoundException("Usuario inexistente.");
+
         var (sessionId, url) = await _gateway.CreateSubscriptionCheckoutAsync(plan.StripePriceId, user.Email!,
             id.ToString("D"), _stripe.SuccessUrl, _stripe.CancelUrl, ct);
+
         intent.PlanCode = plan.Code;
         intent.CheckoutSessionId = sessionId;
         intent.Status = RegistrationStatus.CheckoutCreated.ToStorageValue();
