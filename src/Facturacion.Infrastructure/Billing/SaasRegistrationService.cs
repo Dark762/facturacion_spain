@@ -50,7 +50,9 @@ public sealed class SaasRegistrationService : ISaasRegistrationService
         };
         _db.RegistrationIntents.Add(intent);
         await _db.SaveChangesAsync(ct);
-        var token = await _users.GenerateEmailConfirmationTokenAsync(user);
+        // Código numérico TOTP de Identity, asociado al sello de seguridad del usuario.
+        // Expira automáticamente en pocos minutos y no se persiste en claro.
+        var token = await _users.GenerateTwoFactorTokenAsync(user, TokenOptions.DefaultEmailProvider);
         await _emails.SendConfirmationAsync(email, intent.Id, token, ct);
         return new RegistrationResponse(intent.Id, "Comprueba tu correo para verificar la cuenta.");
     }
@@ -60,13 +62,29 @@ public sealed class SaasRegistrationService : ISaasRegistrationService
         var intent = await _db.RegistrationIntents.SingleOrDefaultAsync(x => x.Id == id, ct)
             ?? throw new KeyNotFoundException("Registro inexistente.");
         var user = await _users.FindByIdAsync(intent.UserId) ?? throw new KeyNotFoundException("Usuario inexistente.");
-        var result = await _users.ConfirmEmailAsync(user, token);
+        // El registro solo puede verificarse una vez. Impide reutilizar el código.
+        if (intent.Status != "PendingEmail" || user.EmailConfirmed ||
+            await _users.IsLockedOutAsync(user))
+            throw new UnauthorizedAccessException("Código inválido o caducado.");
 
-        // Un token invalido NUNCA puede reemitir un token de checkout, ni siquiera
-        // si el correo ya estaba confirmado: en ese caso la condicion combined
-        // dejaba pasar cualquier cadena vacia de token.
-        if (!result.Succeeded)
-            throw new UnauthorizedAccessException("Token inválido o caducado.");
+        var valid = token is { Length: 6 } &&
+                    token.All(char.IsAsciiDigit) &&
+                    await _users.VerifyTwoFactorTokenAsync(
+                        user, TokenOptions.DefaultEmailProvider, token);
+        if (!valid)
+        {
+            // Usa el bloqueo de Identity para limitar los intentos fallidos.
+            var failed = await _users.AccessFailedAsync(user);
+            if (!failed.Succeeded)
+                throw new InvalidOperationException("No se pudo registrar el intento de verificación.");
+            throw new UnauthorizedAccessException("Código inválido o caducado.");
+        }
+
+        user.EmailConfirmed = true;
+        var updated = await _users.UpdateAsync(user);
+        if (!updated.Succeeded)
+            throw new InvalidOperationException("No se pudo confirmar el correo.");
+        await _users.ResetAccessFailedCountAsync(user);
         var secret = Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
         intent.CheckoutTokenHash = Hash(secret);
         intent.Status = "EmailVerified";
