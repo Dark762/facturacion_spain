@@ -63,11 +63,11 @@ public sealed class SaasRegistrationService : ISaasRegistrationService
             ?? throw new KeyNotFoundException("Registro inexistente.");
         var user = await _users.FindByIdAsync(intent.UserId) ?? throw new KeyNotFoundException("Usuario inexistente.");
         // El registro solo puede verificarse una vez. Impide reutilizar el código.
-        if (intent.Status != "PendingEmail" || user.EmailConfirmed ||
+        if (!intent.Status.Is(RegistrationStatus.PendingEmail) || user.EmailConfirmed ||
             await _users.IsLockedOutAsync(user))
             throw new UnauthorizedAccessException("Código inválido o caducado.");
 
-        var valid = token is { Length: 6 } &&
+        var valid = token is { Length: RegistrationRules.VerificationCodeLength } &&
                     token.All(char.IsAsciiDigit) &&
                     await _users.VerifyTwoFactorTokenAsync(
                         user, TokenOptions.DefaultEmailProvider, token);
@@ -87,7 +87,7 @@ public sealed class SaasRegistrationService : ISaasRegistrationService
         await _users.ResetAccessFailedCountAsync(user);
         var secret = Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
         intent.CheckoutTokenHash = Hash(secret);
-        intent.Status = "EmailVerified";
+        intent.Status = RegistrationStatus.EmailVerified.ToStorageValue();
         await _db.SaveChangesAsync(ct);
         return secret; // Solo entregar tras verificar el token del correo; nunca registrar en logs.
     }
@@ -97,7 +97,7 @@ public sealed class SaasRegistrationService : ISaasRegistrationService
         RegistrationValidation.ThrowIfInvalidCompany(request);
         var intent = await _db.RegistrationIntents.SingleOrDefaultAsync(x => x.Id == id, ct)
             ?? throw new KeyNotFoundException("Registro inexistente.");
-        if (intent.Status != "EmailVerified" || intent.CheckoutTokenHash is null ||
+        if (!intent.Status.Is(RegistrationStatus.EmailVerified) || intent.CheckoutTokenHash is null ||
             !CryptographicOperations.FixedTimeEquals(
                 Convert.FromHexString(intent.CheckoutTokenHash),
                 Convert.FromHexString(Hash(checkoutToken))))
@@ -118,11 +118,11 @@ public sealed class SaasRegistrationService : ISaasRegistrationService
     {
         var intent = await _db.RegistrationIntents.SingleOrDefaultAsync(x => x.Id == id, ct)
             ?? throw new KeyNotFoundException("Registro inexistente.");
-        if (intent.Status != "EmailVerified" || intent.CheckoutTokenHash is null ||
+        if (!intent.Status.Is(RegistrationStatus.EmailVerified) || intent.CheckoutTokenHash is null ||
             !CryptographicOperations.FixedTimeEquals(Encoding.UTF8.GetBytes(intent.CheckoutTokenHash),
                 Encoding.UTF8.GetBytes(Hash(checkoutToken))))
             throw new UnauthorizedAccessException("Registro no verificado.");
-        if (intent.HolderType is not ("Individual" or "LegalEntity") || string.IsNullOrWhiteSpace(intent.LegalName) || string.IsNullOrWhiteSpace(intent.Nif) ||
+        if (!RegistrationValues.IsValidFiscalHolder(intent.HolderType) || string.IsNullOrWhiteSpace(intent.LegalName) || string.IsNullOrWhiteSpace(intent.Nif) ||
             string.IsNullOrWhiteSpace(intent.Address) || string.IsNullOrWhiteSpace(intent.PostalCode) ||
             string.IsNullOrWhiteSpace(intent.City) || string.IsNullOrWhiteSpace(intent.Province))
             throw new InvalidOperationException("Completa los datos fiscales antes de contratar.");
@@ -135,7 +135,7 @@ public sealed class SaasRegistrationService : ISaasRegistrationService
             id.ToString("D"), _stripe.SuccessUrl, _stripe.CancelUrl, ct);
         intent.PlanCode = plan.Code;
         intent.CheckoutSessionId = sessionId;
-        intent.Status = "CheckoutCreated";
+        intent.Status = RegistrationStatus.CheckoutCreated.ToStorageValue();
         await _db.SaveChangesAsync(ct);
         return new CheckoutResponse(url);
     }
