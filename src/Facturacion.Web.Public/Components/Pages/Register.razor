@@ -23,6 +23,10 @@
         else if (_step == 0)
         {
             <h2>1. Crea tu cuenta</h2>
+            @if (!string.IsNullOrEmpty(_error))
+            {
+                <div class="notice registration-error-banner" role="alert">@_error</div>
+            }
             <EditForm EditContext="_formEditContext" OnValidSubmit="RegisterAsync" FormName="saas-register">
                 <DataAnnotationsValidator />
                 <div class="registration-group-title">Datos de acceso</div>
@@ -93,7 +97,7 @@
                 <p><button class="button" disabled="@_busy" @onclick="CheckoutAsync">Continuar al pago seguro</button></p>
             }
         }
-        @if (!string.IsNullOrEmpty(_error))
+        @if (_step != 0 && !string.IsNullOrEmpty(_error))
         {
             <div class="notice" role="alert">@_error</div>
         }
