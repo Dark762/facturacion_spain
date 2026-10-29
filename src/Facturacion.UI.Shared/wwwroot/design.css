@@ -114,3 +114,20 @@
 .registration-code-label{display:flex;flex-direction:column;gap:9px;font-weight:700;color:#334155;margin-top:20px}
 .registration-code-input{width:min(100%,280px);min-height:56px;padding:10px 16px;border:2px solid #cbd5e1;border-radius:12px;background:#fff;color:#18243b;font-size:1.6rem;font-weight:700;line-height:1.3;letter-spacing:.3em;text-align:center;font-variant-numeric:tabular-nums}
 .registration-code-input:focus{outline:2px solid #5145e7;outline-offset:2px;border-color:#5145e7}
+
+/* Los mensajes de registro se muestran pegados a su campo, sin ocupar toda la fila. */
+.registration-card .registration-fields label:has(.validation-message:not(:empty)) input {
+    border:2px solid #dc2626;
+    background:#fff8f8;
+}
+.registration-card .registration-fields label:has(.validation-message:not(:empty)) input:focus {
+    outline:2px solid #dc2626;
+    outline-offset:2px;
+}
+.registration-card .registration-fields .validation-message {
+    width:100%;
+    min-width:0;
+    margin-top:2px;
+    overflow-wrap:anywhere;
+}
+.registration-card .registration-fields .validation-message:empty{display:none}
