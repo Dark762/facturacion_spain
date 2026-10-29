@@ -1,0 +1,17 @@
+<section class="@ContainerClass">
+    <h1>@Title</h1>
+    <p>@Message</p>
+    @if (ShowHomeLink)
+    {
+        <a class="button" href="@HomeUrl">@HomeLinkText</a>
+    }
+</section>
+
+@code {
+    [Parameter, EditorRequired] public string Title { get; set; } = "";
+    [Parameter, EditorRequired] public string Message { get; set; } = "";
+    [Parameter] public string ContainerClass { get; set; } = "";
+    [Parameter] public bool ShowHomeLink { get; set; }
+    [Parameter] public string HomeUrl { get; set; } = "/";
+    [Parameter] public string HomeLinkText { get; set; } = "Ir al inicio";
+}
