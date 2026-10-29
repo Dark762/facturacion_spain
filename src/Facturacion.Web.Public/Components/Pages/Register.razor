@@ -39,8 +39,8 @@
         else if (_step == 1)
         {
             <h2>2. Verifica tu correo</h2>
-            <p>Revisa el mensaje enviado a @_form.Email. Introduce el token de confirmación recibido.</p>
-            <label>Token de verificación <input @bind="_verificationToken" autocomplete="off" /></label>
+            <p>Revisa el mensaje enviado a @_form.Email e introduce el código de 6 dígitos. Caduca en pocos minutos.</p>
+            <label class="registration-code-label">Código de verificación <input class="registration-code-input" @bind="_verificationToken" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code" placeholder="000000" aria-describedby="verification-help" /></label>\n            <p id="verification-help" class="muted">Consulta el correo más reciente y no compartas este código.</p>
             <p><button class="button" disabled="@_busy" @onclick="VerifyAsync">Verificar correo</button></p>
         }
         else if (_step == 2)
@@ -185,7 +185,7 @@
 
     private async Task VerifyAsync()
     {
-        if (_busy || string.IsNullOrWhiteSpace(_verificationToken)) return;
+        if (_busy) return;\n        if (_verificationToken.Length != 6 || !_verificationToken.All(char.IsAsciiDigit))\n        {\n            _error = "Introduce un código de 6 dígitos.";\n            return;\n        }
         _busy = true;
         _error = null;
         try
@@ -202,7 +202,7 @@
             _selectedPlan = _plans.FirstOrDefault()?.Code ?? "";
             _step = 2;
         }
-        catch (Exception) { _error = "No se pudo verificar el correo. Comprueba el token recibido."; }
+        catch (Exception) { _error = "No se pudo verificar el correo. Comprueba el código recibido."; }
         finally { _busy = false; }
     }
 
