@@ -1,3 +1,4 @@
+using Facturacion.Application.Billing;
 using Microsoft.EntityFrameworkCore;
 namespace Facturacion.Infrastructure.Billing;
 // Contexto de control comercial SIN filtro tenant: se usa exclusivamente desde servicios internos.
@@ -29,7 +30,7 @@ public sealed class RegistrationIntent
     public Guid Id { get; set; } = Guid.NewGuid();
     public string UserId { get; set; } = "";
     public string TenantName { get; set; } = "";
-    public string HolderType { get; set; } = "Individual";
+    public string HolderType { get; set; } = FiscalHolderType.Individual.ToStorageValue();
     public string TradeName { get; set; } = "";
     public string Nif { get; set; } = "";
     public string LegalName { get; set; } = "";
@@ -41,7 +42,7 @@ public sealed class RegistrationIntent
     public string? CheckoutSessionId { get; set; }
     public string? CheckoutTokenHash { get; set; }
     public Guid? TenantId { get; set; }
-    public string Status { get; set; } = "PendingEmail";
+    public string Status { get; set; } = RegistrationStatus.PendingEmail.ToStorageValue();
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 }
 public sealed class SubscriptionPlan
