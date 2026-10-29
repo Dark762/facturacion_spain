@@ -40,7 +40,7 @@ public sealed class SaasRegistrationTests : IClassFixture<RegistrationFixture>
 
         var sent = Assert.Single(_fixture.Emails.Sent, x => x.RegistrationId == id);
         Assert.Equal(email, sent.Email);
-        Assert.False(string.IsNullOrWhiteSpace(sent.Token));
+        Assert.Matches("^[0-9]{6}$", sent.Token);
     }
 
     [Fact]
@@ -99,6 +99,21 @@ public sealed class SaasRegistrationTests : IClassFixture<RegistrationFixture>
         var intent = _fixture.GetDb<SelfServiceDbContext>(scope)
             .RegistrationIntents.Single(x => x.Id == id);
         Assert.Equal("EmailVerified", intent.Status);
+    }
+
+    [Fact]
+    public async Task Verification_code_cannot_be_reused()
+    {
+        var email = $"one-time-{Guid.NewGuid():N}@example.test";
+        var id = await RegisterAsync(email);
+        var code = _fixture.Emails.Sent.Single(x => x.RegistrationId == id).Token;
+
+        using var scope = _fixture.CreateScope();
+        var service = scope.ServiceProvider.GetRequiredService<SaasRegistrationService>();
+        await service.VerifyEmailAsync(id, code, CancellationToken.None);
+
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
+            service.VerifyEmailAsync(id, code, CancellationToken.None));
     }
 
     [Fact]
