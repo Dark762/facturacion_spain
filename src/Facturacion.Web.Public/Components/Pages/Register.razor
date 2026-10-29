@@ -20,7 +20,7 @@
         {
             <div class="notice" role="status">El alta online todavía no está disponible: es necesario configurar el envío de correo y Stripe. No se crearán cuentas incompletas.</div>
         }
-        else if (_step == 0)
+        else if (_step == RegistrationStep.Account)
         {
             <h2>1. Crea tu cuenta</h2>
             @if (!string.IsNullOrEmpty(_error))
@@ -39,15 +39,15 @@
                 <button class="button" type="submit" disabled="@_busy">Continuar</button>
             </EditForm>
         }
-        else if (_step == 1)
+        else if (_step == RegistrationStep.EmailVerification)
         {
             <h2>2. Verifica tu correo</h2>
             <p>Revisa el mensaje enviado a @_form.Email e introduce el código de 6 dígitos. Caduca en pocos minutos.</p>
-            <label class="registration-code-label">Código de verificación <input class="registration-code-input" @bind="_verificationToken" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code" placeholder="000000" aria-describedby="verification-help" /></label>
+            <label class="registration-code-label">Código de verificación <input class="registration-code-input" @bind="_verificationToken" inputmode="numeric" pattern="@($"[0-9]{{{RegistrationRules.VerificationCodeLength}}}")" maxlength="@RegistrationRules.VerificationCodeLength" autocomplete="one-time-code" placeholder="000000" aria-describedby="verification-help" /></label>
             <p id="verification-help" class="muted">Consulta el correo más reciente y no compartas este código.</p>
             <p><button class="button" disabled="@_busy" @onclick="VerifyAsync">Verificar correo</button></p>
         }
-        else if (_step == 2)
+        else if (_step == RegistrationStep.CompanyDetails)
         {
             <h2>3. Configura tu empresa</h2>
             <p class="muted">Necesitamos estos datos fiscales antes de contratar un plan y emitir facturas.</p>
@@ -57,15 +57,15 @@
                 <div class="registration-group-title">Tipo de titular fiscal</div>
                 <div class="registration-holder-types">
                     <InputRadioGroup @bind-Value="_company.HolderType">
-                        <label><InputRadio Value="@("Individual")" /> Persona física (autónomo o profesional)</label>
-                        <label><InputRadio Value="@("LegalEntity")" /> Persona jurídica (sociedad o entidad)</label>
+                        <label><InputRadio Value="@(FiscalHolderType.Individual.ToStorageValue())" /> Persona física (autónomo o profesional)</label>
+                        <label><InputRadio Value="@(FiscalHolderType.LegalEntity.ToStorageValue())" /> Persona jurídica (sociedad o entidad)</label>
                     </InputRadioGroup>
                     <ValidationMessage For="@(() => _company.HolderType)" />
                 </div>
                 <div class="registration-group-title">Datos fiscales</div>
                 <div class="registration-fields registration-fields-company">
-                    <label>@(_company.HolderType == "Individual" ? "Nombre y apellidos" : "Razón social") <InputText @bind-Value="_company.LegalName" /><ValidationMessage For="@(() => _company.LegalName)" /></label>
-                    <label>@(_company.HolderType == "Individual" ? "NIF o NIE" : "NIF de la entidad") <InputText @bind-Value="_company.Nif" /><ValidationMessage For="@(() => _company.Nif)" /></label>
+                    <label>@(_company.HolderType.Is(FiscalHolderType.Individual) ? "Nombre y apellidos" : "Razón social") <InputText @bind-Value="_company.LegalName" /><ValidationMessage For="@(() => _company.LegalName)" /></label>
+                    <label>@(_company.HolderType.Is(FiscalHolderType.Individual) ? "NIF o NIE" : "NIF de la entidad") <InputText @bind-Value="_company.Nif" /><ValidationMessage For="@(() => _company.Nif)" /></label>
                     <label>Nombre comercial (opcional) <InputText @bind-Value="_company.TradeName" /></label>
                     <label>Dirección <InputText @bind-Value="_company.Address" /><ValidationMessage For="@(() => _company.Address)" /></label>
                     <label>Código postal <InputText @bind-Value="_company.PostalCode" /><ValidationMessage For="@(() => _company.PostalCode)" /></label>
@@ -75,7 +75,7 @@
                 <button class="button" type="submit" disabled="@_busy">Guardar y elegir plan</button>
             </EditForm>
         }
-        else if (_step == 3)
+        else if (_step == RegistrationStep.PlanSelection)
         {
             <h2>4. Selecciona un plan</h2>
             <p class="muted registration-plan-intro">Elige el plan que mejor se adapte a tu organización. Podrás revisar los detalles antes de confirmar.</p>
@@ -122,7 +122,7 @@
                 </div>
             }
         }
-        @if (_step != 0 && _step != 3 && !string.IsNullOrEmpty(_error))
+        @if (_step != RegistrationStep.Account && _step != RegistrationStep.PlanSelection && !string.IsNullOrEmpty(_error))
         {
             <div class="notice" role="alert">@_error</div>
         }
@@ -134,12 +134,12 @@
         [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "El campo correo electrónico es obligatorio.")]
         [System.ComponentModel.DataAnnotations.EmailAddress] public string Email { get; set; } = "";
         [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "El campo contraseña es obligatorio.")]
-        [System.ComponentModel.DataAnnotations.MinLength(12, ErrorMessage = "La contraseña debe tener al menos 12 caracteres.")] public string Password { get; set; } = "";
+        [System.ComponentModel.DataAnnotations.MinLength(RegistrationRules.MinimumPasswordLength, ErrorMessage = "La contraseña debe tener al menos 12 caracteres.")] public string Password { get; set; } = "";
         [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "El campo nombre completo es obligatorio.")] public string DisplayName { get; set; } = "";
     }
     private sealed class CompanyForm
     {
-        [System.ComponentModel.DataAnnotations.Required] public string HolderType { get; set; } = "Individual";
+        [System.ComponentModel.DataAnnotations.Required] public string HolderType { get; set; } = FiscalHolderType.Individual.ToStorageValue();
         public string TradeName { get; set; } = "";
         [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "El campo NIF es obligatorio.")]
         [System.ComponentModel.DataAnnotations.RegularExpression(@"^[A-Za-z0-9]{8,9}$", ErrorMessage = "Introduce un NIF o CIF con formato válido.")] public string Nif { get; set; } = "";
@@ -156,7 +156,7 @@
     private ValidationMessageStore _formServerErrors = default!;
     private EditContext _companyEditContext = default!;
     private ValidationMessageStore _companyServerErrors = default!;
-    private int _step;
+    private RegistrationStep _step;
     private bool _busy;
     private string? _error;
     private Guid _registrationId;
@@ -213,7 +213,7 @@
             }
             _registrationId = result.Value.RegistrationId;
             _form.Password = "";
-            _step = 1;
+            _step = RegistrationStep.EmailVerification;
         }
         catch (Exception)
         {
@@ -225,7 +225,7 @@
     private async Task VerifyAsync()
     {
         if (_busy) return;
-        if (_verificationToken.Length != 6 || !_verificationToken.All(char.IsAsciiDigit))
+        if (_verificationToken.Length != RegistrationRules.VerificationCodeLength || !_verificationToken.All(char.IsAsciiDigit))
         {
             _error = "Introduce un código de 6 dígitos.";
             return;
@@ -244,7 +244,7 @@
             _verificationToken = "";
             _plans = await Plans.GetActiveAsync();
             _selectedPlan = _plans.FirstOrDefault()?.Code ?? "";
-            _step = 2;
+            _step = RegistrationStep.CompanyDetails;
         }
         catch (Exception) { _error = "No se pudo verificar el correo. Comprueba el código recibido."; }
         finally { _busy = false; }
@@ -277,7 +277,7 @@
             }
             _plans = await Plans.GetActiveAsync();
             _selectedPlan = _plans.FirstOrDefault()?.Code ?? "";
-            _step = 3;
+            _step = RegistrationStep.PlanSelection;
         }
         catch (Exception)
         {
