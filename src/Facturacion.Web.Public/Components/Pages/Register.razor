@@ -143,7 +143,10 @@
         _formServerErrors = new ValidationMessageStore(_formEditContext);
         _formEditContext.OnFieldChanged += (_, args) =>
         {
-            _formServerErrors.Clear(args.FieldIdentifier);
+            // Un error global del servidor ("request") no pertenece a ningún campo.
+            // Si permanece en el ValidationMessageStore, OnValidSubmit deja de
+            // ejecutarse incluso después de corregir el formulario.
+            _formServerErrors.Clear();
             _formEditContext.NotifyValidationStateChanged();
         };
 
