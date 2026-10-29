@@ -1,0 +1,22 @@
+<div class="shell">
+    <aside class="sidebar">
+        <Brand />
+        <nav aria-label="Navegación privada">
+            <a href="/">Inicio</a>
+            <span class="muted">Facturas · próximamente</span>
+            <span class="muted">Clientes · próximamente</span>
+            <span class="muted">Empresas · próximamente</span>
+        </nav>
+    </aside>
+    <main class="workspace">@ChildContent</main>
+</div>
+<nav class="mobile-nav" aria-label="Navegación móvil">
+    <a href="/">Inicio</a>
+    <span class="muted">Facturas</span>
+    <span class="muted">Clientes</span>
+    <span class="muted">Cuenta</span>
+</nav>
+
+@code {
+    [Parameter, EditorRequired] public RenderFragment? ChildContent { get; set; }
+}
