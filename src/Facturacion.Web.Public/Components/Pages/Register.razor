@@ -51,7 +51,7 @@
         {
             <h2>3. Configura tu empresa</h2>
             <p class="muted">Necesitamos estos datos fiscales antes de contratar un plan y emitir facturas.</p>
-            <EditForm Model="_company" OnValidSubmit="CompleteCompanyAsync" FormName="saas-company">
+            <EditForm EditContext="_companyEditContext" OnValidSubmit="CompleteCompanyAsync" FormName="saas-company">
                 <DataAnnotationsValidator />
                 <ValidationSummary />
                 <div class="registration-group-title">Tipo de titular fiscal</div>
@@ -171,10 +171,7 @@
         _formServerErrors = new ValidationMessageStore(_formEditContext);
         _formEditContext.OnFieldChanged += (_, args) =>
         {
-<<<<<<< HEAD
-=======
             _error = null;
->>>>>>> 50f50167f586160b53752da48a0a3ac7deaa330d
             // Un error global del servidor ("request") no pertenece a ningún campo.
             // Si permanece en el ValidationMessageStore, OnValidSubmit deja de
             // ejecutarse incluso después de corregir el formulario.
@@ -186,7 +183,7 @@
         _companyServerErrors = new ValidationMessageStore(_companyEditContext);
         _companyEditContext.OnFieldChanged += (_, args) =>
         {
-            _companyServerErrors.Clear(args.FieldIdentifier);
+            _companyServerErrors.Clear();
             _companyEditContext.NotifyValidationStateChanged();
         };
     }
@@ -268,7 +265,14 @@
             if (result.IsFailure)
             {
                 foreach (var err in result.Errors)
-                    _companyServerErrors.Add(new FieldIdentifier(_company, err.Field ?? "request"), new[] { err.Message });
+                {
+                    var field = err.Field;
+                    if (field is nameof(CompanyForm.Nif) or nameof(CompanyForm.LegalName) or nameof(CompanyForm.Address) or nameof(CompanyForm.PostalCode) or nameof(CompanyForm.City) or nameof(CompanyForm.Province) or nameof(CompanyForm.HolderType) or nameof(CompanyForm.TradeName))
+                        _companyServerErrors.Add(new FieldIdentifier(_company, field), err.Message);
+                    else
+                        _error = err.Message;
+                }
+                _companyEditContext.NotifyValidationStateChanged();
                 return;
             }
             _plans = await Plans.GetActiveAsync();
