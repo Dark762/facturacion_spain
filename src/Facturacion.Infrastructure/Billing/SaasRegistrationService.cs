@@ -29,7 +29,7 @@ public sealed class SaasRegistrationService : ISaasRegistrationService
             throw new ArgumentException("Faltan datos obligatorios de registro.");
         var email = r.Email.Trim();
         if (await _users.FindByEmailAsync(email) is not null)
-            throw new InvalidOperationException("No se puede completar el registro con estos datos.");
+            throw new InvalidOperationException("No se puede completar el registro con el email ingresado.");
 
         var user = new ApplicationUser { Email = email, UserName = email, DisplayName = r.DisplayName, IsActive = true, EmailConfirmed = false };
 

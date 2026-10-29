@@ -131,3 +131,23 @@
     overflow-wrap:anywhere;
 }
 .registration-card .registration-fields .validation-message:empty{display:none}
+
+/* Registro, paso 4: selección de planes con tarjetas. */
+.registration-plan-intro{margin:-6px 0 24px;line-height:1.65}
+.registration-plan-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:16px;margin:20px 0 26px}
+.registration-plan-card{position:relative;display:flex;flex-direction:column;gap:14px;min-width:0;padding:22px;border:2px solid #e2e8f0;border-radius:16px;background:#fff;cursor:pointer;transition:border-color .15s ease,box-shadow .15s ease,background .15s ease}
+.registration-plan-card:hover{border-color:#a5a0f4;box-shadow:0 8px 24px rgba(81,69,231,.08)}
+.registration-plan-card.is-selected{border-color:#5145e7;background:#f8f7ff;box-shadow:0 0 0 3px rgba(81,69,231,.1)}
+.registration-plan-card:focus-within{outline:2px solid #5145e7;outline-offset:3px}
+.registration-plan-card>input[type=radio]{position:absolute;top:23px;right:22px;width:19px;height:19px;accent-color:#5145e7;cursor:pointer}
+.registration-plan-card-top{display:flex;align-items:center;flex-wrap:wrap;gap:9px;padding-right:25px}
+.registration-plan-card-top strong{font-size:1.15rem;color:#18243b}
+.registration-plan-selected{padding:4px 8px;border-radius:100px;background:#e9e7ff;color:#4036ce;font-size:.7rem;font-weight:800}
+.registration-plan-price{font-size:1.9rem;line-height:1.15;font-weight:800;letter-spacing:-.035em;color:#18243b}
+.registration-plan-price small{font-size:.82rem;font-weight:500;letter-spacing:0;color:#64748b}
+.registration-plan-description{font-size:.88rem;color:#64748b;line-height:1.55}
+.registration-plan-features{display:flex;flex-direction:column;gap:9px;padding-top:15px;border-top:1px solid #e2e8f0;font-size:.84rem;color:#334155}
+.registration-plan-footer{display:flex;flex-direction:column;align-items:flex-start;gap:14px;padding-top:22px;border-top:1px solid #e6eaf2}
+.registration-plan-footer p{margin:0;line-height:1.6}
+.registration-plan-secure{font-size:.78rem}
+@media(max-width:620px){.registration-plan-card{padding:18px}.registration-plan-footer .button{width:100%;text-align:center}}
