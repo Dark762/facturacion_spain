@@ -8,6 +8,7 @@ public sealed class ProductConfiguration : IEntityTypeConfiguration<Product>
 {
     public void Configure(EntityTypeBuilder<Product> e)
     {
+        e.ToTable("products");
         e.HasKey(x => x.Id);
         e.HasAlternateKey(x => new { x.TenantId, x.Id });
         e.HasOne(x => x.Company).WithMany()
