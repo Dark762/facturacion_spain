@@ -15,7 +15,7 @@ public sealed class AuthController : ControllerBase
     private readonly JwtTokenService _tokens;
     public AuthController(UserManager<ApplicationUser> users, SignInManager<ApplicationUser> signIn,
         AuthDbContext auth, JwtTokenService tokens)
-    { _users=users; _signIn=signIn; _auth=auth; _tokens=tokens; }
+    { _users=users; _signIn=signIn; _auth=auth; _tokens=tokens; }   
 
     public sealed record LoginRequest(string Email, string Password, Guid TenantId);
     public sealed record TokenResponse(string AccessToken, DateTime ExpiresUtc);
