@@ -20,12 +20,13 @@ public sealed class SmtpEmailSender(
 
     public Task SendConfirmationAsync(
         string email, Guid registrationId, string token, CancellationToken ct) =>
-        SendAsync(email, "Verifica tu correo electronico",
+        SendAsync(email, "Tu código de verificación de FacturaciónES",
             """
-            <p>Bienvenido a Facturacion.</p>
-            <p>Confirma esta direccion de correo para activar tu cuenta:</p>
-            <p><a href="{0}">Verificar correo</a></p>
-            <p>El enlace caduca por seguridad si no se usa a tiempo.</p>
+            <p>Bienvenido a FacturaciónES.</p>
+            <p>Introduce este código de seis dígitos en el paso 2 del registro:</p>
+            <p style="font-size:30px;font-weight:800;letter-spacing:6px;color:#25324a">{0}</p>
+            <p>El código caduca en pocos minutos. Si no has solicitado este registro, ignora el mensaje.</p>
+            <p>Por seguridad, no compartas este código.</p>
             """, token, ct);
 
     public Task SendInvitationAsync(
