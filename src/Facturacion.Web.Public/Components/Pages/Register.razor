@@ -141,7 +141,7 @@
         _formEditContext = new EditContext(_form);
         _formServerErrors = new ValidationMessageStore(_formEditContext);
         _formEditContext.OnFieldChanged += (_, args) =>
-        {
+        {\n            _error = null;
             // Un error global del servidor ("request") no pertenece a ningún campo.
             // Si permanece en el ValidationMessageStore, OnValidSubmit deja de
             // ejecutarse incluso después de corregir el formulario.
@@ -175,6 +175,8 @@
                 {
                     if (err.Field is "Password")
                         _formServerErrors.Add(new FieldIdentifier(_form, nameof(_form.Password)), err.Message);
+                    else if (err.Message.Contains("No se puede completar el registro con estos datos", StringComparison.OrdinalIgnoreCase))
+                        _formServerErrors.Add(new FieldIdentifier(_form, nameof(_form.Email)), "Este correo electrónico ya está registrado. Prueba con otro.");
                     else
                         _error = err.Message;
                 }
