@@ -13,6 +13,7 @@ public static class ServiceCollectionExtensions
             throw new ArgumentException("La URL de la API debe ser HTTP(S) absoluta.", nameof(baseAddress));
 
         services.AddHttpClient<ApiClient>(http => http.BaseAddress = baseAddress);
+        services.AddTransient<InvoicesApiClient>();
         services.AddTransient<SaasApiClient>();
         services.AddTransient<AuthenticationApiClient>();
         return services;
