@@ -26,6 +26,8 @@ public sealed class CompanyAuthorizationService : ICompanyAuthorizationService
             .Select(x => x.Role).FirstOrDefaultAsync(ct);
         bool allowed = permission switch
         {
+            "catalog.read" => role is "Reader" or "Editor" or "Admin",
+            "catalog.write" => role is "Editor" or "Admin",
             "invoices.read" => role is "Reader" or "Editor" or "Admin",
             "invoices.create" => role is "Editor" or "Admin",
             "invoices.issue" => role is "Admin",
