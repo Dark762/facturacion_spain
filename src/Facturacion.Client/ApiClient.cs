@@ -27,7 +27,7 @@ public sealed class ApiClient
 
     public async Task<ApiResult<T>> SendAsync<T>(HttpMethod method, string path, object? body = null, CancellationToken ct = default)
     {
-        if (Uri.TryCreate(path, UriKind.Absolute, out _) || path.StartsWith("//", StringComparison.Ordinal))
+        if (string.IsNullOrWhiteSpace(path) || Uri.TryCreate(path, UriKind.Absolute, out _) || path.StartsWith("//", StringComparison.Ordinal))
             throw new ArgumentException("La ruta debe ser relativa a la API configurada.", nameof(path));
 
         using var request = new HttpRequestMessage(method, path);
