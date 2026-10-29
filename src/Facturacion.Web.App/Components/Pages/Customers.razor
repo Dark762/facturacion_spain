@@ -1,0 +1,99 @@
+@page "/catalog/{CompanyId:guid}/customers"
+@rendermode InteractiveServer
+@using Facturacion.Client
+@using Microsoft.AspNetCore.Components.Web
+@inject IServiceProvider Services
+
+<PageTitle>Clientes | Facturación ES</PageTitle>
+<h1>Clientes</h1>
+<p class="muted">Empresa: @CompanyId</p>
+<p class="notice">Esta pantalla requiere autenticación API; la integración de sesión del área privada está pendiente. No introduzcas datos reales hasta habilitarla.</p>
+
+@if (_api is null)
+{
+    <p>Configura Facturacion:ApiBaseUrl para conectar el catálogo.</p>
+}
+else
+{
+    <button @onclick="LoadAsync">Actualizar lista</button>
+    @if (_error is not null) { <p role="alert">@_error</p> }
+    <CustomersTable Customers="_customers" />
+    <h2>@(_editingId is null ? "Nuevo cliente" : "Editar cliente")</h2>
+    <CustomerEditor @key="_editor" Model="_editor" Saving="_saving" OnSave="SaveAsync" />
+    @if (_editingId is not null) { <button @onclick="CancelEdit">Cancelar edición</button> }
+    @if (_customers is not null)
+    {
+        @foreach (var customer in _customers)
+        {
+            <div>
+                <span>@customer.LegalName</span>
+                <button @onclick="() => Edit(customer)">Editar</button>
+                <button @onclick="() => DeleteAsync(customer.Id)">Eliminar</button>
+            </div>
+        }
+    }
+}
+
+@code {
+    [Parameter] public Guid CompanyId { get; set; }
+    private CustomersApiClient? _api;
+    private IReadOnlyList<CustomerDto>? _customers;
+    private CustomerEditModel _editor = new();
+    private Guid? _editingId;
+    private bool _saving;
+    private string? _error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _api = Services.GetService(typeof(CustomersApiClient)) as CustomersApiClient;
+        if (_api is not null) await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        if (_api is null) return;
+        try
+        {
+            var result = await _api.ListAsync(CompanyId);
+            _customers = result.Value;
+            _error = result.Error?.Message;
+        }
+        catch (HttpRequestException) { _error = "No se pudo contactar con la API."; }
+    }
+
+    private void Edit(CustomerDto customer)
+    {
+        _editingId = customer.Id;
+        _editor = CustomerEditModel.From(customer);
+    }
+
+    private void CancelEdit() { _editingId = null; _editor = new(); }
+
+    private async Task SaveAsync(SaveCustomerDto input)
+    {
+        if (_api is null || _saving) return;
+        _saving = true;
+        try
+        {
+            var result = _editingId is Guid id
+                ? await _api.UpdateAsync(CompanyId, id, input)
+                : await _api.CreateAsync(CompanyId, input);
+            _error = result.Error?.Message;
+            if (result.IsSuccess) { CancelEdit(); await LoadAsync(); }
+        }
+        catch (HttpRequestException) { _error = "No se pudo contactar con la API."; }
+        finally { _saving = false; }
+    }
+
+    private async Task DeleteAsync(Guid id)
+    {
+        if (_api is null) return;
+        try
+        {
+            var result = await _api.DeleteAsync(CompanyId, id);
+            _error = result.Error?.Message;
+            if (result.IsSuccess) await LoadAsync();
+        }
+        catch (HttpRequestException) { _error = "No se pudo contactar con la API."; }
+    }
+}
