@@ -78,26 +78,51 @@
         else if (_step == 3)
         {
             <h2>4. Selecciona un plan</h2>
+            <p class="muted registration-plan-intro">Elige el plan que mejor se adapte a tu organización. Podrás revisar los detalles antes de confirmar.</p>
             @if (_plans.Count == 0)
             {
                 <p role="status">No hay planes activos configurados para contratación.</p>
             }
             else
             {
-                <label>
-                    Plan
-                    <select @bind="_selectedPlan">
-                        @foreach (var plan in _plans)
-                        {
-                            <option value="@plan.Code">@plan.Name</option>
-                        }
-                    </select>
-                </label>
-                <p class="muted">El importe definitivo y los impuestos se mostrarán en Stripe antes de confirmar el pago.</p>
-                <p><button class="button" disabled="@_busy" @onclick="CheckoutAsync">Continuar al pago seguro</button></p>
+                <div class="registration-plan-grid" role="radiogroup" aria-label="Selecciona un plan">
+                    @foreach (var plan in _plans)
+                    {
+                        var selected = _selectedPlan == plan.Code;
+                        <label class="registration-plan-card @(selected ? "is-selected" : "")">
+                            <input type="radio" name="registration-plan" value="@plan.Code" checked="@selected" @onchange="() => _selectedPlan = plan.Code" />
+                            <span class="registration-plan-card-top">
+                                <strong>@plan.Name</strong>
+                                @if (selected)
+                                {
+                                    <span class="registration-plan-selected">Seleccionado</span>
+                                }
+                            </span>
+                            <span class="registration-plan-price">@plan.MonthlyPrice.ToString("N2", new System.Globalization.CultureInfo("es-ES")) @plan.Currency <small>/ mes</small></span>
+                            @if (!string.IsNullOrWhiteSpace(plan.Description))
+                            {
+                                <span class="registration-plan-description">@plan.Description</span>
+                            }
+                            <span class="registration-plan-features">
+                                <span>✓ Hasta @plan.MaxCompanies empresas</span>
+                                <span>✓ Hasta @plan.MaxUsers usuarios</span>
+                                <span>✓ Hasta @plan.MaxInvoicesPerMonth facturas al mes</span>
+                            </span>
+                        </label>
+                    }
+                </div>
+                @if (!string.IsNullOrEmpty(_error))
+                {
+                    <div class="notice registration-error-banner" role="alert">@_error</div>
+                }
+                <div class="registration-plan-footer">
+                    <p class="muted">Los importes definitivos y los impuestos se mostrarán en Stripe antes de confirmar la contratación.</p>
+                    <button class="button button-large" disabled="@(_busy || string.IsNullOrWhiteSpace(_selectedPlan))" @onclick="CheckoutAsync">Continuar con el plan seleccionado</button>
+                    <span class="muted registration-plan-secure">Contratación segura · Revisa el importe antes de confirmar</span>
+                </div>
             }
         }
-        @if (_step != 0 && !string.IsNullOrEmpty(_error))
+        @if (_step != 0 && _step != 3 && !string.IsNullOrEmpty(_error))
         {
             <div class="notice" role="alert">@_error</div>
         }
@@ -145,7 +170,8 @@
         _formEditContext = new EditContext(_form);
         _formServerErrors = new ValidationMessageStore(_formEditContext);
         _formEditContext.OnFieldChanged += (_, args) =>
-        {\n            _error = null;
+        {
+            _error = null;
             // Un error global del servidor ("request") no pertenece a ningún campo.
             // Si permanece en el ValidationMessageStore, OnValidSubmit deja de
             // ejecutarse incluso después de corregir el formulario.
