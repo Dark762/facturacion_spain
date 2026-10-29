@@ -9,6 +9,7 @@ public static class RegistrationRules
 {
     public const int MinimumPasswordLength = 12;
     public const int VerificationCodeLength = 6;
+    public const string VerificationCodePattern = "[0-9]{6}";
 }
 
 /// <summary>Conserva los valores de texto existentes en API y MySQL.</summary>
