@@ -79,6 +79,12 @@
                 <button class="button" type="submit" disabled="@_busy">Guardar y elegir plan</button>
             </EditForm>
         }
+        else if (_step == RegistrationStep.PlanSelection && _freeActivated)
+        {
+            <h2>¡Tu cuenta gratuita está activada!</h2>
+            <p>Tu organización ya está creada. Puedes acceder con el correo y la contraseña registrados.</p>
+            <p class="muted">Para entrar es necesario iniciar sesión; el registro no inicia sesión automáticamente.</p>
+        }
         else if (_step == RegistrationStep.PlanSelection)
         {
             <h2>4. Selecciona un plan</h2>
@@ -162,6 +168,7 @@
     private ValidationMessageStore _companyServerErrors = default!;
     private RegistrationStep _step;
     private bool _busy;
+    private bool _freeActivated;
     private string? _error;
     private Guid _registrationId;
     private string _verificationToken = "";
@@ -306,6 +313,11 @@
                 return;
             }
             var response = result.Value;
+            if (response.IsFreeActivated)
+            {
+                _freeActivated = true;
+                return;
+            }
             if (!Uri.TryCreate(response.Url, UriKind.Absolute, out var destination) ||
                 destination.Scheme != Uri.UriSchemeHttps ||
                 !(destination.Host.Equals("checkout.stripe.com", StringComparison.OrdinalIgnoreCase) ||
