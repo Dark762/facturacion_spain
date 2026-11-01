@@ -42,7 +42,7 @@
                 <p class="muted">Selecciona el tipo de titular fiscal. En el paso 3 completaremos sus datos de facturación.</p>
                 <div class="registration-group-title">Datos de acceso</div>
                 <div class="registration-fields registration-fields-access">
-                    <label>Nombre y apellidos de quien crea la cuenta <InputText @bind-Value="_form.DisplayName" /><ValidationMessage For="@(() => _form.DisplayName)" /></label>
+                    <label>@(_company.HolderType.Is(FiscalHolderType.Individual) ? "Nombre y apellidos" : "Nombre y apellidos del representante") <InputText @bind-Value="_form.DisplayName" /><ValidationMessage For="@(() => _form.DisplayName)" /></label>
                     <label>Correo electrónico <InputText type="email" @bind-Value="_form.Email" /><ValidationMessage For="@(() => _form.Email)" /></label>
                     <label>Contraseña <InputText type="password" autocomplete="new-password" @bind-Value="_form.Password" /><ValidationMessage For="@(() => _form.Password)" /></label>
                 </div>
