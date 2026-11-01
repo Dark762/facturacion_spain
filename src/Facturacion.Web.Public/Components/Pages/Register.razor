@@ -13,6 +13,7 @@
 @inject IOptions<EmailOptions> Email
 @inject NavigationManager Navigation
 @inject IConfiguration Configuration
+@inject ILogger<Register> Logger
 
 <PageTitle>Registro | Facturación ES</PageTitle>
 
@@ -333,7 +334,12 @@
                 throw new InvalidOperationException("Destino de pago no válido.");
             Navigation.NavigateTo(destination.ToString(), forceLoad: true);
         }
-        catch (Exception) { _error = "No se ha podido abrir el pago seguro. Inténtalo más tarde."; }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error al contratar el plan {PlanCode} en el registro {RegistrationId}.",
+                _selectedPlan, _registrationId);
+            _error = "No se ha podido completar la activación del plan. Consulta el registro del servidor.";
+        }
         finally { _busy = false; }
     }
 }
