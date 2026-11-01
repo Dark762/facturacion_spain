@@ -59,7 +59,7 @@
         }
         else if (_step == RegistrationStep.CompanyDetails)
         {
-            <h2>3. Configura tu empresa</h2>
+            <h2>3. @(_company.HolderType.Is(FiscalHolderType.Individual) ? "Configura tus datos fiscales" : "Configura tu empresa")</h2>
             <p class="muted">Necesitamos estos datos fiscales antes de contratar un plan y emitir facturas.</p>
             <EditForm EditContext="_companyEditContext" OnValidSubmit="CompleteCompanyAsync" FormName="saas-company">
                 <DataAnnotationsValidator />
