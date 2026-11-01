@@ -161,12 +161,12 @@ public sealed class SaasRegistrationService : ISaasRegistrationService
                     StripeCustomerId = null,
                     StripeSubscriptionId = null,
                     PlanCode = plan.Code,
-                    Status = "active"
+                    Status = SubscriptionStatus.Active.ToStorageValue()
                 });
             }
             intent.PlanCode = plan.Code;
             intent.TenantId = result.TenantId;
-            intent.Status = "Active";
+            intent.Status = RegistrationStatus.Active.ToStorageValue();
             await _db.SaveChangesAsync(ct);
             return new CheckoutResponse("", true);
         }
