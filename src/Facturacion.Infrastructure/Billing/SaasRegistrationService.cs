@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 using Facturacion.Application.Billing;
+using Facturacion.Domain.Enums;
 using Facturacion.Application.Provisioning;
 using Facturacion.Configuration.Options;
 using Facturacion.Infrastructure.Identity;
@@ -138,7 +139,10 @@ public sealed class SaasRegistrationService : ISaasRegistrationService
         var plan = await _db.SubscriptionPlans.SingleOrDefaultAsync(x => x.Code == planCode && x.IsActive, ct)
             ?? throw new KeyNotFoundException("Plan no disponible.");
 
-        if (SubscriptionPlanCodes.IsGratis(plan.Code))
+        if (!SubscriptionPlanCodeExtensions.TryFromCode(plan.Code, out var selectedPlan))
+            throw new InvalidOperationException("Código de plan no reconocido.");
+
+        if (selectedPlan == SubscriptionPlanCode.GRATIS)
         {
             if (plan.MonthlyPrice != 0)
                 throw new InvalidOperationException("El plan GRATIS debe tener precio cero.");
