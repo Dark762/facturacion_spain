@@ -154,8 +154,8 @@ public sealed class SaasRegistrationService : ISaasRegistrationService
                 _db.SubscriptionStates.Add(new SubscriptionState
                 {
                     TenantId = result.TenantId,
-                    StripeCustomerId = "",
-                    StripeSubscriptionId = "",
+                    StripeCustomerId = null,
+                    StripeSubscriptionId = null,
                     PlanCode = plan.Code,
                     Status = "active"
                 });
