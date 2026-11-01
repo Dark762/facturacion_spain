@@ -32,9 +32,17 @@
             }
             <EditForm EditContext="_formEditContext" OnValidSubmit="RegisterAsync" FormName="saas-register">
                 <DataAnnotationsValidator />
+                <div class="registration-group-title">Tipo de persona que se registra</div>
+                <div class="registration-holder-types">
+                    <InputRadioGroup @bind-Value="_company.HolderType">
+                        <label><InputRadio Value="@(FiscalHolderType.Individual.ToStorageValue())" /> Persona física (autónomo o profesional)</label>
+                        <label><InputRadio Value="@(FiscalHolderType.LegalEntity.ToStorageValue())" /> Persona jurídica (empresa o entidad)</label>
+                    </InputRadioGroup>
+                </div>
+                <p class="muted">Selecciona el tipo de titular fiscal. En el paso 3 completaremos sus datos de facturación.</p>
                 <div class="registration-group-title">Datos de acceso</div>
                 <div class="registration-fields registration-fields-access">
-                    <label>Nombre y apellidos del usuario <InputText @bind-Value="_form.DisplayName" /><ValidationMessage For="@(() => _form.DisplayName)" /></label>
+                    <label>Nombre y apellidos de quien crea la cuenta <InputText @bind-Value="_form.DisplayName" /><ValidationMessage For="@(() => _form.DisplayName)" /></label>
                     <label>Correo electrónico <InputText type="email" @bind-Value="_form.Email" /><ValidationMessage For="@(() => _form.Email)" /></label>
                     <label>Contraseña <InputText type="password" autocomplete="new-password" @bind-Value="_form.Password" /><ValidationMessage For="@(() => _form.Password)" /></label>
                 </div>
@@ -57,16 +65,9 @@
             <EditForm EditContext="_companyEditContext" OnValidSubmit="CompleteCompanyAsync" FormName="saas-company">
                 <DataAnnotationsValidator />
                 <ValidationSummary />
-                <div class="registration-group-title">Tipo de titular fiscal</div>
-                <div class="registration-holder-types">
-                    <InputRadioGroup @bind-Value="_company.HolderType">
-                        <label><InputRadio Value="@(FiscalHolderType.Individual.ToStorageValue())" /> Persona física (autónomo o profesional)</label>
-                        <label><InputRadio Value="@(FiscalHolderType.LegalEntity.ToStorageValue())" /> Persona jurídica (sociedad o entidad)</label>
-                    </InputRadioGroup>
-                    <ValidationMessage For="@(() => _company.HolderType)" />
-                </div>
+                <p class="muted">Tipo de titular seleccionado: <strong>@(_company.HolderType.Is(FiscalHolderType.Individual) ? "Persona física" : "Persona jurídica")</strong>.</p>
                 <div class="registration-group-title">Datos fiscales de @(_company.HolderType.Is(FiscalHolderType.Individual) ? "la persona física" : "la entidad")</div>
-                <p class="muted">@(_company.HolderType.Is(FiscalHolderType.Individual) ? "El nombre fiscal se completa inicialmente con el nombre del usuario del paso 1. Corrígelo si el titular fiscal es diferente." : "Introduce la razón social de la empresa. El nombre del usuario del paso 1 corresponde a la cuenta de acceso.")</p>
+                <p class="muted">@(_company.HolderType.Is(FiscalHolderType.Individual) ? "El nombre y los apellidos se han completado con los datos del paso 1. Comprueba que coinciden con el titular fiscal." : "Introduce la razón social de la empresa. Los datos personales del paso 1 identifican a quien crea la cuenta.")</p>
                 <div class="registration-fields registration-fields-company">
                     <label>@(_company.HolderType.Is(FiscalHolderType.Individual) ? "Nombre y apellidos" : "Razón social") <InputText @bind-Value="_company.LegalName" /><ValidationMessage For="@(() => _company.LegalName)" /></label>
                     <label>@(_company.HolderType.Is(FiscalHolderType.Individual) ? "NIF o NIE" : "NIF de la entidad") <InputText @bind-Value="_company.Nif" /><ValidationMessage For="@(() => _company.Nif)" /></label>
