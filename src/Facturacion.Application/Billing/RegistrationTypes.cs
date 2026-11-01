@@ -1,5 +1,11 @@
 namespace Facturacion.Application.Billing;
 
+public enum SubscriptionPlanCode { GRATIS }
+public static class SubscriptionPlanCodes
+{
+    public static bool IsGratis(string? code) =>
+        string.Equals(code, nameof(SubscriptionPlanCode.GRATIS), StringComparison.OrdinalIgnoreCase);
+}
 public enum FiscalHolderType { Individual, LegalEntity }
 public enum RegistrationStatus { PendingEmail, EmailVerified, CheckoutCreated }
 public enum RegistrationStep { Account = 0, EmailVerification = 1, CompanyDetails = 2, PlanSelection = 3 }
