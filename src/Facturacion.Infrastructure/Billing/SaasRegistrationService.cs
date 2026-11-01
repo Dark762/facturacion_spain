@@ -61,6 +61,61 @@ public sealed class SaasRegistrationService : ISaasRegistrationService
         return new RegistrationResponse(intent.Id, "Comprueba tu correo para verificar la cuenta.");
     }
 
+    public async Task<RegistrationResponse> ResumeAsync(ResumeRegistrationRequest request, CancellationToken ct)
+    {
+        const string genericMessage = "Si existe un registro pendiente y las credenciales son correctas, recibirás un código por correo.";
+        var email = request.Email?.Trim() ?? "";
+        var user = await _users.FindByEmailAsync(email);
+        if (user is null || !await _users.CheckPasswordAsync(user, request.Password ?? ""))
+            return new RegistrationResponse(Guid.Empty, genericMessage);
+
+        var intent = await _db.RegistrationIntents.SingleOrDefaultAsync(x => x.UserId == user.Id, ct);
+        if (intent is null || intent.Status.Is(RegistrationStatus.Active))
+            return new RegistrationResponse(Guid.Empty, genericMessage);
+
+        var token = await _users.GenerateTwoFactorTokenAsync(user, TokenOptions.DefaultEmailProvider);
+        await _emails.SendConfirmationAsync(email, intent.Id, token, ct);
+        return new RegistrationResponse(intent.Id, genericMessage);
+    }
+
+    public async Task<RegistrationProgress> VerifyAndResumeAsync(Guid id, string token, CancellationToken ct)
+    {
+        var intent = await _db.RegistrationIntents.SingleOrDefaultAsync(x => x.Id == id, ct)
+            ?? throw new KeyNotFoundException("Registro inexistente.");
+        var user = await _users.FindByIdAsync(intent.UserId)
+            ?? throw new KeyNotFoundException("Usuario inexistente.");
+        if (intent.Status.Is(RegistrationStatus.Active) || await _users.IsLockedOutAsync(user))
+            throw new UnauthorizedAccessException("Registro no recuperable.");
+        var valid = token is { Length: RegistrationRules.VerificationCodeLength } &&
+            token.All(char.IsAsciiDigit) &&
+            await _users.VerifyTwoFactorTokenAsync(user, TokenOptions.DefaultEmailProvider, token);
+        if (!valid)
+        {
+            await _users.AccessFailedAsync(user);
+            throw new UnauthorizedAccessException("Código inválido o caducado.");
+        }
+        if (!user.EmailConfirmed)
+        {
+            user.EmailConfirmed = true;
+            var updated = await _users.UpdateAsync(user);
+            if (!updated.Succeeded) throw new InvalidOperationException("No se pudo verificar el correo.");
+        }
+        await _users.ResetAccessFailedCountAsync(user);
+        var secret = Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
+        intent.CheckoutTokenHash = Hash(secret);
+        // El registro recuperado puede estar en CheckoutCreated o Provisioning:
+        // conservar su estado y los IDs para evitar un nuevo aprovisionamiento.
+        if (intent.Status.Is(RegistrationStatus.PendingEmail))
+            intent.Status = RegistrationStatus.EmailVerified.ToStorageValue();
+        await _db.SaveChangesAsync(ct);
+        return new RegistrationProgress(secret,
+            !string.IsNullOrWhiteSpace(intent.LegalName) && !string.IsNullOrWhiteSpace(intent.Nif) &&
+            !string.IsNullOrWhiteSpace(intent.Address) && !string.IsNullOrWhiteSpace(intent.PostalCode) &&
+            !string.IsNullOrWhiteSpace(intent.City) && !string.IsNullOrWhiteSpace(intent.Province),
+            user.DisplayName ?? "", intent.HolderType, intent.TradeName, intent.LegalName,
+            intent.Nif, intent.Address, intent.PostalCode, intent.City, intent.Province);
+    }
+
     public async Task<string> VerifyEmailAsync(Guid id, string token, CancellationToken ct)
     {
         var intent = await _db.RegistrationIntents.SingleOrDefaultAsync(x => x.Id == id, ct)
