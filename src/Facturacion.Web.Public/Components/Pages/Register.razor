@@ -50,6 +50,14 @@
                 <p class="muted">Se enviará un correo de verificación. No se realizará ningún cobro en este paso.</p>
                 <button class="button" type="submit" disabled="@_busy">Continuar</button>
             </EditForm>
+            <p><button type="button" class="button" disabled="@_busy" @onclick="() => _resuming = true">Continuar registro pendiente</button></p>
+            @if (_resuming)
+            {
+                <p class="muted">Introduce el correo y la contraseña utilizados al registrarte.</p>
+                <label>Correo <input type="email" @bind="_resumeEmail" /></label>
+                <label>Contraseña <input type="password" @bind="_resumePassword" /></label>
+                <p><button type="button" class="button" disabled="@_busy" @onclick="ResumeAsync">Enviar código de recuperación</button></p>
+            }
         }
         else if (_step == RegistrationStep.EmailVerification)
         {
@@ -171,6 +179,10 @@
     private RegistrationStep _step;
     private bool _busy;
     private bool _freeActivated;
+    private bool _resuming;
+    private bool _resumeVerification;
+    private string _resumeEmail = "";
+    private string _resumePassword = "";
     private string? _error;
     private Guid _registrationId;
     private string _verificationToken = "";
@@ -235,6 +247,39 @@
         finally { _busy = false; }
     }
 
+    private async Task ResumeAsync()
+    {
+        if (_busy) return;
+        _busy = true;
+        _error = null;
+        try
+        {
+            var result = await Registration.ResumeAsync(
+                new ResumeRegistrationRequest(_resumeEmail, _resumePassword), CancellationToken.None);
+            _resumePassword = "";
+            if (result.IsFailure)
+            {
+                _error = result.Errors.FirstOrDefault()?.Message ?? "No se pudo iniciar la recuperación.";
+                return;
+            }
+            if (result.Value.RegistrationId == Guid.Empty)
+            {
+                _error = result.Value.Message;
+                return;
+            }
+            _registrationId = result.Value.RegistrationId;
+            _form.Email = _resumeEmail;
+            _resumeVerification = true;
+            _step = RegistrationStep.EmailVerification;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error al recuperar un registro pendiente.");
+            _error = "No se pudo iniciar la recuperación.";
+        }
+        finally { _busy = false; }
+    }
+
     private async Task VerifyAsync()
     {
         if (_busy) return;
@@ -247,6 +292,33 @@
         _error = null;
         try
         {
+            if (_resumeVerification)
+            {
+                var resumed = await Registration.VerifyAndResumeAsync(
+                    _registrationId, _verificationToken.Trim(), CancellationToken.None);
+                if (resumed.IsFailure)
+                {
+                    _error = resumed.Errors.FirstOrDefault()?.Message ?? "Código inválido.";
+                    return;
+                }
+                var progress = resumed.Value;
+                _checkoutToken = progress.CheckoutToken;
+                _form.DisplayName = progress.DisplayName;
+                _company.HolderType = progress.HolderType;
+                _company.TradeName = progress.TradeName;
+                _company.LegalName = progress.LegalName;
+                _company.Nif = progress.Nif;
+                _company.Address = progress.Address;
+                _company.PostalCode = progress.PostalCode;
+                _company.City = progress.City;
+                _company.Province = progress.Province;
+                _plans = await Plans.GetActiveAsync();
+                _selectedPlan = _plans.FirstOrDefault()?.Code ?? "";
+                _verificationToken = "";
+                _step = progress.CompanyCompleted ? RegistrationStep.PlanSelection : RegistrationStep.CompanyDetails;
+                _resumeVerification = false;
+                return;
+            }
             var result = await Registration.VerifyEmailAsync(_registrationId, _verificationToken.Trim(), CancellationToken.None);
             if (result.IsFailure)
             {
