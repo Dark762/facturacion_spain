@@ -129,6 +129,16 @@ public sealed class ProvisioningService : IProvisioningService
     private async Task<Facturacion.Infrastructure.Billing.ProvisioningOperation> ClaimAsync(
         Guid registrationId, CancellationToken ct)
     {
+        // El mismo DbContext puede conservar un claim de un intento anterior.
+        // Reutilizar la instancia rastreada evita adjuntar otra con la misma PK.
+        var tracked = _self.ProvisioningOperations.Local
+            .FirstOrDefault(x => x.RegistrationId == registrationId);
+        if (tracked is not null)
+        {
+            tracked.OwnedByCaller = false;
+            return tracked;
+        }
+
         var existing = await _self.ProvisioningOperations
             .FirstOrDefaultAsync(x => x.RegistrationId == registrationId, ct);
         if (existing is not null)
