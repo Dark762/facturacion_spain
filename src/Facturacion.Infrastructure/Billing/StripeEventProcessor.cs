@@ -1,5 +1,7 @@
 using System.Text.Json;
 using Facturacion.Domain.Entities;
+using Facturacion.Domain.Enums;
+using Facturacion.Application.Billing;
 using Facturacion.Application.Provisioning;
 using Facturacion.Infrastructure.Identity;
 using Facturacion.Infrastructure.Multitenancy;
@@ -91,7 +93,7 @@ public sealed class StripeEventProcessor
                 "Sesion Stripe {SessionId} sin registro local; se ignora de forma permanente.", sessionId);
             return true;
         }
-        if (intent.Status=="Active" && await _self.SubscriptionStates.AnyAsync(
+        if (intent.Status.Is(RegistrationStatus.Active) && await _self.SubscriptionStates.AnyAsync(
             x=>x.TenantId==intent.TenantId,ct)) return true;
 
         var user=await _auth.Users.SingleOrDefaultAsync(x=>x.Id==intent.UserId && x.EmailConfirmed,ct);
@@ -114,8 +116,8 @@ public sealed class StripeEventProcessor
                 intent.Nif, intent.Address, intent.PostalCode, intent.City, intent.Province), ct);
             _self.SubscriptionStates.Add(new SubscriptionState { TenantId=result.TenantId,
                 StripeCustomerId=stripeCustomer, StripeSubscriptionId=stripeSub,
-                PlanCode=intent.PlanCode, Status="active" });
-            intent.Status="Active";
+                PlanCode=intent.PlanCode, Status=SubscriptionStatus.Active.ToStorageValue() });
+            intent.Status=RegistrationStatus.Active.ToStorageValue();
             await _self.SaveChangesAsync(ct);
             return true;
         }
