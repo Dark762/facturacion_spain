@@ -60,6 +60,30 @@ public sealed class SaasRegistrationApplicationService : ISaaSRegistrationApplic
         }
     }
 
+    public async Task<Result<RegistrationResponse>> ResumeAsync(ResumeRegistrationRequest request, CancellationToken ct)
+    {
+        try { return Result<RegistrationResponse>.Success(await _registration.ResumeAsync(request, ct)); }
+        catch (InvalidOperationException)
+        {
+            return Result<RegistrationResponse>.Failure(
+                ApplicationErrors.Invalid("RESUME_FAILED", "No se ha podido recuperar el registro.", "request"));
+        }
+    }
+
+    public async Task<Result<RegistrationProgress>> VerifyAndResumeAsync(Guid id, string token, CancellationToken ct)
+    {
+        try { return Result<RegistrationProgress>.Success(await _registration.VerifyAndResumeAsync(id, token, ct)); }
+        catch (KeyNotFoundException)
+        {
+            return Result<RegistrationProgress>.Failure(ApplicationErrors.NotFound("Registro"));
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Result<RegistrationProgress>.Failure(
+                ApplicationErrors.Invalid("INVALID_TOKEN", "Código inválido o caducado.", "token"));
+        }
+    }
+
     public async Task<Result<string>> VerifyEmailAsync(
         Guid registrationId, string token, CancellationToken cancellationToken)
     {
