@@ -39,7 +39,6 @@
                         <label><InputRadio Value="@(FiscalHolderType.LegalEntity.ToStorageValue())" /> Persona jurídica (empresa o entidad)</label>
                     </InputRadioGroup>
                 </div>
-                <p class="muted">Selecciona el tipo de titular fiscal. En el paso 3 completaremos sus datos de facturación.</p>
                 <div class="registration-group-title">Datos de acceso</div>
                 <div class="registration-fields registration-fields-access">
                     <label>@(_company.HolderType.Is(FiscalHolderType.Individual) ? "Nombre y apellidos" : "Nombre y apellidos del representante") <InputText @bind-Value="_form.DisplayName" /><ValidationMessage For="@(() => _form.DisplayName)" /></label>
