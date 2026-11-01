@@ -4,6 +4,10 @@ public sealed record RegisterSaasRequest(string Email, string Password, string D
     string City = "", string Province = "");
 public sealed record CompleteCompanyRequest(string LegalName, string Nif, string Address, string PostalCode, string City, string Province, string HolderType = "Individual", string TradeName = "");
 public sealed record RegistrationResponse(Guid RegistrationId, string Message);
+public sealed record ResumeRegistrationRequest(string Email, string Password);
+public sealed record RegistrationProgress(string CheckoutToken, bool CompanyCompleted,
+    string DisplayName, string HolderType, string TradeName, string LegalName,
+    string Nif, string Address, string PostalCode, string City, string Province);
 public sealed record CheckoutResponse(string Url, bool IsFreeActivated = false);
 public sealed record PlanResponse(string Code, string Name, decimal MonthlyPrice, string Currency, int MaxCompanies, int MaxUsers, int MaxInvoicesPerMonth, string Description);
 public interface IPaymentGateway
