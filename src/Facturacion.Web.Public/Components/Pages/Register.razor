@@ -12,6 +12,7 @@
 @inject IOptions<StripeOptions> Stripe
 @inject IOptions<EmailOptions> Email
 @inject NavigationManager Navigation
+@inject IConfiguration Configuration
 
 <PageTitle>Registro | Facturación ES</PageTitle>
 
@@ -316,6 +317,13 @@
             if (response.IsFreeActivated)
             {
                 _freeActivated = true;
+                var appUrl = Configuration["Facturacion:WebAppUrl"];
+                if (Uri.TryCreate(appUrl, UriKind.Absolute, out var appDestination) &&
+                    (appDestination.Scheme == Uri.UriSchemeHttps ||
+                     (appDestination.IsLoopback && appDestination.Scheme == Uri.UriSchemeHttp)))
+                {
+                    Navigation.NavigateTo(appDestination.ToString(), forceLoad: true);
+                }
                 return;
             }
             if (!Uri.TryCreate(response.Url, UriKind.Absolute, out var destination) ||
