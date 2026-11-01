@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 using Facturacion.Application.Billing;
+using Facturacion.Application.Provisioning;
 using Facturacion.Configuration.Options;
 using Facturacion.Infrastructure.Identity;
 using Microsoft.AspNetCore.Identity;
@@ -15,10 +16,12 @@ public sealed class SaasRegistrationService : ISaasRegistrationService
     private readonly UserManager<ApplicationUser> _users;
     private readonly IRegistrationEmailSender _emails;
     private readonly IPaymentGateway _gateway;
+    private readonly IProvisioningService _provisioning;
     private readonly StripeOptions _stripe;
     public SaasRegistrationService(SelfServiceDbContext db, UserManager<ApplicationUser> users,
-        IRegistrationEmailSender emails, IPaymentGateway gateway, IOptions<StripeOptions> stripe)
-    { _db = db; _users = users; _emails = emails; _gateway = gateway; _stripe = stripe.Value; }
+        IRegistrationEmailSender emails, IPaymentGateway gateway, IOptions<StripeOptions> stripe,
+        IProvisioningService provisioning)
+    { _db = db; _users = users; _emails = emails; _gateway = gateway; _stripe = stripe.Value; _provisioning = provisioning; }
 
     public async Task<RegistrationResponse> RegisterAsync(RegisterSaasRequest r, CancellationToken ct)
     {
@@ -134,6 +137,38 @@ public sealed class SaasRegistrationService : ISaasRegistrationService
 
         var plan = await _db.SubscriptionPlans.SingleOrDefaultAsync(x => x.Code == planCode && x.IsActive, ct)
             ?? throw new KeyNotFoundException("Plan no disponible.");
+
+        if (SubscriptionPlanCodes.IsGratis(plan.Code))
+        {
+            if (plan.MonthlyPrice != 0)
+                throw new InvalidOperationException("El plan GRATIS debe tener precio cero.");
+
+            var result = await _provisioning.ProvisionAsync(new ProvisioningRequest(
+                intent.Id, intent.UserId, intent.TenantName, intent.LegalName,
+                intent.Nif, intent.Address, intent.PostalCode, intent.City, intent.Province), ct);
+
+            var state = await _db.SubscriptionStates
+                .SingleOrDefaultAsync(x => x.TenantId == result.TenantId, ct);
+            if (state is null)
+            {
+                _db.SubscriptionStates.Add(new SubscriptionState
+                {
+                    TenantId = result.TenantId,
+                    StripeCustomerId = "",
+                    StripeSubscriptionId = "",
+                    PlanCode = plan.Code,
+                    Status = "active"
+                });
+            }
+            intent.PlanCode = plan.Code;
+            intent.TenantId = result.TenantId;
+            intent.Status = "Active";
+            await _db.SaveChangesAsync(ct);
+            return new CheckoutResponse("", true);
+        }
+
+        if (string.IsNullOrWhiteSpace(plan.StripePriceId))
+            throw new InvalidOperationException("El plan de pago no tiene configurado un precio de Stripe.");
 
         var user = await _users.FindByIdAsync(intent.UserId) ?? throw new KeyNotFoundException("Usuario inexistente.");
 
