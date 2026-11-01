@@ -68,8 +68,8 @@ public sealed class SubscriptionState
 {
     public Guid Id { get; set; } = Guid.NewGuid();
     public Guid TenantId { get; set; }
-    public string StripeCustomerId { get; set; } = "";
-    public string StripeSubscriptionId { get; set; } = "";
+    public string? StripeCustomerId { get; set; }
+    public string? StripeSubscriptionId { get; set; }
     public string PlanCode { get; set; } = "";
     public string Status { get; set; } = "Pending";
 }
