@@ -66,18 +66,18 @@ public sealed class SaasRegistrationService : ISaasRegistrationService
         const string genericMessage = "Si el correo corresponde a un registro pendiente, recibirás un código de verificación.";
         var email = request.Email?.Trim() ?? "";
         if (string.IsNullOrWhiteSpace(email))
-            return new RegistrationResponse(Guid.Empty, genericMessage);
+            return new RegistrationResponse(Guid.NewGuid(), genericMessage);
 
         var user = await _users.FindByEmailAsync(email);
         if (user is null || !user.IsActive || await _users.IsLockedOutAsync(user))
-            return new RegistrationResponse(Guid.Empty, genericMessage);
+            return new RegistrationResponse(Guid.NewGuid(), genericMessage);
 
         var intent = await _db.RegistrationIntents.SingleOrDefaultAsync(x => x.UserId == user.Id, ct);
         if (intent is null || intent.Status.Is(RegistrationStatus.Active) ||
             intent.TenantId is not null && await _db.SubscriptionStates
                 .AnyAsync(x => x.TenantId == intent.TenantId &&
                     x.Status == SubscriptionStatus.Active.ToStorageValue(), ct))
-            return new RegistrationResponse(Guid.Empty, genericMessage);
+            return new RegistrationResponse(Guid.NewGuid(), genericMessage);
 
         var token = await _users.GenerateTwoFactorTokenAsync(user, TokenOptions.DefaultEmailProvider);
         await _emails.SendConfirmationAsync(email, intent.Id, token, ct);
