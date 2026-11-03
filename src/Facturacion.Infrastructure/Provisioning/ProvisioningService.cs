@@ -44,10 +44,6 @@ public sealed class ProvisioningService : IProvisioningService
         // fija el TenantId. Cualquier reintento concurrente recibe la clave de
         // unicidad y reanuda ese mismo tenant en lugar de crear otro.
         var claim = await ClaimAsync(r.RegistrationId, ct);
-        if (claim.TenantId is null)
-            throw new InvalidOperationException(
-                "La operación de aprovisionamiento no tiene tenant asignado.");
-
         // Seguidor: otro proceso posee esta operacion. No se repiten las
         // escrituras (producirian colisiones de clave); se espera a que termine.
         if (!claim.OwnedByCaller)
@@ -74,13 +70,9 @@ public sealed class ProvisioningService : IProvisioningService
                 "El aprovisionamiento está en curso y no ha finalizado a tiempo.");
         }
 
-        if (intent.TenantId is null)
-        {
-            intent.TenantId = claim.TenantId;
-            intent.Status = "Provisioning";
-            await _self.SaveChangesAsync(ct);
-        }
-        var tenantId = claim.TenantId.Value;
+        // El claim se guarda sin TenantId para respetar la FK hacia Tenants.
+        // Solo el propietario crea el tenant y asocia su identificador.
+        var tenantId = claim.TenantId ?? Guid.NewGuid();
         _tenant.SetTenant(tenantId);
         var existingTenant = await _billing.Tenants.IgnoreQueryFilters()
             .AnyAsync(x => x.Id == tenantId, ct);
@@ -88,6 +80,17 @@ public sealed class ProvisioningService : IProvisioningService
         {
             _billing.Tenants.Add(new Tenant { Id = tenantId, Name = r.TenantName.Trim() });
             await _billing.SaveChangesAsync(ct);
+        }
+        if (claim.TenantId is null)
+        {
+            claim.TenantId = tenantId;
+            await _self.SaveChangesAsync(ct);
+        }
+        if (intent.TenantId is null)
+        {
+            intent.TenantId = tenantId;
+            intent.Status = "Provisioning";
+            await _self.SaveChangesAsync(ct);
         }
         var company = await _billing.Companys.IgnoreQueryFilters()
             .FirstOrDefaultAsync(x => x.TenantId == tenantId && x.Nif == r.TaxId.Trim(), ct);
@@ -150,7 +153,7 @@ public sealed class ProvisioningService : IProvisioningService
         var candidate = new Facturacion.Infrastructure.Billing.ProvisioningOperation
         {
             RegistrationId = registrationId,
-            TenantId = Guid.NewGuid(),
+            TenantId = null,
             Status = Facturacion.Infrastructure.Billing.ProvisioningOperationStates.Claimed,
             OwnedByCaller = true
         };
