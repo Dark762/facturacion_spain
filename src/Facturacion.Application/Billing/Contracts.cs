@@ -4,7 +4,7 @@ public sealed record RegisterSaasRequest(string Email, string Password, string D
     string City = "", string Province = "");
 public sealed record CompleteCompanyRequest(string LegalName, string Nif, string Address, string PostalCode, string City, string Province, string HolderType = "Individual", string TradeName = "");
 public sealed record RegistrationResponse(Guid RegistrationId, string Message);
-public sealed record ResumeRegistrationRequest(string Email, string Password);
+public sealed record ResumeRegistrationRequest(string Email);
 public sealed record RegistrationProgress(string CheckoutToken, bool CompanyCompleted,
     string DisplayName, string HolderType, string TradeName, string LegalName,
     string Nif, string Address, string PostalCode, string City, string Province);
