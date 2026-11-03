@@ -70,12 +70,17 @@ public sealed class SaasRegistrationApplicationService : ISaaSRegistrationApplic
         }
     }
 
-    public async Task<Result<RegistrationProgress>> VerifyAndResumeAsync(Guid id, string token, CancellationToken ct)
+    public async Task<Result<RegistrationProgress>> VerifyAndResumeAsync(Guid id, string token, string newPassword, CancellationToken ct)
     {
-        try { return Result<RegistrationProgress>.Success(await _registration.VerifyAndResumeAsync(id, token, ct)); }
+        try { return Result<RegistrationProgress>.Success(await _registration.VerifyAndResumeAsync(id, token, newPassword, ct)); }
         catch (KeyNotFoundException)
         {
             return Result<RegistrationProgress>.Failure(ApplicationErrors.NotFound("Registro"));
+        }
+        catch (ArgumentException ex)
+        {
+            return Result<RegistrationProgress>.Failure(
+                ApplicationErrors.Invalid("PASSWORD_INVALID", ex.Message, "newPassword"));
         }
         catch (UnauthorizedAccessException)
         {
