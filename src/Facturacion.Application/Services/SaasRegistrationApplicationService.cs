@@ -29,21 +29,7 @@ public sealed class SaasRegistrationApplicationService : ISaaSRegistrationApplic
             var details = ex.Message.Split(';', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
             var passwordErrors = details
                 .Where(message => message.StartsWith("Passwords ", StringComparison.OrdinalIgnoreCase))
-                .Select(message => message switch
-                {
-                    var m when m.StartsWith("Passwords must be at least ", StringComparison.OrdinalIgnoreCase) =>
-                        "La contraseña debe tener al menos " +
-                        m["Passwords must be at least ".Length..].Replace(" characters.", " caracteres."),
-                    var m when m.Contains("non alphanumeric", StringComparison.OrdinalIgnoreCase) =>
-                        "La contraseña debe incluir al menos un carácter especial.",
-                    var m when m.Contains("at least one digit", StringComparison.OrdinalIgnoreCase) =>
-                        "La contraseña debe incluir al menos un número.",
-                    var m when m.Contains("at least one uppercase", StringComparison.OrdinalIgnoreCase) =>
-                        "La contraseña debe incluir al menos una letra mayúscula.",
-                    var m when m.Contains("at least one lowercase", StringComparison.OrdinalIgnoreCase) =>
-                        "La contraseña debe incluir al menos una letra minúscula.",
-                    _ => "La contraseña no cumple los requisitos de seguridad."
-                })
+                .Select(TranslatePasswordError)
                 .Distinct()
                 .ToArray();
             if (passwordErrors.Length > 0)
@@ -80,7 +66,7 @@ public sealed class SaasRegistrationApplicationService : ISaaSRegistrationApplic
         catch (ArgumentException ex)
         {
             return Result<RegistrationProgress>.Failure(
-                ApplicationErrors.Invalid("PASSWORD_INVALID", ex.Message, "newPassword"));
+                ApplicationErrors.Invalid("PASSWORD_INVALID", TranslatePasswordError(ex.Message), "newPassword"));
         }
         catch (UnauthorizedAccessException)
         {
@@ -163,5 +149,22 @@ public sealed class SaasRegistrationApplicationService : ISaaSRegistrationApplic
             return Result<CheckoutResponse>.Failure(
                 ApplicationErrors.Invalid("CHECKOUT_INVALID", ex.Message, "planCode"));
         }
+    }
+    private static string TranslatePasswordError(string message)
+    {
+        if (message.StartsWith("Passwords must be at least ", StringComparison.OrdinalIgnoreCase))
+            return "La contraseña debe tener al menos " +
+                message["Passwords must be at least ".Length..].Replace(" characters.", " caracteres.");
+        if (message.Contains("non alphanumeric", StringComparison.OrdinalIgnoreCase))
+            return "La contraseña debe incluir al menos un carácter especial.";
+        if (message.Contains("at least one digit", StringComparison.OrdinalIgnoreCase))
+            return "La contraseña debe incluir al menos un número.";
+        if (message.Contains("at least one uppercase", StringComparison.OrdinalIgnoreCase))
+            return "La contraseña debe incluir al menos una letra mayúscula.";
+        if (message.Contains("at least one lowercase", StringComparison.OrdinalIgnoreCase))
+            return "La contraseña debe incluir al menos una letra minúscula.";
+        if (message.Contains("unique chars", StringComparison.OrdinalIgnoreCase))
+            return "La contraseña debe contener más caracteres diferentes.";
+        return "La contraseña no cumple los requisitos de seguridad.";
     }
 }
