@@ -30,7 +30,15 @@
             <h2>1. @(_resuming ? "Continúa tu registro" : "Crea tu cuenta")</h2>
             @if (!string.IsNullOrEmpty(_error))
             {
-                <div class="notice registration-error-banner" role="alert">@_error</div>
+                <div class="notice registration-error-banner" role="alert">
+                    @_error
+                    @if (!_resuming && _error.Contains("Este correo ya está registrado", StringComparison.Ordinal))
+                    {
+                        <p style="margin:12px 0 0">
+                            <button type="button" class="button" disabled="@_busy" @onclick="ToggleRegistrationMode">Continuar registro pendiente</button>
+                        </p>
+                    }
+                </div>
             }
             <EditForm EditContext="_formEditContext" OnValidSubmit="RegisterAsync" FormName="saas-register">
                 <DataAnnotationsValidator />
