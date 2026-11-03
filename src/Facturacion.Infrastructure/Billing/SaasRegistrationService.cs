@@ -63,14 +63,20 @@ public sealed class SaasRegistrationService : ISaasRegistrationService
 
     public async Task<RegistrationResponse> ResumeAsync(ResumeRegistrationRequest request, CancellationToken ct)
     {
-        const string genericMessage = "Si existe un registro pendiente y las credenciales son correctas, recibirás un código por correo.";
+        const string genericMessage = "Si el correo corresponde a un registro pendiente, recibirás un código de verificación.";
         var email = request.Email?.Trim() ?? "";
+        if (string.IsNullOrWhiteSpace(email))
+            return new RegistrationResponse(Guid.Empty, genericMessage);
+
         var user = await _users.FindByEmailAsync(email);
-        if (user is null || !await _users.CheckPasswordAsync(user, request.Password ?? ""))
+        if (user is null || !user.IsActive || await _users.IsLockedOutAsync(user))
             return new RegistrationResponse(Guid.Empty, genericMessage);
 
         var intent = await _db.RegistrationIntents.SingleOrDefaultAsync(x => x.UserId == user.Id, ct);
-        if (intent is null || intent.Status.Is(RegistrationStatus.Active))
+        if (intent is null || intent.Status.Is(RegistrationStatus.Active) ||
+            intent.TenantId is not null && await _db.SubscriptionStates
+                .AnyAsync(x => x.TenantId == intent.TenantId &&
+                    x.Status == SubscriptionStatus.Active.ToStorageValue(), ct))
             return new RegistrationResponse(Guid.Empty, genericMessage);
 
         var token = await _users.GenerateTwoFactorTokenAsync(user, TokenOptions.DefaultEmailProvider);
@@ -78,13 +84,17 @@ public sealed class SaasRegistrationService : ISaasRegistrationService
         return new RegistrationResponse(intent.Id, genericMessage);
     }
 
-    public async Task<RegistrationProgress> VerifyAndResumeAsync(Guid id, string token, CancellationToken ct)
+    public async Task<RegistrationProgress> VerifyAndResumeAsync(Guid id, string token, string newPassword, CancellationToken ct)
     {
         var intent = await _db.RegistrationIntents.SingleOrDefaultAsync(x => x.Id == id, ct)
             ?? throw new KeyNotFoundException("Registro inexistente.");
         var user = await _users.FindByIdAsync(intent.UserId)
             ?? throw new KeyNotFoundException("Usuario inexistente.");
-        if (intent.Status.Is(RegistrationStatus.Active) || await _users.IsLockedOutAsync(user))
+        if (intent.Status.Is(RegistrationStatus.Active) || !user.IsActive ||
+            await _users.IsLockedOutAsync(user) ||
+            intent.TenantId is not null && await _db.SubscriptionStates
+                .AnyAsync(x => x.TenantId == intent.TenantId &&
+                    x.Status == SubscriptionStatus.Active.ToStorageValue(), ct))
             throw new UnauthorizedAccessException("Registro no recuperable.");
         var valid = token is { Length: RegistrationRules.VerificationCodeLength } &&
             token.All(char.IsAsciiDigit) &&
@@ -94,6 +104,22 @@ public sealed class SaasRegistrationService : ISaasRegistrationService
             await _users.AccessFailedAsync(user);
             throw new UnauthorizedAccessException("Código inválido o caducado.");
         }
+        // El código autoriza establecer una nueva contraseña sin conocer la anterior.
+        // Identity aplica las mismas reglas de seguridad que en el alta.
+        var passwordErrors = new List<IdentityError>();
+        foreach (var validator in _users.PasswordValidators)
+        {
+            var validation = await validator.ValidateAsync(_users, user, newPassword);
+            if (!validation.Succeeded)
+                passwordErrors.AddRange(validation.Errors);
+        }
+        if (passwordErrors.Count > 0)
+            throw new ArgumentException(string.Join("; ", passwordErrors.Select(x => x.Description)));
+
+        var resetToken = await _users.GeneratePasswordResetTokenAsync(user);
+        var reset = await _users.ResetPasswordAsync(user, resetToken, newPassword);
+        if (!reset.Succeeded)
+            throw new InvalidOperationException("No se pudo actualizar la contraseña.");
         if (!user.EmailConfirmed)
         {
             user.EmailConfirmed = true;
