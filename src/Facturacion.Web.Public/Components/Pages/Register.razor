@@ -27,37 +27,52 @@
         }
         else if (_step == RegistrationStep.Account)
         {
-            <h2>1. Crea tu cuenta</h2>
+            <h2>1. @(_resuming ? "Continúa tu registro" : "Crea tu cuenta")</h2>
             @if (!string.IsNullOrEmpty(_error))
             {
                 <div class="notice registration-error-banner" role="alert">@_error</div>
             }
             <EditForm EditContext="_formEditContext" OnValidSubmit="RegisterAsync" FormName="saas-register">
                 <DataAnnotationsValidator />
-                <div class="registration-group-title">Tipo de persona que se registra</div>
-                <div class="registration-holder-types">
-                    <InputRadioGroup @bind-Value="_company.HolderType">
-                        <label><InputRadio Value="@(FiscalHolderType.Individual.ToStorageValue())" /> Persona física (autónomo o profesional)</label>
-                        <label><InputRadio Value="@(FiscalHolderType.LegalEntity.ToStorageValue())" /> Persona jurídica (empresa o entidad)</label>
-                    </InputRadioGroup>
-                </div>
+                @if (!_resuming)
+                {
+                    <div class="registration-group-title">Tipo de persona que se registra</div>
+                    <div class="registration-holder-types">
+                        <InputRadioGroup @bind-Value="_company.HolderType">
+                            <label><InputRadio Value="@(FiscalHolderType.Individual.ToStorageValue())" /> Persona física (autónomo o profesional)</label>
+                            <label><InputRadio Value="@(FiscalHolderType.LegalEntity.ToStorageValue())" /> Persona jurídica (empresa o entidad)</label>
+                        </InputRadioGroup>
+                    </div>
+                }
                 <div class="registration-group-title">Datos de acceso</div>
                 <div class="registration-fields registration-fields-access">
-                    <label>@(_company.HolderType.Is(FiscalHolderType.Individual) ? "Nombre y apellidos" : "Nombre y apellidos del representante") <InputText @bind-Value="_form.DisplayName" /><ValidationMessage For="@(() => _form.DisplayName)" /></label>
+                    @if (!_resuming)
+                    {
+                        <label>@(_company.HolderType.Is(FiscalHolderType.Individual) ? "Nombre y apellidos" : "Nombre y apellidos del representante") <InputText @bind-Value="_form.DisplayName" /><ValidationMessage For="@(() => _form.DisplayName)" /></label>
+                    }
                     <label>Correo electrónico <InputText type="email" @bind-Value="_form.Email" /><ValidationMessage For="@(() => _form.Email)" /></label>
-                    <label>Contraseña <InputText type="password" autocomplete="new-password" @bind-Value="_form.Password" /><ValidationMessage For="@(() => _form.Password)" /></label>
+                    <label>Contraseña <InputText type="password" autocomplete="@(_resuming ? "current-password" : "new-password")" @bind-Value="_form.Password" /><ValidationMessage For="@(() => _form.Password)" /></label>
                 </div>
-                <p class="muted">Se enviará un correo de verificación. No se realizará ningún cobro en este paso.</p>
-                <button class="button" type="submit" disabled="@_busy">Continuar</button>
+                <p class="muted">@(_resuming ? "Enviaremos un código al correo de tu registro pendiente para verificar tu identidad." : "Se enviará un correo de verificación. No se realizará ningún cobro en este paso.")</p>
+                @if (_resuming)
+                {
+                    <button class="button" type="button" disabled="@_busy" @onclick="ResumeAsync">Enviar código de recuperación</button>
+                }
+                else
+                {
+                    <button class="button" type="submit" disabled="@_busy">Continuar</button>
+                }
             </EditForm>
-            <p><button type="button" class="button" disabled="@_busy" @onclick="() => _resuming = true">Continuar registro pendiente</button></p>
-            @if (_resuming)
-            {
-                <p class="muted">Introduce el correo y la contraseña utilizados al registrarte.</p>
-                <label>Correo <input type="email" @bind="_resumeEmail" /></label>
-                <label>Contraseña <input type="password" @bind="_resumePassword" /></label>
-                <p><button type="button" class="button" disabled="@_busy" @onclick="ResumeAsync">Enviar código de recuperación</button></p>
-            }
+            <p class="muted">
+                @if (_resuming)
+                {
+                    <button type="button" class="registration-mode-link" disabled="@_busy" @onclick="ToggleRegistrationMode">Volver a crear cuenta</button>
+                }
+                else
+                {
+                    <button type="button" class="registration-mode-link" disabled="@_busy" @onclick="ToggleRegistrationMode">¿Ya empezaste el registro? Continuar registro pendiente</button>
+                }
+            </p>
         }
         else if (_step == RegistrationStep.EmailVerification)
         {
@@ -181,8 +196,6 @@
     private bool _freeActivated;
     private bool _resuming;
     private bool _resumeVerification;
-    private string _resumeEmail = "";
-    private string _resumePassword = "";
     private string? _error;
     private Guid _registrationId;
     private string _verificationToken = "";
@@ -247,6 +260,14 @@
         finally { _busy = false; }
     }
 
+    private void ToggleRegistrationMode()
+    {
+        _resuming = !_resuming;
+        _error = null;
+        _formServerErrors.Clear();
+        _formEditContext.NotifyValidationStateChanged();
+    }
+
     private async Task ResumeAsync()
     {
         if (_busy) return;
@@ -255,8 +276,8 @@
         try
         {
             var result = await Registration.ResumeAsync(
-                new ResumeRegistrationRequest(_resumeEmail, _resumePassword), CancellationToken.None);
-            _resumePassword = "";
+                new ResumeRegistrationRequest(_form.Email, _form.Password), CancellationToken.None);
+            _form.Password = "";
             if (result.IsFailure)
             {
                 _error = result.Errors.FirstOrDefault()?.Message ?? "No se pudo iniciar la recuperación.";
@@ -268,7 +289,6 @@
                 return;
             }
             _registrationId = result.Value.RegistrationId;
-            _form.Email = _resumeEmail;
             _resumeVerification = true;
             _step = RegistrationStep.EmailVerification;
         }
