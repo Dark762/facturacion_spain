@@ -9,7 +9,7 @@ public interface ISaaSRegistrationApplicationService
         RegisterSaasRequest request, CancellationToken cancellationToken);
 
     Task<Result<RegistrationResponse>> ResumeAsync(ResumeRegistrationRequest request, CancellationToken cancellationToken);
-    Task<Result<RegistrationProgress>> VerifyAndResumeAsync(Guid registrationId, string token, CancellationToken cancellationToken);
+    Task<Result<RegistrationProgress>> VerifyAndResumeAsync(Guid registrationId, string token, string newPassword, CancellationToken cancellationToken);
 
     Task<Result<string>> VerifyEmailAsync(
         Guid registrationId, string token, CancellationToken cancellationToken);
