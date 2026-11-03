@@ -66,11 +66,11 @@
             <p class="muted">
                 @if (_resuming)
                 {
-                    <button type="button" class="registration-mode-link" disabled="@_busy" @onclick="ToggleRegistrationMode">Volver a crear cuenta</button>
+                    <button type="button" style="background:none;border:0;padding:0;color:#4f46e5;text-decoration:underline;cursor:pointer;font:inherit" disabled="@_busy" @onclick="ToggleRegistrationMode">Volver a crear cuenta</button>
                 }
                 else
                 {
-                    <button type="button" class="registration-mode-link" disabled="@_busy" @onclick="ToggleRegistrationMode">¿Ya empezaste el registro? Continuar registro pendiente</button>
+                    <button type="button" style="background:none;border:0;padding:0;color:#4f46e5;text-decoration:underline;cursor:pointer;font:inherit" disabled="@_busy" @onclick="ToggleRegistrationMode">¿Ya empezaste el registro? Continuar registro pendiente</button>
                 }
             </p>
         }
