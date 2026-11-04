@@ -1,6 +1,8 @@
 using Facturacion.Application.Common.Results;
 using Facturacion.Application.Interfaces;
 using Facturacion.Infrastructure.Multitenancy;
+using Facturacion.Observability;
+using Microsoft.AspNetCore.Http;
 using Facturacion.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 namespace Facturacion.Infrastructure.Identity;
@@ -10,8 +12,9 @@ public sealed class CompanyAuthorizationService : ICompanyAuthorizationService
     private readonly BillingDbContext _billing;
     private readonly ICurrentUserService _user;
     private readonly ITenantContext _tenant;
-    public CompanyAuthorizationService(AuthDbContext auth, BillingDbContext billing, ICurrentUserService user, ITenantContext tenant)
-    { _auth=auth; _billing=billing; _user=user; _tenant=tenant; }
+    private readonly IHttpContextAccessor _http;
+    public CompanyAuthorizationService(AuthDbContext auth, BillingDbContext billing, ICurrentUserService user, ITenantContext tenant, IHttpContextAccessor http)
+    { _auth=auth; _billing=billing; _user=user; _tenant=tenant; _http=http; }
     public async Task<Result> AuthorizeAsync(Guid companyId, string permission, CancellationToken ct)
     {
         if (!_user.IsAuthenticated || string.IsNullOrWhiteSpace(_user.UserId))
@@ -33,6 +36,8 @@ public sealed class CompanyAuthorizationService : ICompanyAuthorizationService
             "invoices.issue" => role is "Admin",
             _ => false
         };
+        if (allowed && _http.HttpContext is { } context)
+            context.Items[HttpRequestLogEnricher.ValidatedCompanyIdKey] = companyId.ToString("D");
         return allowed ? Result.Success() : Denied();
     }
     private static Result Denied() => Result.Failure(new Error("ACCESS_DENIED", "No tiene permiso sobre esta empresa.", ErrorType.Forbidden));
