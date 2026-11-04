@@ -1,3 +1,4 @@
+using Facturacion.Observability;
 using System.Security.Cryptography;
 using System.Text;
 using Facturacion.Application.Billing;
@@ -39,7 +40,11 @@ public sealed class SaasRegistrationService : ISaasRegistrationService
         _logger = logger;
     }
 
-    public async Task<RegistrationResponse> RegisterAsync(RegisterSaasRequest r, CancellationToken ct)
+    public Task<RegistrationResponse> RegisterAsync(RegisterSaasRequest r, CancellationToken ct) =>
+        OperationTelemetry.MeasureAsync(_logger, "SaasRegistration", Guid.Empty,
+            () => RegisterAsyncCoreAsync(r, ct), ct);
+
+    private async Task<RegistrationResponse> RegisterAsyncCoreAsync(RegisterSaasRequest r, CancellationToken ct)
     {
         // Paso 1: solo se exigen los datos de acceso. Los datos fiscales se
         // validan despues en CompleteCompanyAsync (paso 3).
