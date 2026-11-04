@@ -1,3 +1,4 @@
+using Facturacion.Api.Responses;
 using Facturacion.Application.Interfaces;
 using Facturacion.Domain.Entities;
 using Facturacion.Infrastructure.Persistence;
@@ -31,27 +32,27 @@ public sealed class CustomersController : ControllerBase
     public async Task<IActionResult> List(Guid companyId, CancellationToken ct)
     {
         var access = await _authorization.AuthorizeAsync(companyId, "catalog.read", ct);
-        if (access.IsFailure) return Forbid();
+        if (access.IsFailure) return this.ApiFailure<object>(403, "FORBIDDEN", "No tienes permisos para esta operación.");
         var customers = await _db.Customers.AsNoTracking()
             .Where(x => x.TenantId == _tenant.TenantId && x.CompanyId == companyId)
             .OrderBy(x => x.LegalName)
             .Select(x => new CustomerResponse(x.Id, x.CompanyId, x.TaxId, x.LegalName,
                 x.Address, x.PostalCode, x.City, x.CountryCode, x.Email, x.IsBusiness))
             .ToListAsync(ct);
-        return Ok(customers);
+        return this.ApiOk(customers);
     }
 
     [HttpGet("{customerId:guid}")]
     public async Task<IActionResult> Get(Guid companyId, Guid customerId, CancellationToken ct)
     {
         var access = await _authorization.AuthorizeAsync(companyId, "invoices.read", ct);
-        if (access.IsFailure) return Forbid();
+        if (access.IsFailure) return this.ApiFailure<object>(403, "FORBIDDEN", "No tienes permisos para esta operación.");
         var customer = await _db.Customers.AsNoTracking()
             .Where(x => x.TenantId == _tenant.TenantId && x.CompanyId == companyId && x.Id == customerId)
             .Select(x => new CustomerResponse(x.Id, x.CompanyId, x.TaxId, x.LegalName,
                 x.Address, x.PostalCode, x.City, x.CountryCode, x.Email, x.IsBusiness))
             .FirstOrDefaultAsync(ct);
-        return customer is null ? NotFound() : Ok(customer);
+        return customer is null ? this.ApiFailure<object>(404, "CUSTOMER_NOT_FOUND", "Cliente no encontrado.") : this.ApiOk(customer);
     }
     public sealed record SaveCustomerRequest(string TaxId, string LegalName, string Address,
         string PostalCode, string City, string CountryCode, string? Email, bool IsBusiness);
@@ -60,41 +61,41 @@ public sealed class CustomersController : ControllerBase
     public async Task<IActionResult> Create(Guid companyId, [FromBody] SaveCustomerRequest request, CancellationToken ct)
     {
         var access = await _authorization.AuthorizeAsync(companyId, "catalog.write", ct);
-        if (access.IsFailure) return Forbid();
-        if (!IsValid(request)) return BadRequest("Datos de cliente no válidos.");
+        if (access.IsFailure) return this.ApiFailure<object>(403, "FORBIDDEN", "No tienes permisos para esta operación.");
+        if (!IsValid(request)) return this.ApiFailure<object>(400, "CUSTOMER_INVALID", "Datos de cliente no válidos.");
         var entity = new Customer { TenantId = _tenant.TenantId, CompanyId = companyId };
         Apply(entity, request);
         _db.Customers.Add(entity);
         await _db.SaveChangesAsync(ct);
-        return CreatedAtAction(nameof(Get), new { companyId, customerId = entity.Id }, ToResponse(entity));
+        return this.ApiCreated(Url.Action(nameof(Get), new { companyId, customerId = entity.Id }) ?? $"/api/companies/{companyId}/customers/{entity.Id}", ToResponse(entity), "Cliente creado correctamente.", "CUSTOMER_CREATED");
     }
 
     [HttpPut("{customerId:guid}")]
     public async Task<IActionResult> Update(Guid companyId, Guid customerId, [FromBody] SaveCustomerRequest request, CancellationToken ct)
     {
         var access = await _authorization.AuthorizeAsync(companyId, "catalog.write", ct);
-        if (access.IsFailure) return Forbid();
-        if (!IsValid(request)) return BadRequest("Datos de cliente no válidos.");
+        if (access.IsFailure) return this.ApiFailure<object>(403, "FORBIDDEN", "No tienes permisos para esta operación.");
+        if (!IsValid(request)) return this.ApiFailure<object>(400, "CUSTOMER_INVALID", "Datos de cliente no válidos.");
         var entity = await _db.Customers.FirstOrDefaultAsync(x => x.TenantId == _tenant.TenantId && x.CompanyId == companyId && x.Id == customerId, ct);
-        if (entity is null) return NotFound();
+        if (entity is null) return this.ApiFailure<object>(404, "CUSTOMER_NOT_FOUND", "Cliente no encontrado.");
         Apply(entity, request);
         await _db.SaveChangesAsync(ct);
-        return Ok(ToResponse(entity));
+        return this.ApiOk(ToResponse(entity), "Cliente actualizado correctamente.");
     }
 
     [HttpDelete("{customerId:guid}")]
     public async Task<IActionResult> Delete(Guid companyId, Guid customerId, CancellationToken ct)
     {
         var access = await _authorization.AuthorizeAsync(companyId, "catalog.write", ct);
-        if (access.IsFailure) return Forbid();
+        if (access.IsFailure) return this.ApiFailure<object>(403, "FORBIDDEN", "No tienes permisos para esta operación.");
         var entity = await _db.Customers.FirstOrDefaultAsync(x => x.TenantId == _tenant.TenantId && x.CompanyId == companyId && x.Id == customerId, ct);
-        if (entity is null) return NotFound();
+        if (entity is null) return this.ApiFailure<object>(404, "CUSTOMER_NOT_FOUND", "Cliente no encontrado.");
         // No se eliminan clientes que puedan estar referenciados por facturas.
         if (await _db.Invoices.AnyAsync(x => x.CustomerId == customerId && x.CompanyId == companyId, ct))
-            return Conflict("No se puede eliminar un cliente con facturas.");
+            return this.ApiFailure<object>(409, "CUSTOMER_HAS_INVOICES", "No se puede eliminar un cliente con facturas.");
         _db.Customers.Remove(entity);
         await _db.SaveChangesAsync(ct);
-        return NoContent();
+        return this.ApiOk<object?>(null, "Cliente eliminado correctamente.");
     }
 
     private static bool IsValid(SaveCustomerRequest r) =>
