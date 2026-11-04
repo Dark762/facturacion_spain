@@ -232,8 +232,7 @@ public sealed class SaasRegistrationService : ISaasRegistrationService
                 intent.Id, intent.UserId, intent.TenantName, intent.LegalName,
                 intent.Nif, intent.Address, intent.PostalCode, intent.City, intent.Province), ct);
 
-            var state = await _db.SubscriptionStates
-                .SingleOrDefaultAsync(x => x.TenantId == result.TenantId, ct);
+            var state = await _db.SubscriptionStates.SingleOrDefaultAsync(x => x.TenantId == result.TenantId, ct);
             if (state is null)
             {
                 _db.SubscriptionStates.Add(new SubscriptionState
