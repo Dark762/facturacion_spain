@@ -59,9 +59,9 @@ public sealed class ApiClient
                     var message = root.TryGetProperty("message", out var msg) && msg.ValueKind == JsonValueKind.String
                         ? msg.GetString() ?? "No se pudo completar la operación."
                         : "No se pudo completar la operación.";
-                    var code = root.TryGetProperty("code", out var cod) && cod.ValueKind == JsonValueKind.String
+                    var responseCode = root.TryGetProperty("code", out var cod) && cod.ValueKind == JsonValueKind.String
                         ? cod.GetString() : null;
-                    return new ApiResult<T>(default, response.StatusCode, new ApiError(message, code));
+                    return new ApiResult<T>(default, response.StatusCode, new ApiError(message, responseCode));
                 }
                 return new ApiResult<T>(data.ValueKind == JsonValueKind.Null
                     ? default : data.Deserialize<T>(JsonOptions), response.StatusCode, null);
