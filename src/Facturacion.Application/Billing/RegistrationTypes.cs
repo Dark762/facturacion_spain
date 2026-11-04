@@ -1,7 +1,7 @@
 namespace Facturacion.Application.Billing;
 
 public enum FiscalHolderType { Individual, LegalEntity }
-public enum RegistrationStatus { PendingEmail, EmailVerified, CheckoutCreated, Active }
+public enum RegistrationStatus { PendingEmail, EmailVerified, CheckoutCreated, Provisioning, Active }
 public enum RegistrationStep { Account = 0, EmailVerification = 1, CompanyDetails = 2, PlanSelection = 3 }
 
 /// <summary>Valores de negocio compartidos por las capas de registro.</summary>

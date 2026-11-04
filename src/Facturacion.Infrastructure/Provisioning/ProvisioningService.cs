@@ -1,4 +1,5 @@
 using Facturacion.Application.Provisioning;
+using Facturacion.Application.Billing;
 using Facturacion.Domain.Entities;
 using Facturacion.Infrastructure.Identity;
 using Facturacion.Infrastructure.Multitenancy;
@@ -89,7 +90,7 @@ public sealed class ProvisioningService : IProvisioningService
         if (intent.TenantId is null)
         {
             intent.TenantId = tenantId;
-            intent.Status = "Provisioning";
+            intent.Status = RegistrationStatus.Provisioning.ToStorageValue();
             await _self.SaveChangesAsync(ct);
         }
         var company = await _billing.Companys.IgnoreQueryFilters()
@@ -132,20 +133,35 @@ public sealed class ProvisioningService : IProvisioningService
     private async Task<Facturacion.Infrastructure.Billing.ProvisioningOperation> ClaimAsync(
         Guid registrationId, CancellationToken ct)
     {
-        // El mismo DbContext puede conservar un claim de un intento anterior.
-        // Reutilizar la instancia rastreada evita adjuntar otra con la misma PK.
+        // Un intento fallido puede dejar el claim en estado Claimed.
+        // Recuperarlo solo tras un plazo de seguridad y mediante UPDATE condicional
+        // evita que dos peticiones se apropien simultáneamente del mismo registro.
         var tracked = _self.ProvisioningOperations.Local
             .FirstOrDefault(x => x.RegistrationId == registrationId);
         if (tracked is not null)
-        {
-            tracked.OwnedByCaller = false;
-            return tracked;
-        }
+            _self.Entry(tracked).State = EntityState.Detached;
 
-        var existing = await _self.ProvisioningOperations
+        var existing = await _self.ProvisioningOperations.AsNoTracking()
             .FirstOrDefaultAsync(x => x.RegistrationId == registrationId, ct);
         if (existing is not null)
         {
+            if (existing.Status != Facturacion.Infrastructure.Billing.ProvisioningOperationStates.Completed)
+            {
+                var cutoff = DateTime.UtcNow.AddMinutes(-2);
+                var claimed = await _self.ProvisioningOperations
+                    .Where(x => x.RegistrationId == registrationId
+                        && x.Status != Facturacion.Infrastructure.Billing.ProvisioningOperationStates.Completed
+                        && x.UpdatedAtUtc < cutoff)
+                    .ExecuteUpdateAsync(updates => updates
+                        .SetProperty(x => x.UpdatedAtUtc, DateTime.UtcNow), ct);
+                if (claimed == 1)
+                {
+                    var recovered = await _self.ProvisioningOperations
+                        .FirstAsync(x => x.RegistrationId == registrationId, ct);
+                    recovered.OwnedByCaller = true;
+                    return recovered;
+                }
+            }
             existing.OwnedByCaller = false;
             return existing;
         }
@@ -155,6 +171,7 @@ public sealed class ProvisioningService : IProvisioningService
             RegistrationId = registrationId,
             TenantId = null,
             Status = Facturacion.Infrastructure.Billing.ProvisioningOperationStates.Claimed,
+            UpdatedAtUtc = DateTime.UtcNow,
             OwnedByCaller = true
         };
 

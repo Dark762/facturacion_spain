@@ -204,7 +204,11 @@ public sealed class SaasRegistrationService : ISaasRegistrationService
         var intent = await _db.RegistrationIntents.SingleOrDefaultAsync(x => x.Id == id, ct)
             ?? throw new KeyNotFoundException("Registro inexistente.");
 
-        if (!intent.Status.Is(RegistrationStatus.EmailVerified) || intent.CheckoutTokenHash is null ||
+        // El estado Provisioning permite reanudar un alta gratuita interrumpida.
+        // El token de recuperación sigue siendo obligatorio en todos los casos.
+        if ((!intent.Status.Is(RegistrationStatus.EmailVerified) &&
+             !intent.Status.Is(RegistrationStatus.Provisioning)) ||
+            intent.CheckoutTokenHash is null ||
             !CryptographicOperations.FixedTimeEquals(Encoding.UTF8.GetBytes(intent.CheckoutTokenHash),
                 Encoding.UTF8.GetBytes(Hash(checkoutToken))))
             throw new UnauthorizedAccessException("Registro no verificado.");
@@ -222,6 +226,10 @@ public sealed class SaasRegistrationService : ISaasRegistrationService
 
         if (!SubscriptionPlanCodeExtensions.TryFromCode(plan.Code, out var selectedPlan))
             throw new InvalidOperationException("Código de plan no reconocido.");
+
+        if (intent.Status.Is(RegistrationStatus.Provisioning) &&
+            selectedPlan != SubscriptionPlanCode.GRATIS)
+            throw new InvalidOperationException("Solo se puede reanudar el aprovisionamiento del plan gratuito.");
 
         if (selectedPlan == SubscriptionPlanCode.GRATIS)
         {
