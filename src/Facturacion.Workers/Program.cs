@@ -1,5 +1,6 @@
 using Facturacion.Application.Interfaces;
 using Facturacion.Configuration;
+using Facturacion.Observability;
 using Facturacion.Configuration.Options;
 using Facturacion.Infrastructure.Billing;
 using Facturacion.Infrastructure.DependencyInjection;
@@ -13,7 +14,7 @@ using Microsoft.Extensions.Configuration;
 var builder = Host.CreateApplicationBuilder(args);
 builder.Configuration.AddFacturacionConfiguration(builder.Environment, FacturacionHost.Workers);
 
-builder.Services.AddFacturacionLogging(builder.Configuration, "Facturacion.Workers", builder.Environment.EnvironmentName);
+builder.Services.AddFacturacionObservability(builder.Configuration, "Facturacion.Workers", builder.Environment.EnvironmentName);
 
 // El worker recorre empresas de varios clientes: sin base de datos arrancaria
 // vaciando una cola ajena, y sin esquema fiscal validaria XML que Hacienda
