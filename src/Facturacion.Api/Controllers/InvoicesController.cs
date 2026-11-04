@@ -1,4 +1,5 @@
 using Facturacion.Application.Common.Results;
+using Facturacion.Api.Responses;
 using Facturacion.Application.DTOs.Invoices;
 using Facturacion.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
@@ -45,18 +46,23 @@ public sealed class InvoicesController : ControllerBase
         Guid invoiceId, [FromBody] IssueRequest request, CancellationToken ct) =>
         ToAction(await _issuance.IssueAsync(invoiceId, request.Series, ct));
 
-    private static IActionResult ToAction<T>(Result<T> result)
+    private IActionResult ToAction<T>(Result<T> result)
     {
-        if (result.IsSuccess) return new OkObjectResult(result.Value);
+        if (result.IsSuccess) return this.ApiOk(result.Value);
 
-        var first = result.Errors[0];
-        return first.Type switch
+        var first = result.Errors.FirstOrDefault();
+        if (first is null)
+            return this.ApiFailure<object>(500, "UNKNOWN_ERROR", "No se pudo completar la operación.");
+        var status = first.Type switch
         {
-            ErrorType.Unauthorized => new UnauthorizedObjectResult(first),
-            ErrorType.Forbidden => new StatusCodeResult(StatusCodes.Status403Forbidden),
-            ErrorType.NotFound => new NotFoundObjectResult(first),
-            ErrorType.Conflict => new ConflictObjectResult(first),
-            _ => new BadRequestObjectResult(first)
+            ErrorType.Unauthorized => 401,
+            ErrorType.Forbidden => 403,
+            ErrorType.NotFound => 404,
+            ErrorType.Conflict => 409,
+            ErrorType.ExternalService => 503,
+            ErrorType.Internal => 500,
+            _ => 400
         };
+        return this.ApiFailure<object>(status, first.Code, first.Message, result.Errors);
     }
 }
