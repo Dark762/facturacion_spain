@@ -78,7 +78,9 @@ public sealed class ApiClient
             var root = document.RootElement;
             if (root.ValueKind == JsonValueKind.Object)
             {
-                if (root.TryGetProperty("detail", out var detail) && detail.ValueKind == JsonValueKind.String)
+                if (root.TryGetProperty("message", out var standardMessage) && standardMessage.ValueKind == JsonValueKind.String)
+                    message = standardMessage.GetString() ?? message;
+                else if (root.TryGetProperty("detail", out var detail) && detail.ValueKind == JsonValueKind.String)
                     message = detail.GetString() ?? message;
                 else if (root.TryGetProperty("title", out var title) && title.ValueKind == JsonValueKind.String)
                     message = title.GetString() ?? message;
