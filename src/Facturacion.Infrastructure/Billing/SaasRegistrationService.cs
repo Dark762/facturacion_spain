@@ -86,10 +86,12 @@ public sealed class SaasRegistrationService : ISaasRegistrationService
             return new RegistrationResponse(Guid.NewGuid(), genericMessage);
 
         var user = await _users.FindByEmailAsync(email);
+
         if (user is null || !user.IsActive || await _users.IsLockedOutAsync(user))
             return new RegistrationResponse(Guid.NewGuid(), genericMessage);
 
         var intent = await _db.RegistrationIntents.SingleOrDefaultAsync(x => x.UserId == user.Id, ct);
+
         if (intent is null || intent.Status.Is(RegistrationStatus.Active) ||
             intent.TenantId is not null && await _db.SubscriptionStates
                 .AnyAsync(x => x.TenantId == intent.TenantId &&
