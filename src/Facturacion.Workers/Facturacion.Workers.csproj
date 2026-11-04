@@ -16,6 +16,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../Facturacion.Configuration/Facturacion.Configuration.csproj" />
+    <ProjectReference Include="../Facturacion.Observability/Facturacion.Observability.csproj" />
     <Content Include="../Facturacion.Configuration/Shared/appsettings.json" Link="Shared/appsettings.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <Content Include="../Facturacion.Configuration/Hosts/Workers/appsettings.json" Link="Hosts/Workers/appsettings.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
