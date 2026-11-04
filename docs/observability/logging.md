@@ -45,3 +45,6 @@ Los errores capturados por `ApiExceptionHandler` conservan el mismo `TraceId` y 
 `StripeEventProcessor` registra recepción, deduplicación, procesamiento correcto y activación de suscripciones. Evita registrar el contenido del webhook y credenciales. Los fallos de aprovisionamiento continúan registrándose con excepción y RegistrationId.
 
 **Límite de alcance:** el contexto de empresa solo existe cuando una operación invoca explícitamente la autorización de empresa; no se infiere de parámetros de ruta ni de cuerpos HTTP. La instrumentación detallada del flujo de registro y aprovisionamiento se ampliará por etapas.
+
+## Duración y resultado de operaciones
+`Facturacion.Observability.OperationTelemetry` mide el tiempo transcurrido con `Stopwatch` y registra `Operation`, `RegistrationId`, `DurationMs` y `Outcome` (`Success`, `Failure`, `Cancelled`). Se aplica al checkout SaaS y al aprovisionamiento de tenants. No modifica el resultado ni captura las excepciones: las vuelve a lanzar para preservar los mecanismos de error y reintento. No registra contraseñas, tokens, NIF ni payloads de Stripe. Estos eventos son logs estructurados; todavía no son métricas agregadas ni alertas automáticas. Para investigar lentitud, filtrar `Operation` y ordenar `DurationMs`.
