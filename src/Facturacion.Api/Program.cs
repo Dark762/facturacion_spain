@@ -1,4 +1,6 @@
 using Facturacion.Api.Security;
+using Facturacion.Application.Common.Results;
+using Microsoft.AspNetCore.Mvc;
 using Facturacion.Application.DependencyInjection;
 using Facturacion.Configuration;
 using Facturacion.Configuration.Options;
@@ -22,7 +24,21 @@ builder.Configuration.AddFacturacionConfiguration(builder.Environment, Facturaci
 builder.Services.AddFacturacionOptions(
     ConfigurationScope.Database | ConfigurationScope.Jwt | ConfigurationScope.Invitations);
 
-builder.Services.AddControllers();
+builder.Services.AddControllers().ConfigureApiBehaviorOptions(options =>
+{
+    options.InvalidModelStateResponseFactory = context =>
+    {
+        var errors = context.ModelState
+            .Where(entry => entry.Value?.Errors.Count > 0)
+            .SelectMany(entry => entry.Value!.Errors.Select(error =>
+                new Error("VALIDATION_ERROR", "El valor proporcionado no es válido.",
+                    ErrorType.Validation, entry.Key)))
+            .ToArray();
+        return new BadRequestObjectResult(ApiResponse<object>.Fail(
+            "VALIDATION_ERROR", "Revisa los datos introducidos.", errors,
+            context.HttpContext.TraceIdentifier));
+    };
+});
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
