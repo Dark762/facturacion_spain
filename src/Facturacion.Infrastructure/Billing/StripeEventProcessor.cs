@@ -37,9 +37,13 @@ public sealed class StripeEventProcessor
             return StripeEventOutcome.Ignored;
         }
         var eventId=idElement.GetString()!;
+        _logger.LogInformation("Evento Stripe recibido para procesamiento.");
 
         if (await _self.ProcessedPaymentEvents.AnyAsync(x=>x.Id==eventId,ct))
+        {
+            _logger.LogInformation("Evento Stripe duplicado; se omite.");
             return StripeEventOutcome.Ignored;
+        }
 
         var type=evt.TryGetProperty("type",out var t) ? t.GetString() : null;
         var obj=evt.TryGetProperty("data",out var d) && d.TryGetProperty("object",out var o) ? o : default;
@@ -73,6 +77,7 @@ public sealed class StripeEventProcessor
         // Marcar el evento procesado solo al finalizar correctamente la operacion.
         _self.ProcessedPaymentEvents.Add(new ProcessedPaymentEvent { Id=eventId });
         await _self.SaveChangesAsync(ct);
+        _logger.LogInformation("Evento Stripe procesado correctamente, tipo {StripeEventType}.", type);
         return StripeEventOutcome.Handled;
     }
 
@@ -119,6 +124,7 @@ public sealed class StripeEventProcessor
                 PlanCode=intent.PlanCode, Status=SubscriptionStatus.Active.ToStorageValue() });
             intent.Status=RegistrationStatus.Active.ToStorageValue();
             await _self.SaveChangesAsync(ct);
+            _logger.LogInformation("Suscripción activada para registro {RegistrationId}, tenant {TenantId}.", intent.Id, result.TenantId);
             return true;
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
