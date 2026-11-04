@@ -43,8 +43,30 @@ public sealed class ApiClient
         {
             if (response.StatusCode == HttpStatusCode.NoContent)
                 return new ApiResult<T>(default, response.StatusCode, null);
-            var value = await response.Content.ReadFromJsonAsync<T>(JsonOptions, ct);
-            return new ApiResult<T>(value, response.StatusCode, null);
+            // Compatibilidad con endpoints antiguos (JSON directo) y nuevos (ApiResponse<T>).
+            // No se exige migrar todos los controladores en el mismo despliegue.
+            using var stream = await response.Content.ReadAsStreamAsync(ct);
+            using var document = await JsonDocument.ParseAsync(stream, cancellationToken: ct);
+            var root = document.RootElement;
+            if (root.ValueKind == JsonValueKind.Object &&
+                root.TryGetProperty("success", out var success) &&
+                (success.ValueKind == JsonValueKind.True || success.ValueKind == JsonValueKind.False) &&
+                root.TryGetProperty("data", out var data) &&
+                root.TryGetProperty("errors", out _))
+            {
+                if (success.ValueKind == JsonValueKind.False)
+                {
+                    var message = root.TryGetProperty("message", out var msg) && msg.ValueKind == JsonValueKind.String
+                        ? msg.GetString() ?? "No se pudo completar la operación."
+                        : "No se pudo completar la operación.";
+                    var code = root.TryGetProperty("code", out var cod) && cod.ValueKind == JsonValueKind.String
+                        ? cod.GetString() : null;
+                    return new ApiResult<T>(default, response.StatusCode, new ApiError(message, code));
+                }
+                return new ApiResult<T>(data.ValueKind == JsonValueKind.Null
+                    ? default : data.Deserialize<T>(JsonOptions), response.StatusCode, null);
+            }
+            return new ApiResult<T>(root.Deserialize<T>(JsonOptions), response.StatusCode, null);
         }
 
         var message = $"La API devolvió el estado {(int)response.StatusCode}.";
