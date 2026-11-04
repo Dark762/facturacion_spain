@@ -86,8 +86,29 @@ public sealed class ApiClient
                     message = title.GetString() ?? message;
                 if (root.TryGetProperty("code", out var errorCode) && errorCode.ValueKind == JsonValueKind.String)
                     code = errorCode.GetString();
-                if (root.TryGetProperty("errors", out var errors) && errors.ValueKind == JsonValueKind.Object)
-                    validation = JsonSerializer.Deserialize<Dictionary<string, string[]>>(errors.GetRawText(), JsonOptions);
+                if (root.TryGetProperty("errors", out var errors))
+                {
+                    if (errors.ValueKind == JsonValueKind.Object)
+                        validation = JsonSerializer.Deserialize<Dictionary<string, string[]>>(errors.GetRawText(), JsonOptions);
+                    else if (errors.ValueKind == JsonValueKind.Array)
+                    {
+                        var fields = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+                        foreach (var item in errors.EnumerateArray())
+                        {
+                            if (item.ValueKind != JsonValueKind.Object ||
+                                !item.TryGetProperty("field", out var field) ||
+                                field.ValueKind != JsonValueKind.String ||
+                                !item.TryGetProperty("message", out var errorMessage) ||
+                                errorMessage.ValueKind != JsonValueKind.String) continue;
+                            var key = field.GetString();
+                            if (string.IsNullOrWhiteSpace(key)) continue;
+                            if (!fields.TryGetValue(key, out var messages))
+                                fields[key] = messages = new List<string>();
+                            messages.Add(errorMessage.GetString() ?? "");
+                        }
+                        validation = fields.ToDictionary(x => x.Key, x => x.Value.ToArray());
+                    }
+                }
             }
         }
         catch (JsonException) { /* El servidor puede devolver HTML o texto plano. */ }
