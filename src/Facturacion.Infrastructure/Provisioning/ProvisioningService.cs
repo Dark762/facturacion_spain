@@ -1,3 +1,4 @@
+using Facturacion.Observability;
 using Facturacion.Application.Provisioning;
 using Facturacion.Application.Billing;
 using Facturacion.Domain.Entities;
@@ -30,7 +31,11 @@ public sealed class ProvisioningService : IProvisioningService
     // Se invoca desde un orquestador de pagos de confianza, NUNCA directamente desde una ruta pública.
     // La intención de registro es el ancla persistente de idempotencia.
     // Dos DbContext pueden dejar escrituras parciales: los reintentos reparan las relaciones faltantes.
-    public async Task<ProvisioningResult> ProvisionAsync(ProvisioningRequest r, CancellationToken ct = default)
+    public Task<ProvisioningResult> ProvisionAsync(ProvisioningRequest r, CancellationToken ct = default) =>
+        OperationTelemetry.MeasureAsync(_logger, "TenantProvisioning", r.RegistrationId,
+            () => ProvisionAsyncCoreAsync(r, ct), ct);
+
+    private async Task<ProvisioningResult> ProvisionAsyncCoreAsync(ProvisioningRequest r, CancellationToken ct)
     {
         Check(r.RegistrationId != Guid.Empty && !string.IsNullOrWhiteSpace(r.UserId), "Registro inválido.");
         Check(!string.IsNullOrWhiteSpace(r.TenantName) && !string.IsNullOrWhiteSpace(r.CompanyName)
