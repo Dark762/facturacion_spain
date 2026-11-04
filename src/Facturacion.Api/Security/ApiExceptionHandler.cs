@@ -24,8 +24,12 @@ public sealed class ApiExceptionHandler : IExceptionHandler
             _ => (500, "INTERNAL_ERROR", "Se ha producido un error inesperado. Inténtalo de nuevo.")
         };
 
-        _logger.LogError(exception, "Error HTTP {StatusCode}, código {ErrorCode}, trace {TraceId}",
-            status, code, context.TraceIdentifier);
+        if (exception is BusinessException && status < 500)
+            _logger.LogWarning("Error de negocio HTTP {StatusCode}, código {ErrorCode}, trace {TraceId}",
+                status, code, context.TraceIdentifier);
+        else
+            _logger.LogError(exception, "Error HTTP {StatusCode}, código {ErrorCode}, trace {TraceId}",
+                status, code, context.TraceIdentifier);
 
         context.Response.StatusCode = status;
         await context.Response.WriteAsJsonAsync(
