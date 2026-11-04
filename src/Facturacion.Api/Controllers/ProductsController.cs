@@ -1,3 +1,4 @@
+using Facturacion.Api.Responses;
 using Facturacion.Application.Interfaces;
 using Facturacion.Domain.Entities;
 using Facturacion.Infrastructure.Persistence;
@@ -27,58 +28,58 @@ public sealed class ProductsController : ControllerBase
     [HttpGet]
     public async Task<IActionResult> List(Guid companyId, CancellationToken ct)
     {
-        if ((await _authorization.AuthorizeAsync(companyId, "catalog.read", ct)).IsFailure) return Forbid();
+        if ((await _authorization.AuthorizeAsync(companyId, "catalog.read", ct)).IsFailure) return this.ApiFailure<object>(403, "FORBIDDEN", "No tienes permisos para esta operación.");
         var items = await _db.Products.AsNoTracking()
             .Where(x => x.TenantId == _tenant.TenantId && x.CompanyId == companyId)
             .OrderBy(x => x.Name)
             .Select(x => new ProductResponse(x.Id, x.CompanyId, x.Code, x.Name, x.Description, x.UnitPrice, x.VatRate, x.IsActive))
             .ToListAsync(ct);
-        return Ok(items);
+        return this.ApiOk(items);
     }
 
     [HttpGet("{productId:guid}")]
     public async Task<IActionResult> Get(Guid companyId, Guid productId, CancellationToken ct)
     {
-        if ((await _authorization.AuthorizeAsync(companyId, "catalog.read", ct)).IsFailure) return Forbid();
+        if ((await _authorization.AuthorizeAsync(companyId, "catalog.read", ct)).IsFailure) return this.ApiFailure<object>(403, "FORBIDDEN", "No tienes permisos para esta operación.");
         var item = await Find(companyId, productId, ct);
-        return item is null ? NotFound() : Ok(ToResponse(item));
+        return item is null ? this.ApiFailure<object>(404, "PRODUCT_NOT_FOUND", "Producto no encontrado.") : this.ApiOk(ToResponse(item));
     }
 
     [HttpPost]
     public async Task<IActionResult> Create(Guid companyId, [FromBody] SaveProductRequest request, CancellationToken ct)
     {
-        if ((await _authorization.AuthorizeAsync(companyId, "catalog.write", ct)).IsFailure) return Forbid();
-        if (!Valid(request)) return BadRequest("Datos de producto no válidos.");
-        if (await Duplicate(companyId, request.Code.Trim(), null, ct)) return Conflict("El código ya existe en esta empresa.");
+        if ((await _authorization.AuthorizeAsync(companyId, "catalog.write", ct)).IsFailure) return this.ApiFailure<object>(403, "FORBIDDEN", "No tienes permisos para esta operación.");
+        if (!Valid(request)) return this.ApiFailure<object>(400, "PRODUCT_INVALID", "Datos de producto no válidos.");
+        if (await Duplicate(companyId, request.Code.Trim(), null, ct)) return this.ApiFailure<object>(409, "PRODUCT_CODE_EXISTS", "El código ya existe en esta empresa.");
         var item = new Product { TenantId = _tenant.TenantId, CompanyId = companyId };
         Apply(item, request);
         _db.Products.Add(item);
         await _db.SaveChangesAsync(ct);
-        return CreatedAtAction(nameof(Get), new { companyId, productId = item.Id }, ToResponse(item));
+        return this.ApiCreated(Url.Action(nameof(Get), new { companyId, productId = item.Id }) ?? $"/api/companies/{companyId}/products/{item.Id}", ToResponse(item), "Producto creado correctamente.", "PRODUCT_CREATED");
     }
 
     [HttpPut("{productId:guid}")]
     public async Task<IActionResult> Update(Guid companyId, Guid productId, [FromBody] SaveProductRequest request, CancellationToken ct)
     {
-        if ((await _authorization.AuthorizeAsync(companyId, "catalog.write", ct)).IsFailure) return Forbid();
-        if (!Valid(request)) return BadRequest("Datos de producto no válidos.");
+        if ((await _authorization.AuthorizeAsync(companyId, "catalog.write", ct)).IsFailure) return this.ApiFailure<object>(403, "FORBIDDEN", "No tienes permisos para esta operación.");
+        if (!Valid(request)) return this.ApiFailure<object>(400, "PRODUCT_INVALID", "Datos de producto no válidos.");
         var item = await Find(companyId, productId, ct);
-        if (item is null) return NotFound();
-        if (await Duplicate(companyId, request.Code.Trim(), productId, ct)) return Conflict("El código ya existe en esta empresa.");
+        if (item is null) return this.ApiFailure<object>(404, "PRODUCT_NOT_FOUND", "Producto no encontrado.");
+        if (await Duplicate(companyId, request.Code.Trim(), productId, ct)) return this.ApiFailure<object>(409, "PRODUCT_CODE_EXISTS", "El código ya existe en esta empresa.");
         Apply(item, request);
         await _db.SaveChangesAsync(ct);
-        return Ok(ToResponse(item));
+        return this.ApiOk(ToResponse(item), "Producto actualizado correctamente.");
     }
 
     [HttpDelete("{productId:guid}")]
     public async Task<IActionResult> Delete(Guid companyId, Guid productId, CancellationToken ct)
     {
-        if ((await _authorization.AuthorizeAsync(companyId, "catalog.write", ct)).IsFailure) return Forbid();
+        if ((await _authorization.AuthorizeAsync(companyId, "catalog.write", ct)).IsFailure) return this.ApiFailure<object>(403, "FORBIDDEN", "No tienes permisos para esta operación.");
         var item = await Find(companyId, productId, ct);
-        if (item is null) return NotFound();
+        if (item is null) return this.ApiFailure<object>(404, "PRODUCT_NOT_FOUND", "Producto no encontrado.");
         _db.Products.Remove(item);
         await _db.SaveChangesAsync(ct);
-        return NoContent();
+        return this.ApiOk<object?>(null, "Producto eliminado correctamente.");
     }
 
     private Task<Product?> Find(Guid companyId, Guid id, CancellationToken ct) =>
