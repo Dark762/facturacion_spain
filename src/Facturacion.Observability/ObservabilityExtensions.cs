@@ -1,3 +1,4 @@
+using OpenTelemetry.Metrics;
 using Microsoft.Extensions.Configuration;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
@@ -14,6 +15,20 @@ public static class ObservabilityExtensions
         this IServiceCollection services, IConfiguration configuration, string applicationName, string environmentName)
     {
         services.AddHttpContextAccessor();
+        services.AddOpenTelemetry().WithMetrics(builder =>
+        {
+            builder.AddMeter(FacturacionMetrics.MeterName);
+            if (bool.TryParse(configuration["FacturacionMetrics:EnableOtlp"], out var enabled) && enabled)
+                builder.AddOtlpExporter(options =>
+                {
+                    var endpoint = configuration["FacturacionMetrics:OtlpEndpoint"];
+                    if (string.IsNullOrWhiteSpace(endpoint) ||
+                        !Uri.TryCreate(endpoint, UriKind.Absolute, out var uri) ||
+                        uri.Scheme is not ("http" or "https"))
+                        throw new InvalidOperationException("FacturacionMetrics:OtlpEndpoint debe ser una URL HTTP(S) absoluta.");
+                    options.Endpoint = uri;
+                });
+        });
         services.AddSerilog((serviceProvider, logger) =>
         {
             var section = configuration.GetSection("FacturacionLogging");
