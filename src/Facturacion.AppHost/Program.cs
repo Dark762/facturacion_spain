@@ -1,4 +1,5 @@
 using Aspire.Hosting;
+using Microsoft.Extensions.Hosting;
 
 // Aspire solo orquesta procesos locales; MySQL/MariaDB y Mailpit se gestionan fuera.
 // El entorno seleccionado en launchSettings se propaga a todos los recursos.
