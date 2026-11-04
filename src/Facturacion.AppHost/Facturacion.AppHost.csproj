@@ -9,7 +9,7 @@
     <UserSecretsId>facturacion-aspire-apphost-development</UserSecretsId>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="Aspire.Hosting.AppHost" Version="9.2.1" />
+    <PackageReference Include="Aspire.Hosting.AppHost" Version="13.6.4" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../Facturacion.Api/Facturacion.Api.csproj" IsAspireProjectResource="true" />
