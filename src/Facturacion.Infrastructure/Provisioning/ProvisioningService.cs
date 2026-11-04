@@ -108,6 +108,12 @@ public sealed class ProvisioningService : IProvisioningService
         if (tenantUser is null)
             _auth.TenantUsers.Add(new TenantUser { TenantId = tenantId, UserId = r.UserId });
         else tenantUser.IsActive = true;
+
+        // CompanyUsers depende de TenantUsers mediante la FK compuesta
+        // (TenantId, UserId). Persistir primero el padre evita que EF envíe
+        // el INSERT del hijo antes de que exista la relación de tenant.
+        await _auth.SaveChangesAsync(ct);
+
         var companyUser = await _auth.CompanyUsers.FirstOrDefaultAsync(
             x => x.TenantId == tenantId && x.CompanyId == company.Id && x.UserId == r.UserId, ct);
         if (companyUser is null)
