@@ -9,6 +9,7 @@ using Facturacion.Infrastructure.Identity;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Logging;
 using Facturacion.Payments.Stripe;
 
 namespace Facturacion.Infrastructure.Billing;
@@ -20,12 +21,14 @@ public sealed class SaasRegistrationService : ISaasRegistrationService
     private readonly IPaymentGateway _gateway;
     private readonly IProvisioningService _provisioning;
     private readonly StripeOptions _stripe;
+    private readonly ILogger<SaasRegistrationService> _logger;
     public SaasRegistrationService(SelfServiceDbContext db,
         UserManager<ApplicationUser> users,
         IRegistrationEmailSender emails,
         IPaymentGateway gateway,
         IOptions<StripeOptions> stripe,
-        IProvisioningService provisioning)
+        IProvisioningService provisioning,
+        ILogger<SaasRegistrationService> logger)
     {
         _db = db;
         _users = users;
@@ -33,6 +36,7 @@ public sealed class SaasRegistrationService : ISaasRegistrationService
         _gateway = gateway;
         _stripe = stripe.Value;
         _provisioning = provisioning;
+        _logger = logger;
     }
 
     public async Task<RegistrationResponse> RegisterAsync(RegisterSaasRequest r, CancellationToken ct)
@@ -74,6 +78,7 @@ public sealed class SaasRegistrationService : ISaasRegistrationService
         var token = await _users.GenerateTwoFactorTokenAsync(user, TokenOptions.DefaultEmailProvider);
 
         await _emails.SendConfirmationAsync(email, intent.Id, token, ct);
+        _logger.LogInformation("Registro SaaS iniciado y correo de verificación enviado. RegistrationId {RegistrationId}", intent.Id);
 
         return new RegistrationResponse(intent.Id, "Comprueba tu correo para verificar la cuenta.");
     }
@@ -166,6 +171,7 @@ public sealed class SaasRegistrationService : ISaasRegistrationService
 
         await _db.SaveChangesAsync(ct);
 
+        _logger.LogInformation("Registro SaaS recuperado y verificado. RegistrationId {RegistrationId}", intent.Id);
         return new RegistrationProgress(secret,
             !string.IsNullOrWhiteSpace(intent.LegalName) && !string.IsNullOrWhiteSpace(intent.Nif) &&
             !string.IsNullOrWhiteSpace(intent.Address) && !string.IsNullOrWhiteSpace(intent.PostalCode) &&
@@ -206,6 +212,7 @@ public sealed class SaasRegistrationService : ISaasRegistrationService
         intent.CheckoutTokenHash = Hash(secret);
         intent.Status = RegistrationStatus.EmailVerified.ToStorageValue();
         await _db.SaveChangesAsync(ct);
+        _logger.LogInformation("Correo de registro verificado. RegistrationId {RegistrationId}", intent.Id);
         return secret; // Solo entregar tras verificar el token del correo; nunca registrar en logs.
     }
 
@@ -232,6 +239,7 @@ public sealed class SaasRegistrationService : ISaasRegistrationService
         intent.City = request.City.Trim();
         intent.Province = request.Province.Trim();
         await _db.SaveChangesAsync(ct);
+        _logger.LogInformation("Datos fiscales del registro completados. RegistrationId {RegistrationId}", intent.Id);
     }
 
     public async Task<CheckoutResponse> CheckoutAsync(Guid id, string checkoutToken, string planCode, CancellationToken ct)
@@ -266,6 +274,7 @@ public sealed class SaasRegistrationService : ISaasRegistrationService
             selectedPlan != SubscriptionPlanCode.GRATIS)
             throw new BusinessException("REGISTRATION_PROVISIONING_PLAN_CONFLICT", "Solo se puede reanudar el aprovisionamiento del plan gratuito.", 409);
 
+        _logger.LogInformation("Checkout solicitado. RegistrationId {RegistrationId}, PlanCode {PlanCode}", intent.Id, plan.Code);
         if (selectedPlan == SubscriptionPlanCode.GRATIS)
         {
             if (plan.MonthlyPrice != 0)
@@ -296,6 +305,7 @@ public sealed class SaasRegistrationService : ISaasRegistrationService
 
             await _db.SaveChangesAsync(ct);
 
+            _logger.LogInformation("Registro gratuito activado. RegistrationId {RegistrationId}, TenantId {TenantId}", intent.Id, result.TenantId);
             return new CheckoutResponse("", true);
         }
 
@@ -313,6 +323,7 @@ public sealed class SaasRegistrationService : ISaasRegistrationService
 
         await _db.SaveChangesAsync(ct);
 
+        _logger.LogInformation("Sesión de checkout creada. RegistrationId {RegistrationId}, PlanCode {PlanCode}", intent.Id, plan.Code);
         return new CheckoutResponse(url);
     }
     private static string Hash(string s) => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(s)));

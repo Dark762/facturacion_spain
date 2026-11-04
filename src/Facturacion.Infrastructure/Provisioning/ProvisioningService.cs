@@ -6,6 +6,7 @@ using Facturacion.Infrastructure.Multitenancy;
 using Facturacion.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace Facturacion.Infrastructure.Provisioning;
 
@@ -16,12 +17,14 @@ public sealed class ProvisioningService : IProvisioningService
     private readonly AuthDbContext _auth;
     private readonly UserManager<ApplicationUser> _users;
     private readonly TenantContext _tenant;
+    private readonly ILogger<ProvisioningService> _logger;
 
     public ProvisioningService(BillingDbContext billing, AuthDbContext auth,
         UserManager<ApplicationUser> users, TenantContext tenant,
-        Facturacion.Infrastructure.Billing.SelfServiceDbContext self)
+        Facturacion.Infrastructure.Billing.SelfServiceDbContext self,
+        ILogger<ProvisioningService> logger)
     {
-        _billing = billing; _auth = auth; _users = users; _tenant = tenant; _self = self;
+        _billing = billing; _auth = auth; _users = users; _tenant = tenant; _self = self; _logger = logger;
     }
 
     // Se invoca desde un orquestador de pagos de confianza, NUNCA directamente desde una ruta pública.
@@ -32,6 +35,8 @@ public sealed class ProvisioningService : IProvisioningService
         Check(r.RegistrationId != Guid.Empty && !string.IsNullOrWhiteSpace(r.UserId), "Registro inválido.");
         Check(!string.IsNullOrWhiteSpace(r.TenantName) && !string.IsNullOrWhiteSpace(r.CompanyName)
               && !string.IsNullOrWhiteSpace(r.TaxId), "Datos fiscales incompletos.");
+
+        _logger.LogInformation("Aprovisionamiento iniciado. RegistrationId {RegistrationId}", r.RegistrationId);
 
         // SelfServiceDbContext no tiene filtro tenant y almacena RegistrationIntent.
         var intent = await _self.RegistrationIntents.SingleOrDefaultAsync(x => x.Id == r.RegistrationId, ct)
@@ -49,6 +54,7 @@ public sealed class ProvisioningService : IProvisioningService
         // escrituras (producirian colisiones de clave); se espera a que termine.
         if (!claim.OwnedByCaller)
         {
+            _logger.LogInformation("Aprovisionamiento concurrente; esperando resultado. RegistrationId {RegistrationId}", r.RegistrationId);
             for (var wait = 0; wait < 40; wait++)
             {
                 var snapshot = await _self.ProvisioningOperations.AsNoTracking()
@@ -61,12 +67,16 @@ public sealed class ProvisioningService : IProvisioningService
                     var done = await _billing.Companys.IgnoreQueryFilters()
                         .AsNoTracking().FirstOrDefaultAsync(x => x.Id == snapshot.CompanyId, ct);
                     if (done is not null)
+                    {
+                        _logger.LogInformation("Aprovisionamiento reutilizado. RegistrationId {RegistrationId}, TenantId {TenantId}, CompanyId {CompanyId}", r.RegistrationId, snapshot.TenantId.Value, done.Id);
                         return new ProvisioningResult(snapshot.TenantId.Value, done.Id, true);
+                    }
                 }
 
                 await Task.Delay(150, ct);
             }
 
+            _logger.LogWarning("Tiempo de espera agotado en aprovisionamiento concurrente. RegistrationId {RegistrationId}", r.RegistrationId);
             throw new InvalidOperationException(
                 "El aprovisionamiento está en curso y no ha finalizado a tiempo.");
         }
@@ -127,6 +137,7 @@ public sealed class ProvisioningService : IProvisioningService
         claim.UpdatedAtUtc = DateTime.UtcNow;
         await _self.SaveChangesAsync(ct);
 
+        _logger.LogInformation("Aprovisionamiento completado. RegistrationId {RegistrationId}, TenantId {TenantId}, CompanyId {CompanyId}, ExistingTenant {ExistingTenant}", r.RegistrationId, tenantId, company.Id, existingTenant);
         return new ProvisioningResult(tenantId, company.Id, existingTenant);
     }
 
@@ -162,6 +173,7 @@ public sealed class ProvisioningService : IProvisioningService
                         .SetProperty(x => x.UpdatedAtUtc, DateTime.UtcNow), ct);
                 if (claimed == 1)
                 {
+                    _logger.LogWarning("Recuperación de aprovisionamiento pendiente. RegistrationId {RegistrationId}", registrationId);
                     var recovered = await _self.ProvisioningOperations
                         .FirstAsync(x => x.RegistrationId == registrationId, ct);
                     recovered.OwnedByCaller = true;
@@ -189,6 +201,7 @@ public sealed class ProvisioningService : IProvisioningService
         }
         catch (Exception ex) when (IsDuplicateKey(ex))
         {
+            _logger.LogInformation("Colisión de claim de aprovisionamiento; se reutiliza el existente. RegistrationId {RegistrationId}", registrationId);
             // Perdimos la carrera: otro proceso ya fijo su TenantId.
             _self.Entry(candidate).State = EntityState.Detached;
             var winner = await _self.ProvisioningOperations
