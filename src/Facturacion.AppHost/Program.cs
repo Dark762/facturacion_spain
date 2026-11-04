@@ -17,14 +17,17 @@ builder.AddProject<Projects.Facturacion_Api>("api")
 
 builder.AddProject<Projects.Facturacion_Web_Public>("web-public")
     .WithEnvironment("ASPNETCORE_ENVIRONMENT", environmentName)
-    .WithEnvironment("DOTNET_ENVIRONMENT", environmentName);
+    .WithEnvironment("DOTNET_ENVIRONMENT", environmentName)
+    .WithEnvironment("FacturacionMetrics__EnableOtlp", enableMetrics);
 
 builder.AddProject<Projects.Facturacion_Web_App>("web-app")
     .WithEnvironment("ASPNETCORE_ENVIRONMENT", environmentName)
-    .WithEnvironment("DOTNET_ENVIRONMENT", environmentName);
+    .WithEnvironment("DOTNET_ENVIRONMENT", environmentName)
+    .WithEnvironment("FacturacionMetrics__EnableOtlp", enableMetrics);
 
 builder.AddProject<Projects.Facturacion_Workers>("workers")
-    .WithEnvironment("DOTNET_ENVIRONMENT", environmentName);
+    .WithEnvironment("DOTNET_ENVIRONMENT", environmentName)
+    .WithEnvironment("FacturacionMetrics__EnableOtlp", enableMetrics);
 
 // Los servicios externos se conectan con la configuracion centralizada por host/entorno.
 builder.Build().Run();
