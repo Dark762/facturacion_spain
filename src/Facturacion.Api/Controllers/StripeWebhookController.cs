@@ -1,4 +1,5 @@
 using System.Text;
+using Facturacion.Api.Responses;
 using System.Text.Json;
 using Facturacion.Configuration.Options;
 using Facturacion.Infrastructure.Billing;
@@ -25,11 +26,11 @@ public sealed class StripeWebhookController : ControllerBase
         var payload=buffer.ToArray();
 
         if (!StripeWebhookVerifier.Verify(payload,Request.Headers["Stripe-Signature"].ToString(),_options.WebhookSecret))
-            return BadRequest();
+            return this.ApiFailure<object>(400, "INVALID_WEBHOOK", "Evento de Stripe no válido.");
 
         JsonDocument doc;
         try { doc=JsonDocument.Parse(Encoding.UTF8.GetString(payload)); }
-        catch (JsonException) { return BadRequest(); }
+        catch (JsonException) { return this.ApiFailure<object>(400, "INVALID_WEBHOOK", "Evento de Stripe no válido."); }
 
         using (doc)
         {
@@ -37,8 +38,8 @@ public sealed class StripeWebhookController : ControllerBase
             // Un evento que no se puede actuar nunca se reintentara en Stripe si
             // devolvemos 2xx; los errores transitorios si deben reintentarse.
             return outcome == StripeEventOutcome.RetryLater
-                ? StatusCode(StatusCodes.Status503ServiceUnavailable)
-                : Ok();
+                ? this.ApiFailure<object>(503, "STRIPE_RETRY_LATER", "El evento se procesará más adelante.")
+                : this.ApiOk<object?>(null, "Evento recibido.");
         }
     }
 }
