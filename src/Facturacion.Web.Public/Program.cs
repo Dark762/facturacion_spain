@@ -4,6 +4,7 @@ using Facturacion.Payments.Stripe;
 using Facturacion.Application.Interfaces;
 using Facturacion.Application.Services;
 using Facturacion.Configuration;
+using Facturacion.Observability;
 using Facturacion.Configuration.Options;
 using Facturacion.Infrastructure.Billing;
 using Facturacion.Infrastructure.Email;
@@ -29,7 +30,7 @@ if (builder.Environment.IsDevelopment())
     builder.Configuration.AddCommandLine(args);
 }
 
-builder.Services.AddFacturacionLogging(builder.Configuration, "Facturacion.Web.Public", builder.Environment.EnvironmentName);
+builder.Services.AddFacturacionObservability(builder.Configuration, "Facturacion.Web.Public", builder.Environment.EnvironmentName);
 
 // Sin esto no hay ninguna clave tipada: se valida al arrancar y avisa de
 // ConnectionStrings:Default si falta.
