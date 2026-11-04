@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Configuration;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Serilog;
 using Serilog.Events;
@@ -12,6 +13,7 @@ public static class ObservabilityExtensions
     public static IServiceCollection AddFacturacionObservability(
         this IServiceCollection services, IConfiguration configuration, string applicationName, string environmentName)
     {
+        services.AddHttpContextAccessor();
         services.AddSerilog((serviceProvider, logger) =>
         {
             var section = configuration.GetSection("FacturacionLogging");
@@ -23,6 +25,7 @@ public static class ObservabilityExtensions
                 .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
                 .MinimumLevel.Override("Microsoft.EntityFrameworkCore.Database.Command", LogEventLevel.Error)
                 .Enrich.FromLogContext()
+                .Enrich.With(new HttpRequestLogEnricher(serviceProvider.GetRequiredService<IHttpContextAccessor>()))
                 .Enrich.WithProperty("Application", applicationName)
                 .Enrich.WithProperty("Environment", environmentName)
                 .WriteTo.Console(new JsonFormatter(renderMessage: true));
