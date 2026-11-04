@@ -7,7 +7,7 @@ namespace Facturacion.Api.Security;
 /// Identidad de plataforma configurada exclusivamente por el operador del servidor.
 /// No utiliza los roles Admin de empresas ni acepta IDs desde peticiones públicas.
 /// </summary>
-public sealed class PlatformAdminRequirement : IAuthorizationRequirement;
+public sealed class PlatformAdminRequirement : IAuthorizationRequirement { }
 
 public sealed class PlatformAdminHandler(IConfiguration configuration)
     : AuthorizationHandler<PlatformAdminRequirement>
