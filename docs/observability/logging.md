@@ -48,3 +48,19 @@ Los errores capturados por `ApiExceptionHandler` conservan el mismo `TraceId` y 
 
 ## Duración y resultado de operaciones
 `Facturacion.Observability.OperationTelemetry` mide el tiempo transcurrido con `Stopwatch` y registra `Operation`, `RegistrationId`, `DurationMs` y `Outcome` (`Success`, `Failure`, `Cancelled`). Se aplica al checkout SaaS y al aprovisionamiento de tenants. No modifica el resultado ni captura las excepciones: las vuelve a lanzar para preservar los mecanismos de error y reintento. No registra contraseñas, tokens, NIF ni payloads de Stripe. Estos eventos son logs estructurados; todavía no son métricas agregadas ni alertas automáticas. Para investigar lentitud, filtrar `Operation` y ordenar `DurationMs`.
+
+## OpenTelemetry Metrics
+El proyecto `Facturacion.Observability` incorpora un Meter llamado `Facturacion.Operations`. `OperationTelemetry` emite un contador `facturacion.operation.completed` y un histograma de duración `facturacion.operation.duration` (segundos), ambos etiquetados por `operation` y `outcome` (`Success`, `Failure`, `Cancelled`). No se usan RegistrationId, TenantId, CompanyId ni datos personales como etiquetas, para limitar la cardinalidad.
+
+Por defecto las métricas se recogen mediante OpenTelemetry en el proceso, pero no se exportan fuera. Para habilitar el envío a un collector OTLP compatible, configurar:
+
+```json
+{
+  "FacturacionMetrics": {
+    "EnableOtlp": true,
+    "OtlpEndpoint": "http://localhost:4317"
+  }
+}
+```
+
+El exportador usa OTLP/gRPC por defecto; el endpoint debe ser HTTP(S) absoluto y estar accesible desde cada host. La configuración de red, TLS y autenticación del collector depende del despliegue. En producción, utilizar TLS y no incluir secretos en los logs. No se incluye collector ni panel de métricas; hasta configurar un backend OTLP no habrá visualización histórica. Los eventos de logging JSON siguen funcionando de forma independiente.
