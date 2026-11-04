@@ -1,3 +1,4 @@
+@inject IConfiguration Configuration
 <div class="public-page">
 @inherits LayoutComponentBase
 <header class="topbar">
@@ -6,6 +7,11 @@
         <nav class="navlinks" aria-label="Navegación principal">
             <a class="nav-link" href="/#ventajas">Funcionalidades</a>
             <a class="nav-link" href="/precios">Precios</a>
+            @if (Uri.TryCreate(Configuration["Facturacion:WebAppUrl"], UriKind.Absolute, out var webAppUrl)
+                && (webAppUrl.Scheme == Uri.UriSchemeHttps || (webAppUrl.IsLoopback && webAppUrl.Scheme == Uri.UriSchemeHttp)))
+            {
+                <a class="nav-link" href="@webAppUrl.ToString()" aria-label="Acceder a la aplicación">Iniciar sesión</a>
+            }
             <a class="button nav-cta" href="/registro">Crear cuenta <span aria-hidden="true">→</span></a>
         </nav>
     </div>
