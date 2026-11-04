@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using Facturacion.Infrastructure.Identity;
+using Facturacion.Observability;
 using Facturacion.Infrastructure.Multitenancy;
 using Microsoft.EntityFrameworkCore;
 namespace Facturacion.Api.Security;
@@ -19,6 +20,9 @@ public sealed class TenantResolutionMiddleware
                 x => x.UserId == userId && x.TenantId == tenantId && x.IsActive, http.RequestAborted);
             if (!valid) { http.Response.StatusCode = StatusCodes.Status403Forbidden; return; }
             tenant.SetTenant(tenantId);
+            // Solo después de verificar la pertenencia activa al tenant.
+            http.Items[HttpRequestLogEnricher.ValidatedTenantIdKey] = tenantId.ToString("D");
+            http.Items[HttpRequestLogEnricher.ValidatedUserIdKey] = userId;
         }
         await _next(http);
     }
