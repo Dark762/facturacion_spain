@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 using Facturacion.Application.Billing;
+using Facturacion.Application.Common.Results;
 using Facturacion.Domain.Enums;
 using Facturacion.Application.Provisioning;
 using Facturacion.Configuration.Options;
@@ -40,18 +41,18 @@ public sealed class SaasRegistrationService : ISaasRegistrationService
         // validan despues en CompleteCompanyAsync (paso 3).
         if (string.IsNullOrWhiteSpace(r.Email) || string.IsNullOrWhiteSpace(r.Password) ||
             string.IsNullOrWhiteSpace(r.DisplayName))
-            throw new ArgumentException("Faltan datos obligatorios de registro.");
+            throw new BusinessException("REGISTRATION_REQUIRED_FIELDS", "Faltan datos obligatorios de registro.", 400);
 
         var email = r.Email.Trim();
 
         if (await _users.FindByEmailAsync(email) is not null)
-            throw new InvalidOperationException("Este correo ya está registrado. Si comenzaste el registro y no lo completaste, utiliza «Continuar registro pendiente». Si tu cuenta ya está activa, inicia sesión.");
+            throw new BusinessException("REGISTRATION_EMAIL_EXISTS", "Este correo ya está registrado. Si comenzaste el registro y no lo completaste, utiliza «Continuar registro pendiente». Si tu cuenta ya está activa, inicia sesión.", 409);
 
         var user = new ApplicationUser { Email = email, UserName = email, DisplayName = r.DisplayName, IsActive = true, EmailConfirmed = false };
 
         var result = await _users.CreateAsync(user, r.Password);
 
-        if (!result.Succeeded) throw new ArgumentException(string.Join("; ", result.Errors.Select(e => e.Description)));
+        if (!result.Succeeded) throw new BusinessException("REGISTRATION_INVALID_PASSWORD", string.Join("; ", result.Errors.Select(e => e.Description)), 400);
 
         var intent = new RegistrationIntent
         {
@@ -104,17 +105,17 @@ public sealed class SaasRegistrationService : ISaasRegistrationService
     public async Task<RegistrationProgress> VerifyAndResumeAsync(Guid id, string token, string newPassword, CancellationToken ct)
     {
         var intent = await _db.RegistrationIntents.SingleOrDefaultAsync(x => x.Id == id, ct)
-            ?? throw new KeyNotFoundException("Registro inexistente.");
+            ?? throw new BusinessException("REGISTRATION_NOT_FOUND", "Registro inexistente.", 404);
 
         var user = await _users.FindByIdAsync(intent.UserId)
-            ?? throw new KeyNotFoundException("Usuario inexistente.");
+            ?? throw new BusinessException("REGISTRATION_USER_NOT_FOUND", "Usuario inexistente.", 404);
 
         if (intent.Status.Is(RegistrationStatus.Active) || !user.IsActive ||
             await _users.IsLockedOutAsync(user) ||
             intent.TenantId is not null && await _db.SubscriptionStates
                 .AnyAsync(x => x.TenantId == intent.TenantId &&
                     x.Status == SubscriptionStatus.Active.ToStorageValue(), ct))
-            throw new UnauthorizedAccessException("Registro no recuperable.");
+            throw new BusinessException("REGISTRATION_NOT_RECOVERABLE", "Este registro no se puede recuperar.", 409);
 
         var valid = token is { Length: RegistrationRules.VerificationCodeLength } &&
             token.All(char.IsAsciiDigit) &&
@@ -123,7 +124,7 @@ public sealed class SaasRegistrationService : ISaasRegistrationService
         if (!valid)
         {
             await _users.AccessFailedAsync(user);
-            throw new UnauthorizedAccessException("Código inválido o caducado.");
+            throw new BusinessException("REGISTRATION_INVALID_CODE", "Código inválido o caducado.", 400);
         }
         // El código autoriza establecer una nueva contraseña sin conocer la anterior.
         // Identity aplica las mismas reglas de seguridad que en el alta.
@@ -135,20 +136,20 @@ public sealed class SaasRegistrationService : ISaasRegistrationService
                 passwordErrors.AddRange(validation.Errors);
         }
         if (passwordErrors.Count > 0)
-            throw new ArgumentException(string.Join("; ", passwordErrors.Select(x => x.Description)));
+            throw new BusinessException("REGISTRATION_INVALID_PASSWORD", string.Join("; ", passwordErrors.Select(x => x.Description)), 400);
 
         var resetToken = await _users.GeneratePasswordResetTokenAsync(user);
 
         var reset = await _users.ResetPasswordAsync(user, resetToken, newPassword);
 
         if (!reset.Succeeded)
-            throw new InvalidOperationException("No se pudo actualizar la contraseña.");
+            throw new BusinessException("REGISTRATION_PASSWORD_UPDATE_FAILED", "No se pudo completar la operación. Inténtalo de nuevo.", 500);
 
         if (!user.EmailConfirmed)
         {
             user.EmailConfirmed = true;
             var updated = await _users.UpdateAsync(user);
-            if (!updated.Succeeded) throw new InvalidOperationException("No se pudo verificar el correo.");
+            if (!updated.Succeeded) throw new BusinessException("REGISTRATION_EMAIL_UPDATE_FAILED", "No se pudo completar la verificación. Inténtalo de nuevo.", 500);
         }
 
         await _users.ResetAccessFailedCountAsync(user);
@@ -174,12 +175,12 @@ public sealed class SaasRegistrationService : ISaasRegistrationService
     public async Task<string> VerifyEmailAsync(Guid id, string token, CancellationToken ct)
     {
         var intent = await _db.RegistrationIntents.SingleOrDefaultAsync(x => x.Id == id, ct)
-            ?? throw new KeyNotFoundException("Registro inexistente.");
-        var user = await _users.FindByIdAsync(intent.UserId) ?? throw new KeyNotFoundException("Usuario inexistente.");
+            ?? throw new BusinessException("REGISTRATION_NOT_FOUND", "Registro inexistente.", 404);
+        var user = await _users.FindByIdAsync(intent.UserId) ?? throw new BusinessException("REGISTRATION_USER_NOT_FOUND", "Usuario inexistente.", 404);
         // El registro solo puede verificarse una vez. Impide reutilizar el código.
         if (!intent.Status.Is(RegistrationStatus.PendingEmail) || user.EmailConfirmed ||
             await _users.IsLockedOutAsync(user))
-            throw new UnauthorizedAccessException("Código inválido o caducado.");
+            throw new BusinessException("REGISTRATION_INVALID_CODE", "Código inválido o caducado.", 400);
 
         var valid = token is { Length: RegistrationRules.VerificationCodeLength } &&
                     token.All(char.IsAsciiDigit) &&
@@ -190,14 +191,14 @@ public sealed class SaasRegistrationService : ISaasRegistrationService
             // Usa el bloqueo de Identity para limitar los intentos fallidos.
             var failed = await _users.AccessFailedAsync(user);
             if (!failed.Succeeded)
-                throw new InvalidOperationException("No se pudo registrar el intento de verificación.");
-            throw new UnauthorizedAccessException("Código inválido o caducado.");
+                throw new BusinessException("REGISTRATION_VERIFICATION_FAILED", "No se pudo completar la verificación. Inténtalo de nuevo.", 500);
+            throw new BusinessException("REGISTRATION_INVALID_CODE", "Código inválido o caducado.", 400);
         }
 
         user.EmailConfirmed = true;
         var updated = await _users.UpdateAsync(user);
         if (!updated.Succeeded)
-            throw new InvalidOperationException("No se pudo confirmar el correo.");
+            throw new BusinessException("REGISTRATION_EMAIL_CONFIRMATION_FAILED", "No se pudo completar la verificación. Inténtalo de nuevo.", 500);
         await _users.ResetAccessFailedCountAsync(user);
         var secret = Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
         intent.CheckoutTokenHash = Hash(secret);
@@ -210,13 +211,13 @@ public sealed class SaasRegistrationService : ISaasRegistrationService
     {
         RegistrationValidation.ThrowIfInvalidCompany(request);
         var intent = await _db.RegistrationIntents.SingleOrDefaultAsync(x => x.Id == id, ct)
-            ?? throw new KeyNotFoundException("Registro inexistente.");
+            ?? throw new BusinessException("REGISTRATION_NOT_FOUND", "Registro inexistente.", 404);
 
         if (!intent.Status.Is(RegistrationStatus.EmailVerified) || intent.CheckoutTokenHash is null ||
             !CryptographicOperations.FixedTimeEquals(
                 Convert.FromHexString(intent.CheckoutTokenHash),
                 Convert.FromHexString(Hash(checkoutToken))))
-            throw new UnauthorizedAccessException("Registro no verificado.");
+            throw new BusinessException("REGISTRATION_NOT_VERIFIED", "Registro no verificado o sesión caducada.", 403);
 
         intent.TenantName = string.IsNullOrWhiteSpace(request.TradeName) ? request.LegalName.Trim() : request.TradeName.Trim();
 
@@ -234,7 +235,7 @@ public sealed class SaasRegistrationService : ISaasRegistrationService
     public async Task<CheckoutResponse> CheckoutAsync(Guid id, string checkoutToken, string planCode, CancellationToken ct)
     {
         var intent = await _db.RegistrationIntents.SingleOrDefaultAsync(x => x.Id == id, ct)
-            ?? throw new KeyNotFoundException("Registro inexistente.");
+            ?? throw new BusinessException("REGISTRATION_NOT_FOUND", "Registro inexistente.", 404);
 
         // El estado Provisioning permite reanudar un alta gratuita interrumpida.
         // El token de recuperación sigue siendo obligatorio en todos los casos.
@@ -243,30 +244,30 @@ public sealed class SaasRegistrationService : ISaasRegistrationService
             intent.CheckoutTokenHash is null ||
             !CryptographicOperations.FixedTimeEquals(Encoding.UTF8.GetBytes(intent.CheckoutTokenHash),
                 Encoding.UTF8.GetBytes(Hash(checkoutToken))))
-            throw new UnauthorizedAccessException("Registro no verificado.");
+            throw new BusinessException("REGISTRATION_NOT_VERIFIED", "Registro no verificado o sesión caducada.", 403);
 
         if (!RegistrationValues.IsValidFiscalHolder(intent.HolderType) || string.IsNullOrWhiteSpace(intent.LegalName) || string.IsNullOrWhiteSpace(intent.Nif) ||
             string.IsNullOrWhiteSpace(intent.Address) || string.IsNullOrWhiteSpace(intent.PostalCode) ||
             string.IsNullOrWhiteSpace(intent.City) || string.IsNullOrWhiteSpace(intent.Province))
-            throw new InvalidOperationException("Completa los datos fiscales antes de contratar.");
+            throw new BusinessException("REGISTRATION_FISCAL_DATA_REQUIRED", "Completa los datos fiscales antes de contratar.", 400);
 
         if (intent.CheckoutSessionId is not null)
-            throw new InvalidOperationException("Ya existe una sesión de pago. Consulta su estado antes de crear otra.");
+            throw new BusinessException("REGISTRATION_CHECKOUT_EXISTS", "Ya existe una sesión de pago. Consulta su estado antes de crear otra.", 409);
 
         var plan = await _db.SubscriptionPlans.SingleOrDefaultAsync(x => x.Code == planCode && x.IsActive, ct)
-            ?? throw new KeyNotFoundException("Plan no disponible.");
+            ?? throw new BusinessException("REGISTRATION_PLAN_NOT_FOUND", "Plan no disponible.", 404);
 
         if (!SubscriptionPlanCodeExtensions.TryFromCode(plan.Code, out var selectedPlan))
-            throw new InvalidOperationException("Código de plan no reconocido.");
+            throw new BusinessException("REGISTRATION_PLAN_INVALID", "El plan seleccionado no está disponible.", 400);
 
         if (intent.Status.Is(RegistrationStatus.Provisioning) &&
             selectedPlan != SubscriptionPlanCode.GRATIS)
-            throw new InvalidOperationException("Solo se puede reanudar el aprovisionamiento del plan gratuito.");
+            throw new BusinessException("REGISTRATION_PROVISIONING_PLAN_CONFLICT", "Solo se puede reanudar el aprovisionamiento del plan gratuito.", 409);
 
         if (selectedPlan == SubscriptionPlanCode.GRATIS)
         {
             if (plan.MonthlyPrice != 0)
-                throw new InvalidOperationException("El plan GRATIS debe tener precio cero.");
+                throw new BusinessException("REGISTRATION_FREE_PLAN_MISCONFIGURED", "No se puede activar este plan en este momento. Inténtalo más tarde.", 503);
 
             var result = await _provisioning.ProvisionAsync(new ProvisioningRequest(
                 intent.Id, intent.UserId, intent.TenantName, intent.LegalName,
@@ -297,9 +298,9 @@ public sealed class SaasRegistrationService : ISaasRegistrationService
         }
 
         if (string.IsNullOrWhiteSpace(plan.StripePriceId))
-            throw new InvalidOperationException("El plan de pago no tiene configurado un precio de Stripe.");
+            throw new BusinessException("REGISTRATION_PAYMENT_NOT_CONFIGURED", "El pago no está disponible en este momento. Inténtalo más tarde.", 503);
 
-        var user = await _users.FindByIdAsync(intent.UserId) ?? throw new KeyNotFoundException("Usuario inexistente.");
+        var user = await _users.FindByIdAsync(intent.UserId) ?? throw new BusinessException("REGISTRATION_USER_NOT_FOUND", "Usuario inexistente.", 404);
 
         var (sessionId, url) = await _gateway.CreateSubscriptionCheckoutAsync(plan.StripePriceId, user.Email!,
             id.ToString("D"), _stripe.SuccessUrl, _stripe.CancelUrl, ct);
