@@ -1,4 +1,5 @@
 using Facturacion.Api.Security;
+using Facturacion.Api.Responses;
 using Facturacion.Infrastructure.Identity;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -26,18 +27,18 @@ public sealed class AuthController : ControllerBase
     {
         var user = await _users.FindByEmailAsync(input.Email);
 
-        if (user is null || !user.IsActive) return Unauthorized();
+        if (user is null || !user.IsActive) return this.ApiFailure<object>(401, "UNAUTHORIZED", "Credenciales o acceso al tenant no válidos.");
 
         var check = await _signIn.CheckPasswordSignInAsync(user, input.Password, lockoutOnFailure: true);
 
-        if (!check.Succeeded) return Unauthorized();
+        if (!check.Succeeded) return this.ApiFailure<object>(401, "UNAUTHORIZED", "Credenciales o acceso al tenant no válidos.");
 
         if (!await _auth.TenantUsers.AsNoTracking().AnyAsync(x => x.TenantId == input.TenantId && x.UserId == user.Id && x.IsActive, ct))
-            return Unauthorized();
+            return this.ApiFailure<object>(401, "UNAUTHORIZED", "Credenciales o acceso al tenant no válidos.");
 
         var token = _tokens.Create(user, input.TenantId);
 
-        return Ok(new TokenResponse(token.Token, token.ExpiresUtc));
+        return this.ApiOk(new TokenResponse(token.Token, token.ExpiresUtc), "Sesión iniciada correctamente.");
     }
 
     [Authorize]
@@ -49,6 +50,6 @@ public sealed class AuthController : ControllerBase
         var companies = await _auth.CompanyUsers.AsNoTracking()
             .Where(x => x.TenantId == tenant.TenantId && x.UserId == userId && x.IsActive)
             .Select(x => new { x.CompanyId, x.Role }).ToListAsync(ct);
-        return Ok(companies);
+        return this.ApiOk(companies);
     }
 }
