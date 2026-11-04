@@ -1,4 +1,6 @@
 using Facturacion.Application.Billing;
+using Facturacion.Api.Responses;
+using Facturacion.Application.Common.Results;
 using Facturacion.Infrastructure.Billing;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -22,7 +24,7 @@ public sealed class SaasRegistrationController : ControllerBase
     /// <summary>Devuelve los códigos y nombres de los planes activos.</summary>
     [HttpGet("plans")]
     public async Task<IActionResult> Plans(CancellationToken ct) =>
-    Ok(await _db.SubscriptionPlans
+    this.ApiOk(await _db.SubscriptionPlans
         .AsNoTracking()
         .Where(x => x.IsActive)
         .OrderBy(x => x.DisplayOrder)
@@ -42,15 +44,15 @@ public sealed class SaasRegistrationController : ControllerBase
     [HttpPost("register")]
     public async Task<IActionResult> Register([FromBody] RegisterSaasRequest request, CancellationToken ct)
     {
-        try { return Ok(await _registration.RegisterAsync(request, ct)); }
-        catch (RegistrationValidationException ex) { return ValidationProblem(new ValidationProblemDetails(ex.Errors.ToDictionary(x => x.Key, x => x.Value))); }
+        try { return this.ApiOk(await _registration.RegisterAsync(request, ct), "Registro iniciado correctamente."); }
+        catch (RegistrationValidationException ex) { return ValidationFailure(ex); }
     }
     /// <summary>Datos de identificación del registro y confirmación del correo.</summary>
     public sealed record VerifyRequest(Guid RegistrationId,string Token);
     /// <summary>Verifica el correo y devuelve el token que autoriza continuar al checkout.</summary>
     [HttpPost("verify-email")]
     public async Task<IActionResult> Verify([FromBody] VerifyRequest r,CancellationToken ct) =>
-        Ok(new { CheckoutToken=await _registration.VerifyEmailAsync(r.RegistrationId,r.Token,ct) });
+        this.ApiOk(new { CheckoutToken=await _registration.VerifyEmailAsync(r.RegistrationId,r.Token,ct) }, "Correo verificado correctamente.");
     public sealed record CompleteCompanyBody(Guid RegistrationId, string CheckoutToken, CompleteCompanyRequest Company);
     [HttpPost("company")]
     public async Task<IActionResult> CompleteCompany([FromBody] CompleteCompanyBody request, CancellationToken ct)
@@ -58,7 +60,7 @@ public sealed class SaasRegistrationController : ControllerBase
         try
         {
             await _registration.CompleteCompanyAsync(request.RegistrationId, request.CheckoutToken, request.Company, ct);
-            return NoContent();
+            return this.ApiOk<object?>(null, "Datos fiscales guardados correctamente.");
         }
         catch (RegistrationValidationException ex)
         {
@@ -70,5 +72,15 @@ public sealed class SaasRegistrationController : ControllerBase
     /// <summary>Crea una sesión de Stripe Checkout, sin activar todavía la cuenta.</summary>
     [HttpPost("checkout")]
     public async Task<IActionResult> Checkout([FromBody] CheckoutRequest r,CancellationToken ct) =>
-        Ok(await _registration.CheckoutAsync(r.RegistrationId,r.CheckoutToken,r.PlanCode,ct));
+        this.ApiOk(await _registration.CheckoutAsync(r.RegistrationId,r.CheckoutToken,r.PlanCode,ct), "Plan procesado correctamente.");
+    private IActionResult ValidationFailure(RegistrationValidationException exception)
+    {
+        var errors = exception.Errors
+            .SelectMany(field => field.Value.Select(message =>
+                new Error("VALIDATION_ERROR", message, ErrorType.Validation, field.Key)))
+            .ToArray();
+        return this.ApiFailure<object>(400, "VALIDATION_ERROR",
+            "Revisa los datos introducidos.", errors);
+    }
+
 }
