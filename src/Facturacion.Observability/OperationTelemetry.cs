@@ -15,6 +15,7 @@ public static class OperationTelemetry
         {
             var result = await action();
             stopwatch.Stop();
+            FacturacionMetrics.Record(operation, "Success", stopwatch.Elapsed.TotalSeconds);
             logger.LogInformation(
                 "Operación {Operation} completada. RegistrationId {RegistrationId}, DurationMs {DurationMs}, Outcome {Outcome}",
                 operation, registrationId, stopwatch.ElapsedMilliseconds, "Success");
@@ -23,6 +24,7 @@ public static class OperationTelemetry
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
             stopwatch.Stop();
+            FacturacionMetrics.Record(operation, "Cancelled", stopwatch.Elapsed.TotalSeconds);
             logger.LogInformation(
                 "Operación {Operation} cancelada. RegistrationId {RegistrationId}, DurationMs {DurationMs}, Outcome {Outcome}",
                 operation, registrationId, stopwatch.ElapsedMilliseconds, "Cancelled");
@@ -31,6 +33,7 @@ public static class OperationTelemetry
         catch (Exception)
         {
             stopwatch.Stop();
+            FacturacionMetrics.Record(operation, "Failure", stopwatch.Elapsed.TotalSeconds);
             logger.LogWarning(
                 "Operación {Operation} fallida. RegistrationId {RegistrationId}, DurationMs {DurationMs}, Outcome {Outcome}",
                 operation, registrationId, stopwatch.ElapsedMilliseconds, "Failure");
