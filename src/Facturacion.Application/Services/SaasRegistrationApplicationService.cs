@@ -14,8 +14,7 @@ public sealed class SaasRegistrationApplicationService : ISaaSRegistrationApplic
         _registration = registration;
     }
 
-    public async Task<Result<RegistrationResponse>> RegisterAsync(
-        RegisterSaasRequest request, CancellationToken cancellationToken)
+    public async Task<Result<RegistrationResponse>> RegisterAsync(RegisterSaasRequest request, CancellationToken cancellationToken)
     {
         try
         {
@@ -32,46 +31,47 @@ public sealed class SaasRegistrationApplicationService : ISaaSRegistrationApplic
                 .Select(TranslatePasswordError)
                 .Distinct()
                 .ToArray();
+
             if (passwordErrors.Length > 0)
-                return Result<RegistrationResponse>.Failure(
-                    passwordErrors.Select(message =>
-                        ApplicationErrors.Invalid("PASSWORD_INVALID", message, "Password")).ToArray());
-            return Result<RegistrationResponse>.Failure(
-                ApplicationErrors.Invalid("REGISTRATION_INVALID", ex.Message, "request"));
+                return Result<RegistrationResponse>.Failure(passwordErrors.Select(message => ApplicationErrors.Invalid("PASSWORD_INVALID", message, "Password")).ToArray());
+
+            return Result<RegistrationResponse>.Failure(ApplicationErrors.Invalid("REGISTRATION_INVALID", ex.Message, "request"));
         }
         catch (InvalidOperationException ex)
         {
-            return Result<RegistrationResponse>.Failure(
-                ApplicationErrors.Invalid("REGISTRATION_INVALID", ex.Message, "request"));
+            return Result<RegistrationResponse>.Failure(ApplicationErrors.Invalid("REGISTRATION_INVALID", ex.Message, "request"));
         }
     }
 
     public async Task<Result<RegistrationResponse>> ResumeAsync(ResumeRegistrationRequest request, CancellationToken ct)
     {
-        try { return Result<RegistrationResponse>.Success(await _registration.ResumeAsync(request, ct)); }
+        try
+        {
+            return Result<RegistrationResponse>.Success(await _registration.ResumeAsync(request, ct));
+        }
         catch (InvalidOperationException)
         {
-            return Result<RegistrationResponse>.Failure(
-                ApplicationErrors.Invalid("RESUME_FAILED", "No se ha podido recuperar el registro.", "request"));
+            return Result<RegistrationResponse>.Failure(ApplicationErrors.Invalid("RESUME_FAILED", "No se ha podido recuperar el registro.", "request"));
         }
     }
 
     public async Task<Result<RegistrationProgress>> VerifyAndResumeAsync(Guid id, string token, string newPassword, CancellationToken ct)
     {
-        try { return Result<RegistrationProgress>.Success(await _registration.VerifyAndResumeAsync(id, token, newPassword, ct)); }
+        try
+        {
+            return Result<RegistrationProgress>.Success(await _registration.VerifyAndResumeAsync(id, token, newPassword, ct));
+        }
         catch (KeyNotFoundException)
         {
             return Result<RegistrationProgress>.Failure(ApplicationErrors.NotFound("Registro"));
         }
         catch (ArgumentException ex)
         {
-            return Result<RegistrationProgress>.Failure(
-                ApplicationErrors.Invalid("PASSWORD_INVALID", TranslatePasswordError(ex.Message), "newPassword"));
+            return Result<RegistrationProgress>.Failure(ApplicationErrors.Invalid("PASSWORD_INVALID", TranslatePasswordError(ex.Message), "newPassword"));
         }
         catch (UnauthorizedAccessException)
         {
-            return Result<RegistrationProgress>.Failure(
-                ApplicationErrors.Invalid("INVALID_TOKEN", "Código inválido o caducado.", "token"));
+            return Result<RegistrationProgress>.Failure(ApplicationErrors.Invalid("INVALID_TOKEN", "Código inválido o caducado.", "token"));
         }
     }
 
@@ -80,19 +80,17 @@ public sealed class SaasRegistrationApplicationService : ISaaSRegistrationApplic
     {
         try
         {
-            var checkoutToken = await _registration.VerifyEmailAsync(
-                registrationId, token, cancellationToken);
+            var checkoutToken = await _registration.VerifyEmailAsync(registrationId, token, cancellationToken);
+
             return Result<string>.Success(checkoutToken);
         }
         catch (KeyNotFoundException)
         {
-            return Result<string>.Failure(
-                ApplicationErrors.NotFound("Registro"));
+            return Result<string>.Failure(ApplicationErrors.NotFound("Registro"));
         }
         catch (UnauthorizedAccessException)
         {
-            return Result<string>.Failure(
-                ApplicationErrors.Invalid("INVALID_TOKEN", "Token inválido o caducado.", "token"));
+            return Result<string>.Failure(ApplicationErrors.Invalid("INVALID_TOKEN", "Token inválido o caducado.", "token"));
         }
     }
 
@@ -102,8 +100,7 @@ public sealed class SaasRegistrationApplicationService : ISaaSRegistrationApplic
     {
         try
         {
-            await _registration.CompleteCompanyAsync(
-                registrationId, checkoutToken, request, cancellationToken);
+            await _registration.CompleteCompanyAsync(registrationId, checkoutToken, request, cancellationToken);
             return Result.Success();
         }
         catch (KeyNotFoundException)
@@ -112,42 +109,33 @@ public sealed class SaasRegistrationApplicationService : ISaaSRegistrationApplic
         }
         catch (UnauthorizedAccessException)
         {
-            return Result.Failure(
-                ApplicationErrors.Invalid("REGISTRATION_NOT_VERIFIED", "Registro no verificado.", "checkoutToken"));
+            return Result.Failure(ApplicationErrors.Invalid("REGISTRATION_NOT_VERIFIED", "Registro no verificado.", "checkoutToken"));
         }
         catch (RegistrationValidationException ex)
         {
-            return Result.Failure(
-                ex.Errors.Select(kv =>
-                    ApplicationErrors.Invalid(kv.Key, string.Join("; ", kv.Value), kv.Key)).ToArray());
+            return Result.Failure(ex.Errors.Select(kv => ApplicationErrors.Invalid(kv.Key, string.Join("; ", kv.Value), kv.Key)).ToArray());
         }
     }
 
-    public async Task<Result<CheckoutResponse>> CheckoutAsync(
-        Guid registrationId, string checkoutToken, string planCode,
-        CancellationToken cancellationToken)
+    public async Task<Result<CheckoutResponse>> CheckoutAsync(Guid registrationId, string checkoutToken, string planCode,CancellationToken cancellationToken)
     {
         try
         {
-            var response = await _registration.CheckoutAsync(
-                registrationId, checkoutToken, planCode, cancellationToken);
+            var response = await _registration.CheckoutAsync(registrationId, checkoutToken, planCode, cancellationToken);
 
             return Result<CheckoutResponse>.Success(response);
         }
         catch (KeyNotFoundException)
         {
-            return Result<CheckoutResponse>.Failure(
-                ApplicationErrors.NotFound("Registro"));
+            return Result<CheckoutResponse>.Failure(ApplicationErrors.NotFound("Registro"));
         }
         catch (UnauthorizedAccessException)
         {
-            return Result<CheckoutResponse>.Failure(
-                ApplicationErrors.Invalid("REGISTRATION_NOT_VERIFIED", "Registro no verificado.", "checkoutToken"));
+            return Result<CheckoutResponse>.Failure(ApplicationErrors.Invalid("REGISTRATION_NOT_VERIFIED", "Registro no verificado.", "checkoutToken"));
         }
         catch (InvalidOperationException ex)
         {
-            return Result<CheckoutResponse>.Failure(
-                ApplicationErrors.Invalid("CHECKOUT_INVALID", ex.Message, "planCode"));
+            return Result<CheckoutResponse>.Failure(ApplicationErrors.Invalid("CHECKOUT_INVALID", ex.Message, "planCode"));
         }
     }
     private static string TranslatePasswordError(string message)
@@ -155,16 +143,22 @@ public sealed class SaasRegistrationApplicationService : ISaaSRegistrationApplic
         if (message.StartsWith("Passwords must be at least ", StringComparison.OrdinalIgnoreCase))
             return "La contraseña debe tener al menos " +
                 message["Passwords must be at least ".Length..].Replace(" characters.", " caracteres.");
+
         if (message.Contains("non alphanumeric", StringComparison.OrdinalIgnoreCase))
             return "La contraseña debe incluir al menos un carácter especial.";
+
         if (message.Contains("at least one digit", StringComparison.OrdinalIgnoreCase))
             return "La contraseña debe incluir al menos un número.";
+
         if (message.Contains("at least one uppercase", StringComparison.OrdinalIgnoreCase))
             return "La contraseña debe incluir al menos una letra mayúscula.";
+
         if (message.Contains("at least one lowercase", StringComparison.OrdinalIgnoreCase))
             return "La contraseña debe incluir al menos una letra minúscula.";
+
         if (message.Contains("unique chars", StringComparison.OrdinalIgnoreCase))
             return "La contraseña debe contener más caracteres diferentes.";
+
         return "La contraseña no cumple los requisitos de seguridad.";
     }
 }
