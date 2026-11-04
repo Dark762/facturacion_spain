@@ -64,3 +64,8 @@ Por defecto las métricas se recogen mediante OpenTelemetry en el proceso, pero 
 ```
 
 El exportador usa OTLP/gRPC por defecto; el endpoint debe ser HTTP(S) absoluto y estar accesible desde cada host. La configuración de red, TLS y autenticación del collector depende del despliegue. En producción, utilizar TLS y no incluir secretos en los logs. No se incluye collector ni panel de métricas; hasta configurar un backend OTLP no habrá visualización histórica. Los eventos de logging JSON siguen funcionando de forma independiente.
+
+## Panel local con Aspire
+Inicia `Facturacion.AppHost` con el perfil `Development` en Visual Studio. Aspire aporta su propio receptor OTLP y dashboard. El AppHost habilita `FacturacionMetrics__EnableOtlp=true` para API, Web Pública, Web App y Workers en `Development` y `Local`; en `Staging` y `Production` lo deja en `false`. El exportador OpenTelemetry utiliza `OTEL_EXPORTER_OTLP_ENDPOINT` inyectado por Aspire cuando no se establece `FacturacionMetrics:OtlpEndpoint` explícitamente.
+
+Realiza un alta de prueba o un checkout y abre la pestaña **Metrics** del dashboard Aspire. Busca el meter `Facturacion.Operations` y las métricas `facturacion.operation.completed` y `facturacion.operation.duration`. Las métricas de negocio solo aparecen tras ejecutar esas operaciones. El dashboard local es para diagnóstico de desarrollo, no almacenamiento histórico ni alertas persistentes. En despliegues independientes, configura `FacturacionMetrics:EnableOtlp=true` y un receptor OTLP externo, con TLS y credenciales según el entorno.
