@@ -64,7 +64,7 @@ public sealed class SaasRegistrationController : ControllerBase
         }
         catch (RegistrationValidationException ex)
         {
-            return ValidationProblem(new ValidationProblemDetails(ex.Errors.ToDictionary(x => x.Key, x => x.Value)));
+            return ValidationFailure(ex);
         }
     }
     /// <summary>Registro, token de checkout y código del plan elegido.</summary>
