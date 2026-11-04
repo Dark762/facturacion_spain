@@ -16,6 +16,7 @@ public sealed class ApiExceptionHandler : IExceptionHandler
     {
         var (status, code, message) = exception switch
         {
+            BusinessException business => (business.StatusCode, business.Code, business.Message),
             UnauthorizedAccessException => (403, "FORBIDDEN", "No tienes permisos para esta operación."),
             KeyNotFoundException => (404, "NOT_FOUND", "Recurso no encontrado."),
             ArgumentException => (400, "INVALID_REQUEST", "La solicitud no es válida."),
