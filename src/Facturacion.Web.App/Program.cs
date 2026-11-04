@@ -1,11 +1,12 @@
 using Facturacion.Client;
 using Facturacion.Configuration;
+using Facturacion.Observability;
 using Facturacion.Web.App.Components;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Configuration.AddFacturacionConfiguration(builder.Environment, FacturacionHost.WebApp);
 
-builder.Services.AddFacturacionLogging(builder.Configuration, "Facturacion.Web.App", builder.Environment.EnvironmentName);
+builder.Services.AddFacturacionObservability(builder.Configuration, "Facturacion.Web.App", builder.Environment.EnvironmentName);
 
 // La web de aplicacion es una capa de presentacion: habla con la API por HTTP,
 // no toca base de datos. No declara ninguna seccion obligatoria.
