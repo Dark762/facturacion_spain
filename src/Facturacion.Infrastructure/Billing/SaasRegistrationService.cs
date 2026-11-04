@@ -19,10 +19,20 @@ public sealed class SaasRegistrationService : ISaasRegistrationService
     private readonly IPaymentGateway _gateway;
     private readonly IProvisioningService _provisioning;
     private readonly StripeOptions _stripe;
-    public SaasRegistrationService(SelfServiceDbContext db, UserManager<ApplicationUser> users,
-        IRegistrationEmailSender emails, IPaymentGateway gateway, IOptions<StripeOptions> stripe,
+    public SaasRegistrationService(SelfServiceDbContext db,
+        UserManager<ApplicationUser> users,
+        IRegistrationEmailSender emails,
+        IPaymentGateway gateway,
+        IOptions<StripeOptions> stripe,
         IProvisioningService provisioning)
-    { _db = db; _users = users; _emails = emails; _gateway = gateway; _stripe = stripe.Value; _provisioning = provisioning; }
+    {
+        _db = db;
+        _users = users;
+        _emails = emails;
+        _gateway = gateway;
+        _stripe = stripe.Value;
+        _provisioning = provisioning;
+    }
 
     public async Task<RegistrationResponse> RegisterAsync(RegisterSaasRequest r, CancellationToken ct)
     {
@@ -31,7 +41,9 @@ public sealed class SaasRegistrationService : ISaasRegistrationService
         if (string.IsNullOrWhiteSpace(r.Email) || string.IsNullOrWhiteSpace(r.Password) ||
             string.IsNullOrWhiteSpace(r.DisplayName))
             throw new ArgumentException("Faltan datos obligatorios de registro.");
+
         var email = r.Email.Trim();
+
         if (await _users.FindByEmailAsync(email) is not null)
             throw new InvalidOperationException("Este correo ya está registrado. Si comenzaste el registro y no lo completaste, utiliza «Continuar registro pendiente». Si tu cuenta ya está activa, inicia sesión.");
 
@@ -53,11 +65,15 @@ public sealed class SaasRegistrationService : ISaasRegistrationService
             Province = ""
         };
         _db.RegistrationIntents.Add(intent);
+
         await _db.SaveChangesAsync(ct);
+
         // Código numérico TOTP de Identity, asociado al sello de seguridad del usuario.
         // Expira automáticamente en pocos minutos y no se persiste en claro.
         var token = await _users.GenerateTwoFactorTokenAsync(user, TokenOptions.DefaultEmailProvider);
+
         await _emails.SendConfirmationAsync(email, intent.Id, token, ct);
+
         return new RegistrationResponse(intent.Id, "Comprueba tu correo para verificar la cuenta.");
     }
 
@@ -80,6 +96,7 @@ public sealed class SaasRegistrationService : ISaasRegistrationService
             return new RegistrationResponse(Guid.NewGuid(), genericMessage);
 
         var token = await _users.GenerateTwoFactorTokenAsync(user, TokenOptions.DefaultEmailProvider);
+
         await _emails.SendConfirmationAsync(email, intent.Id, token, ct);
         return new RegistrationResponse(intent.Id, genericMessage);
     }
@@ -88,17 +105,21 @@ public sealed class SaasRegistrationService : ISaasRegistrationService
     {
         var intent = await _db.RegistrationIntents.SingleOrDefaultAsync(x => x.Id == id, ct)
             ?? throw new KeyNotFoundException("Registro inexistente.");
+
         var user = await _users.FindByIdAsync(intent.UserId)
             ?? throw new KeyNotFoundException("Usuario inexistente.");
+
         if (intent.Status.Is(RegistrationStatus.Active) || !user.IsActive ||
             await _users.IsLockedOutAsync(user) ||
             intent.TenantId is not null && await _db.SubscriptionStates
                 .AnyAsync(x => x.TenantId == intent.TenantId &&
                     x.Status == SubscriptionStatus.Active.ToStorageValue(), ct))
             throw new UnauthorizedAccessException("Registro no recuperable.");
+
         var valid = token is { Length: RegistrationRules.VerificationCodeLength } &&
             token.All(char.IsAsciiDigit) &&
             await _users.VerifyTwoFactorTokenAsync(user, TokenOptions.DefaultEmailProvider, token);
+
         if (!valid)
         {
             await _users.AccessFailedAsync(user);
@@ -117,23 +138,31 @@ public sealed class SaasRegistrationService : ISaasRegistrationService
             throw new ArgumentException(string.Join("; ", passwordErrors.Select(x => x.Description)));
 
         var resetToken = await _users.GeneratePasswordResetTokenAsync(user);
+
         var reset = await _users.ResetPasswordAsync(user, resetToken, newPassword);
+
         if (!reset.Succeeded)
             throw new InvalidOperationException("No se pudo actualizar la contraseña.");
+
         if (!user.EmailConfirmed)
         {
             user.EmailConfirmed = true;
             var updated = await _users.UpdateAsync(user);
             if (!updated.Succeeded) throw new InvalidOperationException("No se pudo verificar el correo.");
         }
+
         await _users.ResetAccessFailedCountAsync(user);
+
         var secret = Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
+
         intent.CheckoutTokenHash = Hash(secret);
         // El registro recuperado puede estar en CheckoutCreated o Provisioning:
         // conservar su estado y los IDs para evitar un nuevo aprovisionamiento.
         if (intent.Status.Is(RegistrationStatus.PendingEmail))
             intent.Status = RegistrationStatus.EmailVerified.ToStorageValue();
+
         await _db.SaveChangesAsync(ct);
+
         return new RegistrationProgress(secret,
             !string.IsNullOrWhiteSpace(intent.LegalName) && !string.IsNullOrWhiteSpace(intent.Nif) &&
             !string.IsNullOrWhiteSpace(intent.Address) && !string.IsNullOrWhiteSpace(intent.PostalCode) &&
@@ -182,12 +211,15 @@ public sealed class SaasRegistrationService : ISaasRegistrationService
         RegistrationValidation.ThrowIfInvalidCompany(request);
         var intent = await _db.RegistrationIntents.SingleOrDefaultAsync(x => x.Id == id, ct)
             ?? throw new KeyNotFoundException("Registro inexistente.");
+
         if (!intent.Status.Is(RegistrationStatus.EmailVerified) || intent.CheckoutTokenHash is null ||
             !CryptographicOperations.FixedTimeEquals(
                 Convert.FromHexString(intent.CheckoutTokenHash),
                 Convert.FromHexString(Hash(checkoutToken))))
             throw new UnauthorizedAccessException("Registro no verificado.");
+
         intent.TenantName = string.IsNullOrWhiteSpace(request.TradeName) ? request.LegalName.Trim() : request.TradeName.Trim();
+
         intent.HolderType = request.HolderType;
         intent.TradeName = request.TradeName?.Trim() ?? "";
         intent.LegalName = request.LegalName.Trim();
@@ -252,10 +284,15 @@ public sealed class SaasRegistrationService : ISaasRegistrationService
                     Status = SubscriptionStatus.Active.ToStorageValue()
                 });
             }
+
             intent.PlanCode = plan.Code;
+
             intent.TenantId = result.TenantId;
+
             intent.Status = RegistrationStatus.Active.ToStorageValue();
+
             await _db.SaveChangesAsync(ct);
+
             return new CheckoutResponse("", true);
         }
 
@@ -270,7 +307,9 @@ public sealed class SaasRegistrationService : ISaasRegistrationService
         intent.PlanCode = plan.Code;
         intent.CheckoutSessionId = sessionId;
         intent.Status = RegistrationStatus.CheckoutCreated.ToStorageValue();
+
         await _db.SaveChangesAsync(ct);
+
         return new CheckoutResponse(url);
     }
     private static string Hash(string s) => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(s)));
