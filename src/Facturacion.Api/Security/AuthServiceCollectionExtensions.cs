@@ -7,6 +7,7 @@ using Facturacion.Infrastructure.Identity;
 using Facturacion.Infrastructure.Multitenancy;
 using Facturacion.Infrastructure.Persistence.Providers;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
@@ -37,7 +38,12 @@ public static class AuthServiceCollectionExtensions
             .AddJwtBearer();
         services.AddSingleton<IConfigureOptions<JwtBearerOptions>, ConfigureJwtBearer>();
 
-        services.AddAuthorization();
+        services.AddAuthorization(options =>
+        {
+            options.AddPolicy("PlatformAdmin", policy =>
+                policy.RequireAuthenticatedUser().AddRequirements(new PlatformAdminRequirement()));
+        });
+        services.AddSingleton<IAuthorizationHandler, PlatformAdminHandler>();
         services.AddHttpContextAccessor();
         services.AddScoped<TenantContext>();
         services.AddScoped<ITenantContext>(sp => sp.GetRequiredService<TenantContext>());
