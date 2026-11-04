@@ -3,6 +3,7 @@ using Facturacion.Application.Common.Results;
 using Microsoft.AspNetCore.Mvc;
 using Facturacion.Application.DependencyInjection;
 using Facturacion.Configuration;
+using Facturacion.Observability;
 using Facturacion.Configuration.Options;
 using Facturacion.Infrastructure.Billing;
 using Facturacion.Infrastructure.DependencyInjection;
@@ -19,7 +20,7 @@ const string FrontendCorsPolicy = "Frontend";
 var builder = WebApplication.CreateBuilder(args);
 builder.Configuration.AddFacturacionConfiguration(builder.Environment, FacturacionHost.Api);
 
-builder.Services.AddFacturacionLogging(builder.Configuration, "Facturacion.Api", builder.Environment.EnvironmentName);
+builder.Services.AddFacturacionObservability(builder.Configuration, "Facturacion.Api", builder.Environment.EnvironmentName);
 
 // La API necesita base de datos, firma de token e invitaciones. Stripe y Email
 // son opcionales: sin ellos el alta y el correo quedan apagados, no el arranque.
