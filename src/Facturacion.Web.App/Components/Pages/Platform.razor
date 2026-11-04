@@ -10,6 +10,13 @@
 <PageTitle>Centro de Control | FacturaciónES</PageTitle>
 <h1>Centro de Control</h1>
 <p>Administración global de la plataforma. Acceso exclusivo del propietario.</p>
+@if (_logoutToken is not null)
+{
+    <form method="post" action="/logout">
+        <input type="hidden" name="__RequestVerificationToken" value="@_logoutToken" />
+        <button type="submit">Cerrar sesión</button>
+    </form>
+}
 
 @if (_forbidden)
 {
@@ -60,6 +67,7 @@ else
 }
 @code {
     [SupplyParameterFromQuery(Name = "page")] public int? Page { get; set; }
+    private string? _logoutToken;
     private int _page = 1;
     private bool _forbidden;
     private bool _error;
@@ -69,6 +77,8 @@ else
     protected override async Task OnParametersSetAsync()
     {
         _page = Math.Clamp(Page ?? 1, 1, 100000);
+        if (HttpAccessor.HttpContext is { } http)
+            _logoutToken = Antiforgery.GetAndStoreTokens(http).RequestToken;
         var token = HttpAccessor.HttpContext?.User.FindFirstValue("api_token");
         if (string.IsNullOrEmpty(token)) { _forbidden = true; return; }
         try
