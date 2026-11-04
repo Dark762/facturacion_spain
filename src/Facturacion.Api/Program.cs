@@ -19,6 +19,8 @@ const string FrontendCorsPolicy = "Frontend";
 var builder = WebApplication.CreateBuilder(args);
 builder.Configuration.AddFacturacionConfiguration(builder.Environment, FacturacionHost.Api);
 
+builder.Services.AddFacturacionLogging(builder.Configuration, "Facturacion.Api", builder.Environment.EnvironmentName);
+
 // La API necesita base de datos, firma de token e invitaciones. Stripe y Email
 // son opcionales: sin ellos el alta y el correo quedan apagados, no el arranque.
 builder.Services.AddFacturacionOptions(
