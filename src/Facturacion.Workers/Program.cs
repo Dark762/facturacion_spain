@@ -13,6 +13,8 @@ using Microsoft.Extensions.Configuration;
 var builder = Host.CreateApplicationBuilder(args);
 builder.Configuration.AddFacturacionConfiguration(builder.Environment, FacturacionHost.Workers);
 
+builder.Services.AddFacturacionLogging(builder.Configuration, "Facturacion.Workers", builder.Environment.EnvironmentName);
+
 // El worker recorre empresas de varios clientes: sin base de datos arrancaria
 // vaciando una cola ajena, y sin esquema fiscal validaria XML que Hacienda
 // rechaza. Ambos se validan al arrancar y paran el proceso con el nombre de
