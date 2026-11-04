@@ -22,11 +22,15 @@ public static class ObservabilityExtensions
                 builder.AddOtlpExporter(options =>
                 {
                     var endpoint = configuration["FacturacionMetrics:OtlpEndpoint"];
-                    if (string.IsNullOrWhiteSpace(endpoint) ||
-                        !Uri.TryCreate(endpoint, UriKind.Absolute, out var uri) ||
-                        uri.Scheme is not ("http" or "https"))
-                        throw new InvalidOperationException("FacturacionMetrics:OtlpEndpoint debe ser una URL HTTP(S) absoluta.");
-                    options.Endpoint = uri;
+                    // Sin endpoint explícito se usa OTEL_EXPORTER_OTLP_ENDPOINT,
+                    // proporcionado automáticamente por Aspire a sus proyectos.
+                    if (!string.IsNullOrWhiteSpace(endpoint))
+                    {
+                        if (!Uri.TryCreate(endpoint, UriKind.Absolute, out var uri) ||
+                            uri.Scheme is not ("http" or "https"))
+                            throw new InvalidOperationException("FacturacionMetrics:OtlpEndpoint debe ser una URL HTTP(S) absoluta.");
+                        options.Endpoint = uri;
+                    }
                 });
         });
         services.AddSerilog((serviceProvider, logger) =>
