@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using Facturacion.Api.Responses;
 using Facturacion.Application.Provisioning;
 using Facturacion.Infrastructure.Identity;
 using Facturacion.Infrastructure.Persistence;
@@ -37,9 +38,9 @@ public sealed class TenantAdministrationController : ControllerBase
     public async Task<IActionResult> CreateCompany([FromBody] CreateCompanyRequest request, CancellationToken ct)
     {
         var tenantId = await GetAdminTenantAsync(ct);
-        if (tenantId is null) return Forbid();
+        if (tenantId is null) return this.ApiFailure<object>(403, "FORBIDDEN", "No tienes permisos para administrar este tenant.");
         var result = await _provisioning.CreateCompanyAsync(tenantId.Value, request, ct);
-        return Ok(result);
+        return this.ApiOk(result, "Empresa creada correctamente.");
     }
 
 /// <summary>
@@ -51,15 +52,14 @@ public sealed class TenantAdministrationController : ControllerBase
     [HttpPost("users")]
     [Obsolete("Sustituir por POST /api/invitations. Se conserva solo para no romper clientes existentes.")]
     public IActionResult CreateUser() =>
-        StatusCode(StatusCodes.Status410Gone,
-            new { message = "Este endpoint ha sido retirado. Usa POST /api/invitations." });
+        this.ApiFailure<object>(410, "ENDPOINT_RETIRED", "Este endpoint ha sido retirado. Usa POST /api/invitations.");
 
     [HttpPut("companies/{companyId:guid}/users")]
     public async Task<IActionResult> AssignCompanyUser(Guid companyId, [FromBody] AssignCompanyUserRequest request, CancellationToken ct)
     {
         var tenantId = await GetAdminTenantAsync(ct);
-        if (tenantId is null) return Forbid();
+        if (tenantId is null) return this.ApiFailure<object>(403, "FORBIDDEN", "No tienes permisos para administrar este tenant.");
         await _provisioning.AssignCompanyUserAsync(tenantId.Value, companyId, request, ct);
-        return NoContent();
+        return this.ApiOk<object?>(null, "Usuario asignado correctamente.");
     }
 }
