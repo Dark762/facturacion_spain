@@ -40,11 +40,7 @@ public sealed class SaasRegistrationService : ISaasRegistrationService
         _logger = logger;
     }
 
-    public Task<RegistrationResponse> RegisterAsync(RegisterSaasRequest r, CancellationToken ct) =>
-        OperationTelemetry.MeasureAsync(_logger, "SaasRegistration", Guid.Empty,
-            () => RegisterAsyncCoreAsync(r, ct), ct);
-
-    private async Task<RegistrationResponse> RegisterAsyncCoreAsync(RegisterSaasRequest r, CancellationToken ct)
+    public async Task<RegistrationResponse> RegisterAsync(RegisterSaasRequest r, CancellationToken ct)
     {
         // Paso 1: solo se exigen los datos de acceso. Los datos fiscales se
         // validan despues en CompleteCompanyAsync (paso 3).
@@ -247,7 +243,11 @@ public sealed class SaasRegistrationService : ISaasRegistrationService
         _logger.LogInformation("Datos fiscales del registro completados. RegistrationId {RegistrationId}", intent.Id);
     }
 
-    public async Task<CheckoutResponse> CheckoutAsync(Guid id, string checkoutToken, string planCode, CancellationToken ct)
+    public Task<CheckoutResponse> CheckoutAsync(Guid id, string checkoutToken, string planCode, CancellationToken ct) =>
+        OperationTelemetry.MeasureAsync(_logger, "SaasCheckout", id,
+            () => CheckoutCoreAsync(id, checkoutToken, planCode, ct), ct);
+
+    private async Task<CheckoutResponse> CheckoutCoreAsync(Guid id, string checkoutToken, string planCode, CancellationToken ct)
     {
         var intent = await _db.RegistrationIntents.SingleOrDefaultAsync(x => x.Id == id, ct)
             ?? throw new BusinessException("REGISTRATION_NOT_FOUND", "Registro inexistente.", 404);
