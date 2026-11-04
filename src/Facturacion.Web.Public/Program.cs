@@ -29,6 +29,8 @@ if (builder.Environment.IsDevelopment())
     builder.Configuration.AddCommandLine(args);
 }
 
+builder.Services.AddFacturacionLogging(builder.Configuration, "Facturacion.Web.Public", builder.Environment.EnvironmentName);
+
 // Sin esto no hay ninguna clave tipada: se valida al arrancar y avisa de
 // ConnectionStrings:Default si falta.
 builder.Services.AddFacturacionOptions(ConfigurationScope.Database);
