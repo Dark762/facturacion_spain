@@ -1,0 +1,97 @@
+@page "/platform"
+@using System.Net.Http.Headers
+@using System.Net.Http.Json
+@using System.Security.Claims
+@using System.Text.Json.Serialization
+@inject IHttpClientFactory Clients
+@inject IHttpContextAccessor HttpAccessor
+@inject Microsoft.AspNetCore.Antiforgery.IAntiforgery Antiforgery
+
+<PageTitle>Centro de Control | FacturaciónES</PageTitle>
+<h1>Centro de Control</h1>
+<p>Administración global de la plataforma. Acceso exclusivo del propietario.</p>
+
+@if (_forbidden)
+{
+    <p role="alert">No tienes permisos de administrador de plataforma.</p>
+}
+else if (_error)
+{
+    <p role="alert">No se han podido cargar los datos. Revisa la conexión con la API.</p>
+}
+else if (_summary is null)
+{
+    <p>Cargando información…</p>
+}
+else
+{
+    <section aria-label="Resumen">
+        <h2>Resumen global</h2>
+        <p>Tenants: @_summary.TotalTenants · Activos: @_summary.ActiveTenants · Empresas activas: @_summary.ActiveCompanies</p>
+    </section>
+    <section aria-label="Tenants">
+        <h2>Tenants</h2>
+        <table>
+            <thead><tr><th>Nombre</th><th>Estado</th><th>Empresas</th><th>Plan</th><th>Suscripción</th><th>Alta</th></tr></thead>
+            <tbody>
+                @foreach (var tenant in _tenants)
+                {
+                    <tr>
+                        <td>@tenant.Name</td>
+                        <td>@(tenant.IsActive ? "Activo" : "Inactivo")</td>
+                        <td>@tenant.ActiveCompanies</td>
+                        <td>@(tenant.PlanCode ?? "—")</td>
+                        <td>@(tenant.SubscriptionStatus ?? "—")</td>
+                        <td>@(tenant.RegisteredAt?.ToString("dd/MM/yyyy") ?? "—")</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+        <p>Página @_page</p>
+        @if (_page > 1)
+        {
+            <a href="@($"/platform?page={_page - 1}")">Anterior</a>
+        }
+        @if (_tenants.Length == 25)
+        {
+            <a href="@($"/platform?page={_page + 1}")">Siguiente</a>
+        }
+    </section>
+}
+@code {
+    [SupplyParameterFromQuery(Name = "page")] public int? Page { get; set; }
+    private int _page = 1;
+    private bool _forbidden;
+    private bool _error;
+    private PlatformSummary? _summary;
+    private TenantOverview[] _tenants = [];
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _page = Math.Clamp(Page ?? 1, 1, 100000);
+        var token = HttpAccessor.HttpContext?.User.FindFirstValue("api_token");
+        if (string.IsNullOrEmpty(token)) { _forbidden = true; return; }
+        try
+        {
+            using var client = Clients.CreateClient("FacturacionAuthApi");
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            using var summaryResponse = await client.GetAsync("api/platform/summary");
+            using var tenantsResponse = await client.GetAsync($"api/platform/tenants?page={_page}&pageSize=25");
+            if (summaryResponse.StatusCode is System.Net.HttpStatusCode.Forbidden or System.Net.HttpStatusCode.Unauthorized ||
+                tenantsResponse.StatusCode is System.Net.HttpStatusCode.Forbidden or System.Net.HttpStatusCode.Unauthorized)
+            { _forbidden = true; return; }
+            if (!summaryResponse.IsSuccessStatusCode || !tenantsResponse.IsSuccessStatusCode)
+            { _error = true; return; }
+            _summary = (await summaryResponse.Content.ReadFromJsonAsync<Envelope<PlatformSummary>>())?.Data;
+            _tenants = (await tenantsResponse.Content.ReadFromJsonAsync<Envelope<TenantOverview[]>>())?.Data ?? [];
+            if (_summary is null) _error = true;
+        }
+        catch (HttpRequestException) { _error = true; }
+        catch (System.Text.Json.JsonException) { _error = true; }
+    }
+
+    private sealed record Envelope<T>(T? Data);
+    private sealed record PlatformSummary(int TotalTenants, int ActiveTenants, int ActiveCompanies);
+    private sealed record TenantOverview(Guid TenantId, string Name, bool IsActive, int ActiveCompanies,
+        string? PlanCode, string? SubscriptionStatus, DateTimeOffset? RegisteredAt);
+}
