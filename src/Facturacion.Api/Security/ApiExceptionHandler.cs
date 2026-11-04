@@ -1,51 +1,35 @@
 using System.Net;
+using Facturacion.Application.Common.Results;
 using Microsoft.AspNetCore.Diagnostics;
-using Microsoft.AspNetCore.Mvc;
 
 namespace Facturacion.Api.Security;
 
-/// <summary>
-/// Traduce las excepciones de la aplicacion a codigos HTTP correctos. Sin esto
-/// un error de validacion de dominio sale como 500 y el cliente no puede
-/// distinguir "entrada invalida" de "fallo del servidor".
-/// </summary>
+/// <summary>Devuelve el contrato estándar sin revelar detalles internos de errores 500.</summary>
 public sealed class ApiExceptionHandler : IExceptionHandler
 {
-    private readonly IProblemDetailsService _problems;
+    private readonly ILogger<ApiExceptionHandler> _logger;
 
-    public ApiExceptionHandler(IProblemDetailsService problems) => _problems = problems;
+    public ApiExceptionHandler(ILogger<ApiExceptionHandler> logger) => _logger = logger;
 
     public async ValueTask<bool> TryHandleAsync(
         HttpContext context, Exception exception, CancellationToken ct)
     {
-        var (status, title) = exception switch
+        var (status, code, message) = exception switch
         {
-            UnauthorizedAccessException => ((int)HttpStatusCode.Forbidden, "Acceso denegado"),
-            KeyNotFoundException => ((int)HttpStatusCode.NotFound, "Recurso no encontrado"),
-            ArgumentException => ((int)HttpStatusCode.BadRequest, "Solicitud invalida"),
-            InvalidOperationException => ((int)HttpStatusCode.Conflict, "Operacion no permitida"),
-            _ => ((int)HttpStatusCode.InternalServerError, "Error interno")
+            UnauthorizedAccessException => (403, "FORBIDDEN", "No tienes permisos para esta operación."),
+            KeyNotFoundException => (404, "NOT_FOUND", "Recurso no encontrado."),
+            ArgumentException => (400, "INVALID_REQUEST", "La solicitud no es válida."),
+            InvalidOperationException => (409, "BUSINESS_CONFLICT", "La operación no se puede completar en el estado actual."),
+            _ => (500, "INTERNAL_ERROR", "Se ha producido un error inesperado. Inténtalo de nuevo.")
         };
 
-        // El detalle solo se expone fuera de produccion: en produccion un 500
-        // no debe revelar estructura interna.
-        var detail = context.RequestServices
-            .GetRequiredService<IHostEnvironment>().IsDevelopment()
-            ? exception.Message
-            : null;
+        _logger.LogError(exception, "Error HTTP {StatusCode}, código {ErrorCode}, trace {TraceId}",
+            status, code, context.TraceIdentifier);
 
         context.Response.StatusCode = status;
-        return await _problems.TryWriteAsync(new ProblemDetailsContext
-        {
-            HttpContext = context,
-            Exception = exception,
-            ProblemDetails = new ProblemDetails
-            {
-                Status = status,
-                Title = title,
-                Detail = detail,
-                Instance = context.Request.Path
-            }
-        });
+        await context.Response.WriteAsJsonAsync(
+            ApiResponse<object>.Fail(code, message, traceId: context.TraceIdentifier),
+            cancellationToken: ct);
+        return true;
     }
 }
