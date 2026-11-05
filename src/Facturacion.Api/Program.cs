@@ -19,6 +19,13 @@ const string FrontendCorsPolicy = "Frontend";
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Configuration.AddFacturacionConfiguration(builder.Environment, FacturacionHost.Api);
+// El perfil de Visual Studio usa Local; los User Secrets también deben aplicarse ahí.
+if (builder.Environment.IsEnvironment("Local"))
+{
+    builder.Configuration.AddUserSecrets<Program>(optional: true);
+    builder.Configuration.AddEnvironmentVariables();
+    builder.Configuration.AddCommandLine(args);
+}
 
 builder.Services.AddFacturacionObservability(builder.Configuration, "Facturacion.Api", builder.Environment.EnvironmentName);
 
