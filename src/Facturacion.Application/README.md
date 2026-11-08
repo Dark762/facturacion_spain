@@ -1,30 +1,16 @@
-# Facturacion.Application (.NET 8)
+# Facturacion.Application
 
-Capa de aplicación para el modelo híbrido multi-tenant desarrollado anteriormente.
+## Responsabilidad
+Casos de uso, DTO, interfaces de repositorio y servicios, resultados `Result` / `ApiResponse<T>`, reglas de orquestación de facturación, registro SaaS y aprovisionamiento.
 
-## Incluye
-- Result, Result<T>, Error, ErrorType y ApiResponse<T>.
-- Contratos de usuario, tenant y autorización por empresa.
-- Contratos para repositorio de facturas, VERI*FACTU y B2B.
-- DTO de empresas, clientes, facturas y resultados de integraciones.
-- Caso de uso funcional para crear y consultar **borradores** de facturas.
+## Configuración
+No hospeda aplicación ni carga archivos appsettings. Recibe dependencias y opciones desde los hosts mediante inyección de dependencias. Los secretos se configuran en el host que ejecuta el caso de uso.
 
-## Instalación
-1. Copia esta carpeta al mismo nivel que `Facturacion.Domain`.
-2. Asegúrate de que `Facturacion.Domain/Facturacion.Domain.csproj` existe.
-3. `dotnet sln add Facturacion.Application/Facturacion.Application.csproj`
-4. `dotnet build Facturacion.Application/Facturacion.Application.csproj`
+## Integración
+`Facturacion.Api` registra casos de uso con `AddBillingApplication()`; Infrastructure implementa persistencia y servicios externos. Los errores de negocio pueden utilizar `BusinessException` con código estable y estado HTTP gestionado por la API.
 
-## Integración obligatoria
-- Implementar `IInvoiceRepository` en Infrastructure usando `BillingDbContext`.
-- Implementar y registrar `ITenantContext` seguro y `ICompanyAuthorizationService` (NO usar implementaciones que concedan todos los permisos).
-- Registrar `IInvoiceApplicationService` con `InvoiceApplicationService` en la API.
-- Configurar JWT, autenticación, autorización, middleware y traducción HTTP de Result en Facturacion.Api.
-- El `ApiResponse<T>` es un contrato de transporte: la extensión `ToActionResult` pertenece a Api, no a Application.
+## Seguridad y límites
+Propagar el tenant y empresa validados, no aceptar un TenantId arbitrario para acceder a datos. `ApiResponse<T>` es contrato de respuesta, no sustituto de autorización. Consultar los contratos antes de cambiar endpoints.
 
-## Limitaciones intencionales
-- No implementa emisión fiscal, rectificación, cálculo fiscal completo ni integración real AEAT/B2B.
-- `CreateDraftAsync` admite solo EUR e IVA 0, 4, 10 y 21 por simplificación. IVA 0 no equivale por sí solo a exención o no sujeción.
-- Las validaciones fiscales y de direcciones se completarán antes de emitir.
-- La seguridad multi-tenant requiere autenticación real, autorización por empresa, filtros y restricciones de persistencia.
-- No se ha podido ejecutar `dotnet build` en este entorno porque el SDK .NET no está instalado.
+## Pruebas
+Validar casos de uso, fallos de negocio, pertenencia a tenant y compatibilidad de DTO. Compilar con `dotnet build Facturacion.slnx` desde la raíz.
