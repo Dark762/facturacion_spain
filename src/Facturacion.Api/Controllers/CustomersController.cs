@@ -76,8 +76,6 @@ public sealed class CustomersController : ControllerBase
         if (!IsValid(request)) return this.ApiFailure<object>(400, "CUSTOMER_INVALID", "Datos de cliente no válidos.");
         if (await HasDuplicateTaxIdAsync(companyId, request.TaxId.Trim(), null, ct))
             return this.ApiFailure<object>(409, "CUSTOMER_TAX_ID_DUPLICATE", "Ya existe un cliente con esta identificación fiscal en la empresa.");
-        if (await _db.Customers.AnyAsync(x => x.TenantId == _tenant.TenantId && x.CompanyId == companyId && x.TaxId == request.TaxId.Trim(), ct))
-            return this.ApiFailure<object>(409, "CUSTOMER_TAXID_EXISTS", "Ya existe un cliente con esa identificación fiscal.");
         var entity = new Customer { TenantId = _tenant.TenantId, CompanyId = companyId };
         Apply(entity, request);
         _db.Customers.Add(entity);
@@ -95,8 +93,6 @@ public sealed class CustomersController : ControllerBase
         if (entity is null) return this.ApiFailure<object>(404, "CUSTOMER_NOT_FOUND", "Cliente no encontrado.");
         if (await HasDuplicateTaxIdAsync(companyId, request.TaxId.Trim(), customerId, ct))
             return this.ApiFailure<object>(409, "CUSTOMER_TAX_ID_DUPLICATE", "Ya existe otro cliente con esta identificación fiscal en la empresa.");
-        if (await _db.Customers.AnyAsync(x => x.TenantId == _tenant.TenantId && x.CompanyId == companyId && x.Id != customerId && x.TaxId == request.TaxId.Trim(), ct))
-            return this.ApiFailure<object>(409, "CUSTOMER_TAXID_EXISTS", "Ya existe un cliente con esa identificación fiscal.");
         Apply(entity, request);
         await _db.SaveChangesAsync(ct);
         return this.ApiOk(ToResponse(entity), "Cliente actualizado correctamente.");
