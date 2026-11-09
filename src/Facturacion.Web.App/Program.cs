@@ -304,19 +304,26 @@ app.MapPost("/account/change-password", async (HttpContext http,
     return Results.Redirect("/login");
 }).RequireAuthorization();
 
-app.MapPost("/logout", async (HttpContext http, IAntiforgery antiforgery) =>
+app.MapPost("/logout", async (HttpContext http, IAntiforgery antiforgery,
+    ILogger<Program> logger) =>
 {
-    try {
+    try
+    {
         await antiforgery.ValidateRequestAsync(http);
     }
-    catch (AntiforgeryValidationException) {
-        return Results.BadRequest();
+    catch (AntiforgeryValidationException ex)
+    {
+        logger.LogWarning(ex, "Solicitud de cierre de sesión rechazada por antiforgery. TraceId: {TraceId}",
+            http.TraceIdentifier);
+        return Results.Redirect("/account?status=logout-invalid");
     }
 
     await http.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
     await http.SignOutAsync("TenantSelection");
+    logger.LogInformation("Sesión web cerrada correctamente. TraceId: {TraceId}", http.TraceIdentifier);
 
-    return Results.Redirect("/login");
+    // 303 fuerza una navegación GET a login después del POST, sin conservar el formulario.
+    return Results.Redirect("/login", permanent: false, preserveMethod: false);
 }).RequireAuthorization();
 
 
