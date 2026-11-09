@@ -44,6 +44,10 @@ public sealed class CustomersController : ControllerBase
             var term = search.Trim();
             query = query.Where(x => x.LegalName.Contains(term) || x.TaxId.Contains(term));
         }
+        var total = await query.CountAsync(ct);
+        Response.Headers["X-Total-Count"] = total.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        Response.Headers["X-Page"] = page.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        Response.Headers["X-Page-Size"] = pageSize.ToString(System.Globalization.CultureInfo.InvariantCulture);
         var customers = await query
             .OrderBy(x => x.LegalName).ThenBy(x => x.Id)
             .Skip((int)Math.Min((long)(page - 1) * pageSize, int.MaxValue)).Take(pageSize)
