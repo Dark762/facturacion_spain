@@ -15,7 +15,7 @@
   <div class="account-card">
     <h2>Cambiar contraseña</h2>
     <p class="account-muted">Introduce tu contraseña actual y elige una nueva.</p>
-    <form method="post" action="/account/change-password">
+    <form method="post" action="/account/change-password" data-enhance="false">
       <AntiforgeryToken />
       <label for="currentPassword">Contraseña actual</label>
       <input id="currentPassword" name="currentPassword" type="password" autocomplete="current-password" required />
