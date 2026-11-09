@@ -20,5 +20,6 @@
   </Folder>
   <Folder Name="/test/">
     <Project Path="test/Facturacion.Integration.Test/Facturacion.Integration.Test.csproj" />
+    <Project Path="test/Facturacion.UnitTests/Facturacion.UnitTests.csproj" />
   </Folder>
 </Solution>
