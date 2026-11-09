@@ -1,4 +1,5 @@
 using Facturacion.Application.Billing;
+using Facturacion.Application.Common.Results;
 using Facturacion.Infrastructure.Billing;
 using Facturacion.Integration.Test.Infrastructure;
 using Microsoft.EntityFrameworkCore;
@@ -71,7 +72,7 @@ public sealed class SaasRegistrationTests : IClassFixture<RegistrationFixture>
         using var scope = _fixture.CreateScope();
         var service = scope.ServiceProvider.GetRequiredService<SaasRegistrationService>();
 
-        await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
+        await Assert.ThrowsAsync<BusinessException>(() =>
             service.VerifyEmailAsync(id, "token-invalido", CancellationToken.None));
     }
 
@@ -93,7 +94,7 @@ public sealed class SaasRegistrationTests : IClassFixture<RegistrationFixture>
         using var scope = _fixture.CreateScope();
         var service = scope.ServiceProvider.GetRequiredService<SaasRegistrationService>();
 
-        await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
+        await Assert.ThrowsAsync<BusinessException>(() =>
             service.VerifyEmailAsync(id, "cualquier-token-cualquiera", CancellationToken.None));
 
         var intent = _fixture.GetDb<SelfServiceDbContext>(scope)
@@ -112,7 +113,7 @@ public sealed class SaasRegistrationTests : IClassFixture<RegistrationFixture>
         var service = scope.ServiceProvider.GetRequiredService<SaasRegistrationService>();
         await service.VerifyEmailAsync(id, code, CancellationToken.None);
 
-        await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
+        await Assert.ThrowsAsync<BusinessException>(() =>
             service.VerifyEmailAsync(id, code, CancellationToken.None));
     }
 
@@ -125,11 +126,11 @@ public sealed class SaasRegistrationTests : IClassFixture<RegistrationFixture>
         using var scope = _fixture.CreateScope();
         var service = scope.ServiceProvider.GetRequiredService<SaasRegistrationService>();
 
-        var error = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+        var error = await Assert.ThrowsAsync<BusinessException>(() =>
             service.RegisterAsync(Request(email), CancellationToken.None));
 
         Assert.DoesNotContain("Password", error.Message, StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain("contraseña", error.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("contrase", error.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -138,7 +139,7 @@ public sealed class SaasRegistrationTests : IClassFixture<RegistrationFixture>
         using var scope = _fixture.CreateScope();
         var service = scope.ServiceProvider.GetRequiredService<SaasRegistrationService>();
 
-        await Assert.ThrowsAsync<KeyNotFoundException>(() =>
+        await Assert.ThrowsAsync<BusinessException>(() =>
             service.VerifyEmailAsync(Guid.NewGuid(), "cualquier-token", CancellationToken.None));
     }
 

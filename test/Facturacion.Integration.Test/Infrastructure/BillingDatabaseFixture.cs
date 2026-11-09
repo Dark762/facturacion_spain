@@ -6,6 +6,7 @@ using Facturacion.Infrastructure.Identity;
 using Facturacion.Infrastructure.Persistence;
 using Facturacion.Verifactu;
 using Facturacion.Infrastructure.Persistence.Repositories;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -32,6 +33,7 @@ public sealed class BillingDatabaseFixture : IDisposable
         services.AddLogging();
         services.AddSingleton<ITenantContext>(new StubTenantContext());
         services.AddScoped<ICurrentUserService, StubCurrentUserService>();
+        services.AddSingleton<IHttpContextAccessor>(new HttpContextAccessor());
 
         // Sustituto controlable para los casos de uso, y el servicio real
         // registrado como tipo concreto para probar la matriz de permisos.

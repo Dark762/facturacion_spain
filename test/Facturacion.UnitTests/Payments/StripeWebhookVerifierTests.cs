@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 using Facturacion.Payments.Stripe;
+using Xunit;
 
 namespace Facturacion.UnitTests;
 

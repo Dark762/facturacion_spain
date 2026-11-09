@@ -1,10 +1,13 @@
 using Facturacion.Application.Billing;
+using Facturacion.Application.Provisioning;
+using Facturacion.Configuration.Options;
 using Facturacion.Infrastructure.Billing;
 using Facturacion.Infrastructure.Identity;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 
 namespace Facturacion.Integration.Test.Infrastructure;
 
@@ -27,6 +30,8 @@ public sealed class RegistrationFixture : IDisposable
         services.AddAuthentication();
         services.AddSingleton<IRegistrationEmailSender, CapturingEmailSender>();
         services.AddSingleton<IPaymentGateway, StubPaymentGateway>();
+        services.AddSingleton<IProvisioningService, StubProvisioningService>();
+        services.AddSingleton(Options.Create(new StripeOptions()));
 
         services.AddIdentityCore<ApplicationUser>(options =>
         {
@@ -95,5 +100,30 @@ public sealed class RegistrationFixture : IDisposable
             string successUrl, string cancelUrl, CancellationToken ct) =>
             throw new NotSupportedException(
                 "Las pruebas no deben invocar la pasarela de pago real.");
+    }
+
+    /// <summary>
+    /// Los flujos de registro verificados aquí no alcanzan el aprovisionamiento.
+    /// Si una prueba futura lo necesita, que lo haga explícito con un stub propio.
+    /// </summary>
+    public sealed class StubProvisioningService : IProvisioningService
+    {
+        private static NotSupportedException NotReached() => new(
+            "El aprovisionamiento no forma parte de estas pruebas de registro.");
+
+        public Task<ProvisioningResult> ProvisionAsync(ProvisioningRequest request, CancellationToken ct = default) =>
+            Task.FromException<ProvisioningResult>(NotReached());
+
+        public Task<BootstrapTenantResponse> BootstrapAsync(BootstrapTenantRequest request, CancellationToken ct) =>
+            Task.FromException<BootstrapTenantResponse>(NotReached());
+
+        public Task<CompanyResponse> CreateCompanyAsync(Guid tenantId, CreateCompanyRequest request, CancellationToken ct) =>
+            Task.FromException<CompanyResponse>(NotReached());
+
+        public Task<string> AddTenantUserAsync(Guid tenantId, CreateTenantUserRequest request, CancellationToken ct) =>
+            Task.FromException<string>(NotReached());
+
+        public Task AssignCompanyUserAsync(Guid tenantId, Guid companyId, AssignCompanyUserRequest request, CancellationToken ct) =>
+            Task.FromException(NotReached());
     }
 }

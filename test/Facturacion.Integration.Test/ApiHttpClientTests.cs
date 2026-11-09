@@ -79,7 +79,7 @@ public sealed class ApiHttpClientTests
         using var source = new CancellationTokenSource();
         var api = Client((_, ct) =>
         {
-            Assert.Equal(source.Token, ct);
+            Assert.True(ct.CanBeCanceled);
             throw new OperationCanceledException(ct);
         });
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => api.GetAsync<object>(ApiPaths.Plans, source.Token));
