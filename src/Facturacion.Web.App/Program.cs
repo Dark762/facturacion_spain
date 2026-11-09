@@ -215,15 +215,6 @@ app.MapPost("/logout", async (HttpContext http, IAntiforgery antiforgery) =>
     return Results.Redirect("/login");
 }).RequireAuthorization();
 
-app.MapRazorComponents<App>().AddInteractiveServerRenderMode().RequireAuthorization();
-app.Run();
-internal sealed record LoginEnvelope(LoginPayload? Data);
-internal sealed record LoginPayload(string AccessToken, DateTime ExpiresUtc);
-
-internal sealed record StartLoginEnvelope(StartLoginPayload? Data);
-internal sealed record StartLoginPayload(string SelectionToken, DateTime ExpiresUtc,
-    TenantOptionDto[] Tenants, bool CanAccessPlatform);
-internal sealed record TenantOptionDto(Guid TenantId, string Name);
 
 static IResult LoginFailed(HttpContext http)
 {
@@ -238,3 +229,13 @@ static IResult LoginFailed(HttpContext http)
     });
     return Results.Redirect("/login");
 }
+
+app.MapRazorComponents<App>().AddInteractiveServerRenderMode().RequireAuthorization();
+app.Run();
+internal sealed record LoginEnvelope(LoginPayload? Data);
+internal sealed record LoginPayload(string AccessToken, DateTime ExpiresUtc);
+
+internal sealed record StartLoginEnvelope(StartLoginPayload? Data);
+internal sealed record StartLoginPayload(string SelectionToken, DateTime ExpiresUtc,
+    TenantOptionDto[] Tenants, bool CanAccessPlatform);
+internal sealed record TenantOptionDto(Guid TenantId, string Name);
