@@ -84,6 +84,24 @@ internal sealed class ConfigureJwtBearer(IOptions<JwtOptions> jwt)
         };
         options.Events = new JwtBearerEvents
         {
+            OnAuthenticationFailed = context =>
+            {
+                var logger = context.HttpContext.RequestServices
+                    .GetRequiredService<ILoggerFactory>()
+                    .CreateLogger("Facturacion.Api.Authentication");
+                logger.LogWarning("JWT rechazado en {Path}. Motivo: {ExceptionType}; TraceId: {TraceId}",
+                    context.Request.Path, context.Exception.GetType().Name, context.HttpContext.TraceIdentifier);
+                return Task.CompletedTask;
+            },
+            OnChallenge = context =>
+            {
+                var logger = context.HttpContext.RequestServices
+                    .GetRequiredService<ILoggerFactory>()
+                    .CreateLogger("Facturacion.Api.Authentication");
+                logger.LogWarning("Desafío JWT en {Path}. Error: {Error}; TraceId: {TraceId}",
+                    context.Request.Path, context.Error ?? "sin detalle", context.HttpContext.TraceIdentifier);
+                return Task.CompletedTask;
+            },
             OnTokenValidated = async context =>
             {
                 var userManager = context.HttpContext.RequestServices
@@ -93,7 +111,14 @@ internal sealed class ConfigureJwtBearer(IOptions<JwtOptions> jwt)
                 var stamp = context.Principal?.FindFirst("security_stamp")?.Value;
                 var user = id is null ? null : await userManager.FindByIdAsync(id);
                 if (user is null || !user.IsActive || user.SecurityStamp != stamp)
+                {
+                    var logger = context.HttpContext.RequestServices
+                        .GetRequiredService<ILoggerFactory>()
+                        .CreateLogger("Facturacion.Api.Authentication");
+                    logger.LogWarning("JWT con identidad o security stamp no válido en {Path}; usuario encontrado: {UserFound}; TraceId: {TraceId}",
+                        context.Request.Path, user is not null, context.HttpContext.TraceIdentifier);
                     context.Fail("Usuario deshabilitado o sesión revocada.");
+                }
             }
         };
     }
