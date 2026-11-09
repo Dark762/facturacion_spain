@@ -99,6 +99,14 @@ La rama `develop` **ya incluye** `CustomersController` con GET listado/detalle, 
 
 **Pendiente para cerrar FC-01:** verificar pruebas de API y UI existentes, añadir cobertura de autorización/aislamiento de lectura y escritura, duplicados y concurrencia; revisar paginación y búsqueda del listado; validar reglas de identificación fiscal y correo según alcance acordado; comprobar que el borrado respeta todas las referencias y que la experiencia de UI cubre los casos comerciales. No afirmar que FC-01 está completo hasta ejecutar y pasar las pruebas.
 
+## Avance FC-01 en `develop` (2026-11-09)
+
+- El documento ya existía en `develop` al comenzar esta revisión; se ha preservado su versión más reciente.
+- El CRUD básico de clientes ya estaba implementado en `CustomersController` y existe una pantalla web inicial.
+- Se añadió detección de identificación fiscal duplicada por empresa en creación y actualización, con respuesta HTTP 409. La protección frente a concurrencia simultánea requiere aún una restricción única en base de datos y tratamiento de errores específico.
+- **Pendiente:** búsqueda y paginación, pruebas de integración de API (permisos y aislamiento), validación formal de identificadores/correo, revisión de borrado y comprobación de build/test.
+- **Sin validar:** no se han ejecutado `dotnet build` ni `dotnet test` desde el conector GitHub.
+
 ## Próximo cambio de código
 
 **FC-01**: inspeccionar `Customer`, `ICustomerRepository`, `CustomerRepository`, autorizaciones, DTO y esquema SQL; implementar primero la API y los casos de uso de clientes con pruebas multi-tenant. No comenzar catálogo/presupuestos antes de estabilizar este contrato.
