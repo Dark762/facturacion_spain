@@ -1,4 +1,3 @@
-using OpenTelemetry;
 using OpenTelemetry.Metrics;
 using Microsoft.Extensions.Configuration;
 using Microsoft.AspNetCore.Http;
@@ -6,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Serilog;
 using Serilog.Events;
 using Serilog.Formatting.Json;
+using OpenTelemetry;
 
 namespace Facturacion.Observability;
 

@@ -22,4 +22,8 @@
     <Content Include="../Facturacion.Configuration/Shared/appsettings.*.json" Link="Shared/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <Content Include="../Facturacion.Configuration/Hosts/Web.Public/appsettings.*.json" Link="Hosts/Web.Public/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.20.1" />
+  </ItemGroup>
 </Project>

@@ -49,6 +49,7 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddHttpClient("FacturacionAuthApi", client =>
 {
     var url = builder.Configuration["Facturacion:ApiBaseUrl"];
+
     if (string.IsNullOrWhiteSpace(url)) throw new InvalidOperationException("Facturacion:ApiBaseUrl es obligatorio para iniciar sesión.");
     client.BaseAddress = new Uri(url, UriKind.Absolute);
 });
@@ -56,6 +57,7 @@ builder.Services.AddRazorComponents().AddInteractiveServerComponents();
 
 // Configurable por host: en móvil/escritorio se utiliza el mismo registro con su URL.
 var apiBaseUrl = builder.Configuration["Facturacion:ApiBaseUrl"];
+
 if (!string.IsNullOrWhiteSpace(apiBaseUrl))
     builder.Services.AddFacturacionApiClient(new Uri(apiBaseUrl, UriKind.Absolute));
 
@@ -94,19 +96,34 @@ app.MapGet("/login", async (HttpContext http, IAntiforgery antiforgery,
 app.MapPost("/login", async (HttpContext http, IAntiforgery antiforgery,
     IHttpClientFactory clients, CancellationToken ct) =>
 {
-    try { await antiforgery.ValidateRequestAsync(http); }
-    catch (AntiforgeryValidationException) { return Results.BadRequest(); }
+    try
+    {
+        await antiforgery.ValidateRequestAsync(http);
+    }
+    catch (AntiforgeryValidationException)
+    {
+        return Results.BadRequest();
+    }
+
     var form = await http.Request.ReadFormAsync(ct);
     var email = form["email"].ToString();
     var password = form["password"].ToString();
+
     if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(password))
         return Results.Redirect("/login?error=1");
+
     using var client = clients.CreateClient("FacturacionAuthApi");
+
     using var response = await client.PostAsJsonAsync("api/auth/login/start",
         new { email, password }, ct);
-    if (!response.IsSuccessStatusCode) return Results.Redirect("/login?error=1");
+
+    if (!response.IsSuccessStatusCode)
+        return Results.Redirect("/login?error=1");
+
     var envelope = await response.Content.ReadFromJsonAsync<StartLoginEnvelope>(cancellationToken: ct);
+
     var data = envelope?.Data;
+
     if (data is null || string.IsNullOrWhiteSpace(data.SelectionToken) ||
         data.ExpiresUtc <= DateTime.UtcNow || (data.Tenants.Length == 0 && !data.CanAccessPlatform))
         return Results.Redirect("/login?error=1");
