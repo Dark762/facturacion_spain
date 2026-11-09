@@ -38,9 +38,7 @@
   [Parameter] public string DisplayName { get; set; } = "";
   [Parameter] public string? Message { get; set; }
   [Parameter] public bool IsError { get; set; }
-  [Parameter] public bool ConfirmLogout { get; set; }
   private bool _logoutOpen;
-  protected override void OnParametersSet() { if (ConfirmLogout) _logoutOpen = true; }
   private void OpenLogout() => _logoutOpen = true;
   private void CloseLogout() => _logoutOpen = false;
 }
