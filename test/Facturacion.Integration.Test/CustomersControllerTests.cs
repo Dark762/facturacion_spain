@@ -38,6 +38,9 @@ public sealed class CustomersControllerTests : IClassFixture<BillingDatabaseFixt
         var controller = Controller(scope);
         var first = Assert.IsType<OkObjectResult>(await controller.List(seeded.CompanyId, CancellationToken.None, "Busqueda", 1, 2));
         var second = Assert.IsType<OkObjectResult>(await controller.List(seeded.CompanyId, CancellationToken.None, "Busqueda", 2, 2));
+        Assert.Equal("3", controller.Response.Headers["X-Total-Count"].ToString());
+        Assert.Equal("2", controller.Response.Headers["X-Page"].ToString());
+        Assert.Equal("2", controller.Response.Headers["X-Page-Size"].ToString());
         var a = Extract(first);
         var b = Extract(second);
         Assert.Equal(new[] { "Busqueda Alfa", "Busqueda Beta" }, a.Select(x => x.LegalName));
