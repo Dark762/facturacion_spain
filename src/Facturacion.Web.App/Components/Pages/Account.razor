@@ -26,12 +26,10 @@ else
 {
     <AccountView Email="@_profile.Email"
                  DisplayName="@(_profile.DisplayName ?? _profile.Email)"
-                 ConfirmLogout="@(ConfirmLogout == 1)"
                  Message="@_message" IsError="@_isError" />
 }
 
 @code {
-    [SupplyParameterFromQuery(Name = "confirmLogout")] public int? ConfirmLogout { get; set; }
     [SupplyParameterFromQuery(Name = "status")] public string? Status { get; set; }
     private bool _loading = true;
     private bool _unauthorized;
