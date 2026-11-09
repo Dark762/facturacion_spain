@@ -36,3 +36,11 @@ El cambio de tenant **durante** una sesión ya iniciada y los adaptadores de aut
 - `POST /logout`: cierre de sesión mediante POST con antiforgery; el menú ofrece enlaces visibles a **Mi perfil y seguridad** y **Cerrar sesión** (sección de cierre en la página de cuenta).
 - No se muestran ni se guardan contraseñas en la sesión; el JWT continúa protegido dentro de la cookie HttpOnly del host web.
 - El formulario y CSS son responsive y están centralizados en UI.Shared; los futuros clientes MAUI necesitarán adaptar la acción a su propio mecanismo de autenticación.
+
+### Cuenta interactiva sin JavaScript propio
+
+La ruta `/account` ahora es `Components/Pages/Account.razor` con `@rendermode InteractiveServer`. Obtiene el JWT desde el estado de autenticación del servidor y consulta el perfil mediante `FacturacionAuthApi`. El formulario de contraseña sigue enviándose al endpoint BFF `POST /account/change-password` con `AntiforgeryToken`.
+
+`Facturacion.UI.Shared/Components/LogoutConfirmation.razor` muestra la confirmación mediante estado y eventos Blazor (`@onclick`), integrado en `AccountView.razor`. El enlace del menú `/account?confirmLogout=1` abre la confirmación. El cierre definitivo sigue siendo `POST /logout`, protegido con antiforgery; cancelar no ejecuta ninguna petición. Se eliminó `account.js` y el renderizado manual con `HtmlRenderer` de `/account`.
+
+No se utiliza JavaScript propio. La referencia a `_framework/blazor.web.js` en `App.razor` es **el runtime oficial de Blazor**, necesario para los eventos interactivos en Web; los hosts MAUI/desktop utilizan su runtime Blazor Hybrid correspondiente. El componente compartido no depende de APIs del navegador.
