@@ -89,7 +89,7 @@ public sealed class CustomersController : ControllerBase
         {
             return this.ApiFailure<object>(409, "CUSTOMER_TAX_ID_DUPLICATE", "Ya existe un cliente con esta identificación fiscal en la empresa.");
         }
-        return this.ApiCreated(Url.Action(nameof(Get), new { companyId, customerId = entity.Id }) ?? $"/api/companies/{companyId}/customers/{entity.Id}", ToResponse(entity), "Cliente creado correctamente.", "CUSTOMER_CREATED");
+        return this.ApiCreated(Url?.Action(nameof(Get), new { companyId, customerId = entity.Id }) ?? $"/api/companies/{companyId}/customers/{entity.Id}", ToResponse(entity), "Cliente creado correctamente.", "CUSTOMER_CREATED");
     }
 
     [HttpPut("{customerId:guid}")]

@@ -55,7 +55,7 @@ public sealed class ProductsController : ControllerBase
         Apply(item, request);
         _db.Products.Add(item);
         await _db.SaveChangesAsync(ct);
-        return this.ApiCreated(Url.Action(nameof(Get), new { companyId, productId = item.Id }) ?? $"/api/companies/{companyId}/products/{item.Id}", ToResponse(item), "Producto creado correctamente.", "PRODUCT_CREATED");
+        return this.ApiCreated(Url?.Action(nameof(Get), new { companyId, productId = item.Id }) ?? $"/api/companies/{companyId}/products/{item.Id}", ToResponse(item), "Producto creado correctamente.", "PRODUCT_CREATED");
     }
 
     [HttpPut("{productId:guid}")]
