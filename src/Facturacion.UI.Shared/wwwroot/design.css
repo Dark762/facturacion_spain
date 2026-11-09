@@ -151,3 +151,22 @@
 .registration-plan-footer p{margin:0;line-height:1.6}
 .registration-plan-secure{font-size:.78rem}
 @media(max-width:620px){.registration-plan-card{padding:18px}.registration-plan-footer .button{width:100%;text-align:center}}
+
+/* Menú privado: iconografía coherente, estado inactivo y salida anclada abajo. */
+.shell .sidebar{display:flex;flex-direction:column;min-height:100vh;min-height:100dvh;padding:28px 18px}
+.shell .sidebar .sidebar-links{display:flex;flex-direction:column;gap:5px;margin-top:44px}
+.sidebar-link{display:flex;align-items:center;gap:13px;min-height:44px;padding:11px 12px;border-radius:11px;font-size:.91rem;font-weight:600;color:#475569;transition:background .15s,color .15s}
+.sidebar-link svg{width:19px;height:19px;flex-shrink:0}
+.sidebar-link:hover{background:#f0efff;color:#5145e7}
+.sidebar-link:focus-visible{outline:3px solid #a8a1ff;outline-offset:2px}
+.sidebar-link-disabled{opacity:.52;cursor:default;font-weight:500}
+.sidebar-link-disabled:hover{background:transparent;color:#475569}
+.sidebar-link-disabled small{display:block;font-size:.67rem;font-weight:500;color:#8490a3;margin-top:2px}
+.sidebar-footer{margin-top:auto;padding-top:18px;border-top:1px solid #edf0f5}
+.sidebar-logout{color:#a83b46}
+.sidebar-logout:hover{color:#b42336;background:#fff0f2}
+.mobile-nav a{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;min-width:0;color:#53617a;font-size:.72rem}
+.mobile-nav a svg{width:20px;height:20px}
+.mobile-nav a:last-child{color:#a83b46}
+@media(max-width:760px){.shell .sidebar{display:none}.mobile-nav{align-items:center;min-height:68px;padding:8px 12px calc(8px + env(safe-area-inset-bottom))}}
+@media(prefers-reduced-motion:reduce){.sidebar-link{transition:none}}
