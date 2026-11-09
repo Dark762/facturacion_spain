@@ -92,3 +92,10 @@ Probar 401 sin token, 403 con tenant-admin ajeno, 200 solo con propietario confi
 4. `Platform=true` se autoriza únicamente cuando el ID autenticado coincide con `PlatformAdmin:UserId`. El SuperAdmin ya no necesita un tenant para entrar al centro de control mediante este flujo.
 
 El endpoint anterior `POST /api/auth/login` (con TenantId) se mantiene temporalmente por compatibilidad con clientes existentes; los nuevos clientes deben utilizar las dos fases. No registrar ni persistir `SelectionToken` en logs.
+
+## Perfil y contraseña del usuario
+
+- `GET /api/auth/me/profile`: devuelve el identificador, correo y nombre de usuario del titular del JWT autenticado.
+- `POST /api/auth/me/change-password`: recibe `CurrentPassword` y `NewPassword`, utiliza `UserManager.ChangePasswordAsync` y valida la contraseña anterior y la política Identity. Nunca se registra ni se devuelve una contraseña.
+- Al cambiar la contraseña, Identity renueva el `SecurityStamp`, invalidando los JWT anteriores durante su siguiente validación. El host web elimina además la cookie y exige iniciar sesión de nuevo.
+- Ambos endpoints requieren Bearer JWT y respetan el contexto de tenant o plataforma ya validado.
