@@ -142,6 +142,44 @@ public sealed class AuthController : ControllerBase
         return this.ApiOk(new TokenResponse(token.Token, token.ExpiresUtc), "Sesión iniciada correctamente.");
     }
 
+    public sealed record ChangePasswordRequest(string CurrentPassword, string NewPassword);
+    public sealed record ProfileResponse(string UserId, string Email, string? DisplayName, bool IsActive);
+
+    [Authorize]
+    [HttpGet("me/profile")]
+    public async Task<IActionResult> Profile()
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        var user = userId is null ? null : await _users.FindByIdAsync(userId);
+        if (user is null || !user.IsActive)
+            return this.ApiFailure<object>(401, "UNAUTHORIZED", "Sesión no válida.");
+        return this.ApiOk(new ProfileResponse(user.Id, user.Email ?? "", user.UserName, user.IsActive));
+    }
+
+    [Authorize]
+    [HttpPost("me/change-password")]
+    public async Task<IActionResult> ChangePassword(ChangePasswordRequest input)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        var user = userId is null ? null : await _users.FindByIdAsync(userId);
+        if (user is null || !user.IsActive)
+            return this.ApiFailure<object>(401, "UNAUTHORIZED", "Sesión no válida.");
+        if (string.IsNullOrWhiteSpace(input.CurrentPassword) ||
+            string.IsNullOrWhiteSpace(input.NewPassword))
+            return this.ApiFailure<object>(400, "PASSWORD_REQUIRED", "Introduce ambas contraseñas.");
+        var result = await _users.ChangePasswordAsync(user, input.CurrentPassword, input.NewPassword);
+        if (!result.Succeeded)
+        {
+            // No revelar información sensible ni devolver hashes.
+            var wrong = result.Errors.Any(e => e.Code == "PasswordMismatch");
+            return this.ApiFailure<object>(400, "PASSWORD_CHANGE_FAILED",
+                wrong ? "La contraseña actual no es correcta." :
+                "La nueva contraseña no cumple los requisitos de seguridad.");
+        }
+        // Identity actualiza el SecurityStamp: invalida los JWT anteriores.
+        return this.ApiOk(new { Changed = true }, "Contraseña actualizada. Vuelve a iniciar sesión.");
+    }
+
     [Authorize]
     [HttpGet("me/companies")]
     public async Task<IActionResult> Companies(
