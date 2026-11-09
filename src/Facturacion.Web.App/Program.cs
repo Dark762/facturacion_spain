@@ -156,6 +156,7 @@ app.MapGet("/select-tenant", async (HttpContext http, IAntiforgery antiforgery,
     {
         [nameof(TenantSelectorView.AntiforgeryToken)] = antiforgery.GetAndStoreTokens(http).RequestToken,
         [nameof(TenantSelectorView.ShowError)] = http.Request.Query.ContainsKey("error"),
+        [nameof(TenantSelectorView.ErrorCode)] = http.Request.Query["error"].ToString(),
         [nameof(TenantSelectorView.CanAccessPlatform)] = selection.Principal.FindFirstValue("platform_allowed") == "true",
         [nameof(TenantSelectorView.Tenants)] = tenants
             .Select(t => new TenantSelectorView.TenantOption(t.TenantId, t.Name)).ToArray()
@@ -199,7 +200,13 @@ app.MapPost("/select-tenant", async (HttpContext http, IAntiforgery antiforgery,
     using var response = await client.PostAsJsonAsync("api/auth/login/complete",
         new { tenantId, platform }, ct);
     if (!response.IsSuccessStatusCode)
-        return Results.Redirect("/select-tenant?error=1");
+    {
+        var logger = http.RequestServices.GetRequiredService<ILoggerFactory>()
+            .CreateLogger("Facturacion.Web.App.TenantSelection");
+        logger.LogWarning("Fallo al completar la selección de organización. HTTP {StatusCode}, Platform {Platform}, TraceId {TraceId}",
+            (int)response.StatusCode, platform, http.TraceIdentifier);
+        return Results.Redirect("/select-tenant?error=" + (int)response.StatusCode);
+    }
     var envelope = await response.Content.ReadFromJsonAsync<LoginEnvelope>(cancellationToken: ct);
     if (string.IsNullOrWhiteSpace(envelope?.Data?.AccessToken) ||
         envelope.Data.ExpiresUtc <= DateTime.UtcNow)
