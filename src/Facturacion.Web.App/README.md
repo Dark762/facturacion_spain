@@ -28,3 +28,11 @@ El formulario requiere escribir manualmente el GUID del tenant. No hay selector 
 La selección no requiere que el usuario escriba un GUID. Para evitar exponer credenciales, los tokens temporales no se pasan en URLs. Si el usuario deja caducar la selección debe iniciar sesión de nuevo.
 
 El cambio de tenant **durante** una sesión ya iniciada y los adaptadores de autenticación nativa MAUI quedan pendientes.
+
+## Mi cuenta, cambio de contraseña y cierre de sesión
+
+- `GET /account`: obtiene el perfil autenticado de la API y renderiza el componente `AccountView` de `Facturacion.UI.Shared`.
+- `POST /account/change-password`: formulario protegido con antiforgery; envía contraseña actual y nueva a `api/auth/me/change-password`. Si tiene éxito, cierra la cookie local y devuelve al login.
+- `POST /logout`: cierre de sesión mediante POST con antiforgery; el menú ofrece enlaces visibles a **Mi perfil y seguridad** y **Cerrar sesión** (sección de cierre en la página de cuenta).
+- No se muestran ni se guardan contraseñas en la sesión; el JWT continúa protegido dentro de la cookie HttpOnly del host web.
+- El formulario y CSS son responsive y están centralizados en UI.Shared; los futuros clientes MAUI necesitarán adaptar la acción a su propio mecanismo de autenticación.
