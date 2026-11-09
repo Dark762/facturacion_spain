@@ -11,3 +11,13 @@ No poner datos sensibles ni comprobaciones de permisos solo en componentes visua
 
 ## Cambios
 Comprobar que las modificaciones visuales funcionan tanto en Web.App como en Web.Public y que los componentes no presuponen un tenant fijo.
+
+## Login reutilizable (Web, Desktop y Mobile)
+
+`Components/LoginView.razor` es un componente **de presentación** con parámetros `AntiforgeryToken` y `ShowError`. Su CSS está en `wwwroot/login.css` y se publica como `_content/Facturacion.UI.Shared/login.css`.
+
+`Facturacion.Web.App` lo renderiza en GET `/login` con `HtmlRenderer`; el POST `/login` permanece en el servidor para validar antiforgery, llamar a `api/auth/login` y emitir la cookie segura. Así se evita que el componente compartido maneje contraseñas o secretos de autenticación.
+
+**Desktop/Mobile:** un futuro host Blazor Hybrid (.NET MAUI) puede reutilizar la presentación y el CSS. El formulario HTML actual utiliza POST a `/login`, apropiado para el host web; para Blazor Hybrid será necesario conectar el componente a un flujo de autenticación nativo (cliente API + almacenamiento seguro del token), en lugar de depender de cookies del servidor. No se ha implementado todavía ese host ni su adaptador.
+
+Al modificar la vista, mantener campos `email`, `password`, `tenantId` y el token antiforgery para conservar compatibilidad con el endpoint web.
