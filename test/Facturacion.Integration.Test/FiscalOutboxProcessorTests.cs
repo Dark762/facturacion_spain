@@ -1,3 +1,4 @@
+extern alias WorkersAssembly;
 using System.Text.Json;
 using Facturacion.Application.DTOs.Invoices;
 using Facturacion.Application.Interfaces;
@@ -6,7 +7,7 @@ using Facturacion.Domain.Entities;
 using Facturacion.Infrastructure.Persistence;
 using Facturacion.Integration.Test.Infrastructure;
 using Facturacion.Verifactu.Xml;
-using Facturacion.Workers;
+using FiscalOutboxProcessor = WorkersAssembly::Facturacion.Workers.FiscalOutboxProcessor;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
