@@ -2,6 +2,7 @@ using Facturacion.Api.Security;
 using System.Security.Claims;
 using Facturacion.Api.Responses;
 using Facturacion.Infrastructure.Identity;
+using Facturacion.Infrastructure.Billing;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -16,9 +17,10 @@ public sealed class AuthController : ControllerBase
     private readonly AuthDbContext _auth;
     private readonly JwtTokenService _tokens;
     private readonly IConfiguration _configuration;
+    private readonly BillingDbContext _billing;
     public AuthController(UserManager<ApplicationUser> users, SignInManager<ApplicationUser> signIn,
-        AuthDbContext auth, JwtTokenService tokens, IConfiguration configuration)
-    { _users=users; _signIn=signIn; _auth=auth; _tokens=tokens; _configuration=configuration; }   
+        AuthDbContext auth, JwtTokenService tokens, IConfiguration configuration, BillingDbContext billing)
+    { _users=users; _signIn=signIn; _auth=auth; _tokens=tokens; _configuration=configuration; _billing=billing; }   
 
     public sealed record LoginRequest(string Email, string Password, Guid TenantId);
     public sealed record TokenResponse(string AccessToken, DateTime ExpiresUtc);
@@ -44,7 +46,7 @@ public sealed class AuthController : ControllerBase
         var memberships = await _auth.TenantUsers.AsNoTracking()
             .Where(x => x.UserId == user.Id && x.IsActive)
             .Select(x => x.TenantId).ToListAsync(ct);
-        var tenants = await _auth.Set<Facturacion.Domain.Entities.Tenant>().AsNoTracking()
+        var tenants = await _billing.Tenants.AsNoTracking()
             .Where(x => memberships.Contains(x.Id) && x.IsActive)
             .OrderBy(x => x.Name)
             .Select(x => new TenantChoice(x.Id, x.Name)).ToArrayAsync(ct);
@@ -81,7 +83,7 @@ public sealed class AuthController : ControllerBase
         var tenantId = input.TenantId.Value;
         var valid = await _auth.TenantUsers.AsNoTracking()
             .AnyAsync(x => x.UserId == user.Id && x.TenantId == tenantId && x.IsActive, ct);
-        var tenantActive = await _auth.Set<Facturacion.Domain.Entities.Tenant>().AsNoTracking()
+        var tenantActive = await _billing.Tenants.AsNoTracking()
             .AnyAsync(x => x.Id == tenantId && x.IsActive, ct);
         if (!valid || !tenantActive)
             return this.ApiFailure<object>(403, "FORBIDDEN", "Organización no autorizada.");
