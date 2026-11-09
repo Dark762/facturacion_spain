@@ -170,3 +170,21 @@
 .mobile-nav a:last-child{color:#a83b46}
 @media(max-width:760px){.shell .sidebar{display:none}.mobile-nav{align-items:center;min-height:68px;padding:8px 12px calc(8px + env(safe-area-inset-bottom))}}
 @media(prefers-reduced-motion:reduce){.sidebar-link{transition:none}}
+
+/* Navegación privada v2: jerarquía clara y logout fijo al pie. */
+.shell{grid-template-columns:280px minmax(0,1fr)}
+.shell>.sidebar{display:flex;flex-direction:column;min-height:100dvh;padding:26px 18px 20px}
+.shell>.sidebar>.sidebar-links{display:flex;flex-direction:column;align-items:stretch;gap:5px;margin-top:40px}
+.shell>.sidebar .sidebar-link{display:flex;align-items:center;gap:12px;width:100%;min-height:46px;padding:10px 13px;border:0;border-radius:11px;background:transparent;color:#34425c;font:inherit;font-size:.9rem;font-weight:600;text-align:left;text-decoration:none;cursor:pointer}
+.shell>.sidebar .sidebar-link>span{display:block;min-width:0}
+.shell>.sidebar .sidebar-link svg{width:20px;height:20px;flex:0 0 20px}
+.shell>.sidebar a.sidebar-link:hover,.shell>.sidebar button.sidebar-link:hover{background:#f0efff;color:#5145e7}
+.shell>.sidebar .sidebar-link-disabled{opacity:.65;cursor:default}
+.shell>.sidebar .sidebar-link-disabled:hover{background:transparent;color:#34425c}
+.shell>.sidebar .sidebar-link-disabled small{display:block;margin-top:2px;font-size:.7rem;line-height:1.3;color:#8490a3}
+.shell>.sidebar>.sidebar-footer{margin-top:auto;padding-top:16px;border-top:1px solid #e9edf5}
+.shell>.sidebar .sidebar-logout{color:#ae3345}
+.shell>.sidebar .sidebar-logout:hover{background:#fff0f2!important;color:#a21d35!important}
+.mobile-nav>button.mobile-logout{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;min-width:0;border:0;background:transparent;color:#ae3345;font:inherit;font-size:.72rem;cursor:pointer}
+.mobile-nav>button.mobile-logout svg{width:20px;height:20px}
+@media(max-width:760px){.shell>.sidebar{display:none}.mobile-nav{display:flex;justify-content:space-around}}
