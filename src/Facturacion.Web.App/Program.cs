@@ -180,7 +180,9 @@ app.MapGet("/select-tenant", async (HttpContext http, IAntiforgery antiforgery,
         "<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">" +
         "<title>Seleccionar organización | FacturaciónES</title>" +
         "<link rel=\"stylesheet\" href=\"/_content/Facturacion.UI.Shared/login.css\">" +
-        "</head><body>" + body + "</body></html>";
+        "</head><body>" + body +
+        "<script src=\"/_content/Facturacion.UI.Shared/account.js\" defer></script>" +
+        "</body></html>";
     return Results.Content(html, "text/html; charset=utf-8");
 }).AllowAnonymous();
 
