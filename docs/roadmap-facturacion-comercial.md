@@ -1,0 +1,109 @@
+# Plan de implementación — Facturación comercial
+
+**Estado:** plan técnico inicial basado en la inspección del repositorio (2026-11-09). No implica que las funcionalidades pendientes estén implementadas.
+
+## Objetivo
+
+Convertir Facturación Spain en un SaaS comercial completo para autónomos y pymes de España. El valor comercial del producto debe mantenerse aunque cambien o desaparezcan obligaciones de VERI*FACTU. La emisión definitiva seguirá sometida a las políticas fiscales aplicables: **no desactivar el bloqueo actual para simular emisión legal**.
+
+## Inventario comprobado
+
+| Área | Evidencia en el repositorio | Estado |
+| --- | --- | --- |
+| Identidad y multi-tenant | AuthController, TenantResolutionMiddleware, BillingDbContext, CompanyAuthorizationService | Base implementada; requiere validación continua |
+| Empresas y usuarios | TenantAdministrationController, TenantInvitationsController | Flujos iniciales |
+| Clientes | Customer, CustomerRepository, ICustomerRepository | Modelo y persistencia; falta API/CRUD comercial |
+| Facturas | Invoice, InvoiceLine, InvoiceApplicationService, InvoicesController | Crear/consultar borradores; no hay CRUD completo |
+| Cálculos | InvoiceApplicationService | IVA 0/4/10/21 y redondeo por línea; no es motor tributario completo |
+| Emisión | InvoiceIssuanceService, FiscalSpecification | Flujo transaccional, bloqueado por XML/XSD |
+| Cobros | InvoicePayment y repositorio | Modelo, sin flujo comercial completo identificado |
+| Catálogo | Sin entidades Product/Service identificadas | Pendiente |
+| Presupuestos | Sin entidad Quote/Budget identificada | Pendiente |
+| Gastos | Sin entidad Expense identificada | Pendiente |
+| Informes | Sin servicios de reporting identificados | Pendiente |
+| B2B y AEAT | Contratos/Outbox; Worker solo registra heartbeat | Integración externa pendiente |
+
+## Orden de entregas
+
+### FC-01 — Clientes y contactos
+
+- CRUD y búsqueda paginada de clientes por empresa y tenant.
+- Validación de identificación fiscal, nombre, direcciones y datos de contacto según el alcance comercial definido.
+- Prohibición de acceso cruzado entre empresas y tenants.
+- Pruebas de permisos, duplicados, validación, paginación y aislamiento.
+
+**Aceptación:** una empresa autorizada administra sus clientes sin poder consultar ni modificar los de otra.
+
+### FC-02 — Catálogo comercial
+
+- Productos y servicios separados por tipo, con referencias, descripción, unidad, precio, IVA por defecto y estado activo/inactivo.
+- Precio y descripción copiados a cada línea de documento (snapshot): cambiar un producto no modifica facturas históricas.
+- Índices y restricciones por empresa/tenant; migraciones para los cuatro proveedores de base de datos existentes.
+- Pruebas de aislamiento, precios decimales, inactivación y referencias duplicadas.
+
+### FC-03 — Presupuestos
+
+- Borradores, líneas, impuestos, descuentos, caducidad, aceptación/rechazo y conversión a borrador de factura.
+- Numeración comercial de presupuestos independiente de la numeración fiscal.
+- Conversión idempotente, sin generar factura emitida.
+- Pruebas de estados y concurrencia.
+
+### FC-04 — Ciclo comercial de facturas
+
+- Listado, filtros, edición y eliminación controlada de **borradores**, duplicación y vista previa.
+- Motor de cálculo comercial reutilizable y probado (precisión, redondeo, impuestos, descuentos y escenarios admitidos).
+- Estados comerciales explícitos, diferenciados del estado fiscal y del estado de pago.
+- Documentos históricos inmutables tras emisión; rectificación mediante operación específica, no edición destructiva.
+- La emisión definitiva debe seguir fallando de forma segura si no existe cumplimiento fiscal operativo.
+
+### FC-05 — Cobros y vencimientos
+
+- Registro de cobros parciales/completos, medios de pago, vencimientos y conciliación manual inicial.
+- Saldo pendiente derivado de importes y cobros; sin equiparar «factura emitida» con «factura cobrada».
+- Pruebas de cobros duplicados, sobrepagos, concurrencia y aislamiento.
+
+### FC-06 — Gastos y proveedores
+
+- Proveedores, gastos, categorías, adjuntos referenciados de forma segura, impuestos y pagos.
+- Separar gastos comerciales de libros y declaraciones tributarias.
+- Control de acceso y auditoría de operaciones sensibles.
+
+### FC-07 — Informes y operativa SaaS
+
+- Panel por empresa con ventas, cobros pendientes, antigüedad de saldos, gastos y evolución temporal.
+- Filtros por periodo, moneda y estado; agregados siempre restringidos al tenant.
+- Exportación CSV y reportes básicos con control de permisos.
+- Pruebas de agregados, periodos y aislamiento.
+
+### FC-08 — Endurecimiento y cierre del núcleo comercial
+
+- Auditoría de autorizaciones, concurrencia, índices, migraciones, observabilidad y tratamiento de errores.
+- Pruebas de extremo a extremo y documentación de instalación y operación.
+- Comprobación de que el SaaS comercial funciona con el motor fiscal no disponible **sin permitir emisión fiscal ilegal**.
+- Criterios de aceptación y regresión completos antes de declarar «terminado».
+
+## Reglas arquitectónicas para todas las entregas
+
+1. Inspeccionar el código real antes de cambiar contratos, entidades o esquema.
+2. Mantener responsabilidades en Domain, Application, Infrastructure y Api; no introducir una arquitectura paralela.
+3. Tenant del contexto autenticado, permisos por empresa, filtros de lectura y validación de escritura.
+4. Cambios de esquema compatibles con MySQL, MariaDB, PostgreSQL y SQL Server; scripts/migraciones revisados.
+5. Operaciones financieras transaccionales, idempotentes cuando corresponda, y con pruebas de concurrencia.
+6. No alterar el comportamiento fail-closed de `InvoiceIssuanceService` ni falsificar aceptación de AEAT/B2B.
+7. Mantener separadas factura comercial, registro fiscal, documento B2B, estado de transmisión y estado de cobro.
+8. Entregas pequeñas mediante pull requests revisables; no fusionar automáticamente a `main`.
+
+## Próximo cambio de código
+
+**FC-01**: inspeccionar `Customer`, `ICustomerRepository`, `CustomerRepository`, autorizaciones, DTO y esquema SQL; implementar primero la API y los casos de uso de clientes con pruebas multi-tenant. No comenzar catálogo/presupuestos antes de estabilizar este contrato.
+
+## Validación
+
+Comandos previstos desde la raíz:
+
+```bash
+dotnet build Facturacion.slnx
+dotnet test test/Facturacion.Integration.Test/Facturacion.Integration.Test.csproj
+```
+
+Este documento no afirma que esos comandos se hayan ejecutado.
