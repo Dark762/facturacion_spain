@@ -15,7 +15,7 @@
     <h2>Cambiar contraseña</h2>
     <p class="account-muted">Introduce tu contraseña actual y elige una nueva.</p>
     <form method="post" action="/account/change-password">
-      <input type="hidden" name="__RequestVerificationToken" value="@AntiforgeryToken" />
+      <AntiforgeryToken />
       <label for="currentPassword">Contraseña actual</label>
       <input id="currentPassword" name="currentPassword" type="password" autocomplete="current-password" required />
       <label for="newPassword">Nueva contraseña</label>
@@ -28,27 +28,18 @@
   <div class="account-card" id="logout">
     <h2>Sesión</h2>
     <p class="account-muted">Cierra la sesión en este dispositivo cuando termines.</p>
-    <button type="button" class="account-secondary" data-open-logout> Cerrar sesión </button>
+    <button type="button" class="account-secondary" @onclick="OpenLogout">Cerrar sesión</button>
   </div>
-  <dialog id="logout-confirmation" class="account-dialog" aria-labelledby="logout-dialog-title" aria-describedby="logout-dialog-description">
-    <div class="account-dialog-icon" aria-hidden="true">↪</div>
-    <h2 id="logout-dialog-title">¿Quieres cerrar sesión?</h2>
-    <p id="logout-dialog-description">Saldrás de tu cuenta en este dispositivo. Podrás volver a entrar con tu correo y contraseña.</p>
-    <div class="account-dialog-actions">
-      <form method="dialog">
-        <button type="submit" class="account-secondary">Cancelar</button>
-      </form>
-      <form method="post" action="/logout">
-        <input type="hidden" name="__RequestVerificationToken" value="@AntiforgeryToken" />
-        <button type="submit" class="account-primary">Sí, cerrar sesión</button>
-      </form>
-    </div>
-  </dialog>
+  <LogoutConfirmation IsOpen="_logoutOpen" OnCancel="CloseLogout" />
 </section>
 @code {
   [Parameter] public string Email { get; set; } = "";
   [Parameter] public string DisplayName { get; set; } = "";
-  [Parameter] public string? AntiforgeryToken { get; set; }
   [Parameter] public string? Message { get; set; }
   [Parameter] public bool IsError { get; set; }
+  [Parameter] public bool ConfirmLogout { get; set; }
+  private bool _logoutOpen;
+  protected override void OnParametersSet() { if (ConfirmLogout) _logoutOpen = true; }
+  private void OpenLogout() => _logoutOpen = true;
+  private void CloseLogout() => _logoutOpen = false;
 }
