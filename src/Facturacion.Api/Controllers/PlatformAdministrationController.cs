@@ -66,7 +66,7 @@ public sealed class PlatformAdministrationController(
             registrations.TryGetValue(x.Id, out var registration);
             return new TenantOverview(x.Id, x.Name, x.IsActive,
                 counts.GetValueOrDefault(x.Id), subscription?.PlanCode,
-                subscription?.Status, registration?.CreatedAt);
+                subscription?.Status, registration is null ? (DateTimeOffset?)null : registration.CreatedAt);
         }).ToArray();
         return this.ApiOk(result);
     }
