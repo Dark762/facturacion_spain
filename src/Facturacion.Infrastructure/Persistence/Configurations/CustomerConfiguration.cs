@@ -9,7 +9,8 @@ public sealed class CustomerConfiguration : IEntityTypeConfiguration<Customer>
         e.HasKey(x => x.Id);
         e.HasAlternateKey(x => new { x.TenantId, x.Id });
         e.HasOne(x => x.Company).WithMany().HasForeignKey(x => new { x.TenantId, x.CompanyId }).HasPrincipalKey(x => new { x.TenantId, x.Id }).OnDelete(DeleteBehavior.Restrict);
-        e.HasIndex(x => new { x.TenantId, x.CompanyId, x.TaxId });
+        // La unicidad debe imponerse en BD para cubrir peticiones concurrentes.
+        e.HasIndex(x => new { x.TenantId, x.CompanyId, x.TaxId }).IsUnique();
             e.Property(x => x.Address).HasMaxLength(500);
             e.Property(x => x.City).HasMaxLength(120);
             e.Property(x => x.CountryCode).HasMaxLength(2);
