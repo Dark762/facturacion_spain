@@ -33,6 +33,16 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
         options.AccessDeniedPath = "/login";
         options.ExpireTimeSpan = TimeSpan.FromHours(8);
         options.SlidingExpiration = false;
+    })
+    .AddCookie("TenantSelection", options =>
+    {
+        options.Cookie.Name = "__Host-FacturacionSelection";
+        options.Cookie.HttpOnly = true;
+        options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+        options.Cookie.SameSite = SameSiteMode.Strict;
+        options.Cookie.Path = "/";
+        options.ExpireTimeSpan = TimeSpan.FromMinutes(5);
+        options.SlidingExpiration = false;
     });
 builder.Services.AddAuthorization();
 builder.Services.AddHttpContextAccessor();
@@ -89,31 +99,110 @@ app.MapPost("/login", async (HttpContext http, IAntiforgery antiforgery,
     var form = await http.Request.ReadFormAsync(ct);
     var email = form["email"].ToString();
     var password = form["password"].ToString();
-    if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(password) ||
-        !Guid.TryParse(form["tenantId"], out var tenantId))
+    if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(password))
         return Results.Redirect("/login?error=1");
     using var client = clients.CreateClient("FacturacionAuthApi");
-    using var response = await client.PostAsJsonAsync("api/auth/login",
-        new { email, password, tenantId }, ct);
+    using var response = await client.PostAsJsonAsync("api/auth/login/start",
+        new { email, password }, ct);
     if (!response.IsSuccessStatusCode) return Results.Redirect("/login?error=1");
+    var envelope = await response.Content.ReadFromJsonAsync<StartLoginEnvelope>(cancellationToken: ct);
+    var data = envelope?.Data;
+    if (data is null || string.IsNullOrWhiteSpace(data.SelectionToken) ||
+        data.ExpiresUtc <= DateTime.UtcNow || (data.Tenants.Length == 0 && !data.CanAccessPlatform))
+        return Results.Redirect("/login?error=1");
+
+    var selectionClaims = new List<Claim>
+    {
+        new("selection_token", data.SelectionToken),
+        new("tenants", JsonSerializer.Serialize(data.Tenants)),
+        new("platform_allowed", data.CanAccessPlatform ? "true" : "false")
+    };
+    await http.SignInAsync("TenantSelection",
+        new ClaimsPrincipal(new ClaimsIdentity(selectionClaims, "TenantSelection")),
+        new AuthenticationProperties
+        {
+            IsPersistent = false,
+            ExpiresUtc = new DateTimeOffset(data.ExpiresUtc, TimeSpan.Zero)
+        });
+    return Results.Redirect("/select-tenant");
+}).AllowAnonymous();
+
+app.MapGet("/select-tenant", async (HttpContext http, IAntiforgery antiforgery,
+    IServiceProvider services) =>
+{
+    var selection = await http.AuthenticateAsync("TenantSelection");
+    if (!selection.Succeeded || selection.Principal is null)
+        return Results.Redirect("/login");
+    var raw = selection.Principal.FindFirstValue("tenants");
+    TenantOptionDto[] tenants;
+    try { tenants = JsonSerializer.Deserialize<TenantOptionDto[]>(raw ?? "") ?? []; }
+    catch (JsonException) { return Results.Redirect("/login"); }
+    var parameters = ParameterView.FromDictionary(new Dictionary<string, object?>
+    {
+        [nameof(TenantSelectorView.AntiforgeryToken)] = antiforgery.GetAndStoreTokens(http).RequestToken,
+        [nameof(TenantSelectorView.ShowError)] = http.Request.Query.ContainsKey("error"),
+        [nameof(TenantSelectorView.CanAccessPlatform)] = selection.Principal.FindFirstValue("platform_allowed") == "true",
+        [nameof(TenantSelectorView.Tenants)] = tenants
+            .Select(t => new TenantSelectorView.TenantOption(t.TenantId, t.Name)).ToArray()
+    });
+    await using var renderer = new HtmlRenderer(services, services.GetRequiredService<ILoggerFactory>());
+    var body = await renderer.Dispatcher.InvokeAsync(async () =>
+    {
+        var component = await renderer.RenderComponentAsync<TenantSelectorView>(parameters);
+        return component.ToHtmlString();
+    });
+    var html = "<!doctype html><html lang=\"es\"><head><meta charset=\"utf-8\">" +
+        "<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">" +
+        "<title>Seleccionar organización | FacturaciónES</title>" +
+        "<link rel=\"stylesheet\" href=\"/_content/Facturacion.UI.Shared/login.css\">" +
+        "</head><body>" + body + "</body></html>";
+    return Results.Content(html, "text/html; charset=utf-8");
+}).AllowAnonymous();
+
+app.MapPost("/select-tenant", async (HttpContext http, IAntiforgery antiforgery,
+    IHttpClientFactory clients, CancellationToken ct) =>
+{
+    try { await antiforgery.ValidateRequestAsync(http); }
+    catch (AntiforgeryValidationException) { return Results.BadRequest(); }
+    var selection = await http.AuthenticateAsync("TenantSelection");
+    if (!selection.Succeeded || selection.Principal is null)
+        return Results.Redirect("/login");
+    var selectionToken = selection.Principal.FindFirstValue("selection_token");
+    if (string.IsNullOrWhiteSpace(selectionToken)) return Results.Redirect("/login");
+    var form = await http.Request.ReadFormAsync(ct);
+    var platform = form["platform"] == "true";
+    Guid? tenantId = null;
+    if (!platform)
+    {
+        if (!Guid.TryParse(form["tenantId"], out var parsed))
+            return Results.Redirect("/select-tenant?error=1");
+        tenantId = parsed;
+    }
+    using var client = clients.CreateClient("FacturacionAuthApi");
+    client.DefaultRequestHeaders.Authorization =
+        new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", selectionToken);
+    using var response = await client.PostAsJsonAsync("api/auth/login/complete",
+        new { tenantId, platform }, ct);
+    if (!response.IsSuccessStatusCode)
+        return Results.Redirect("/select-tenant?error=1");
     var envelope = await response.Content.ReadFromJsonAsync<LoginEnvelope>(cancellationToken: ct);
     if (string.IsNullOrWhiteSpace(envelope?.Data?.AccessToken) ||
         envelope.Data.ExpiresUtc <= DateTime.UtcNow)
-        return Results.Redirect("/login?error=1");
-    var claims = new[]
+        return Results.Redirect("/select-tenant?error=1");
+    var claims = new List<Claim>
     {
-        new Claim(ClaimTypes.NameIdentifier, email),
-        new Claim("api_token", envelope.Data.AccessToken),
-        new Claim("tenant_id", tenantId.ToString("D"))
+        new("api_token", envelope.Data.AccessToken)
     };
+    if (tenantId.HasValue) claims.Add(new Claim("tenant_id", tenantId.Value.ToString("D")));
     var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
     await http.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme,
-        new ClaimsPrincipal(identity), new Microsoft.AspNetCore.Authentication.AuthenticationProperties
+        new ClaimsPrincipal(identity), new AuthenticationProperties
         {
             IsPersistent = false,
             ExpiresUtc = new DateTimeOffset(envelope.Data.ExpiresUtc, TimeSpan.Zero)
         });
-    return Results.Redirect("/platform");
+    await http.SignOutAsync("TenantSelection");
+    return Results.Redirect(platform ? "/platform" : "/");
 }).AllowAnonymous();
 
 app.MapPost("/logout", async (HttpContext http, IAntiforgery antiforgery) =>
@@ -128,3 +217,8 @@ app.MapRazorComponents<App>().AddInteractiveServerRenderMode().RequireAuthorizat
 app.Run();
 internal sealed record LoginEnvelope(LoginPayload? Data);
 internal sealed record LoginPayload(string AccessToken, DateTime ExpiresUtc);
+
+internal sealed record StartLoginEnvelope(StartLoginPayload? Data);
+internal sealed record StartLoginPayload(string SelectionToken, DateTime ExpiresUtc,
+    TenantOptionDto[] Tenants, bool CanAccessPlatform);
+internal sealed record TenantOptionDto(Guid TenantId, string Name);
