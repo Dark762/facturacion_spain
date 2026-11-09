@@ -65,6 +65,17 @@ public sealed class CustomersApiClientTests
     }
 
     [Fact]
+    public async Task Search_rejects_overlong_text_without_http_request()
+    {
+        using var http = new HttpClient(new Handler(_ =>
+            throw new InvalidOperationException("No debería enviar peticiones")))
+        { BaseAddress = new Uri("https://api.example.test/") };
+        var api = new CustomersApiClient(new ApiClient(http));
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() =>
+            api.SearchAsync(Guid.NewGuid(), new string('X', 121)));
+    }
+
+    [Fact]
     public async Task Forbidden_company_returns_error_without_customer_data()
     {
         using var http = new HttpClient(new Handler(_ => new HttpResponseMessage(HttpStatusCode.Forbidden)))
