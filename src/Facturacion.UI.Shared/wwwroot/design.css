@@ -188,3 +188,27 @@
 .mobile-nav>button.mobile-logout{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;min-width:0;border:0;background:transparent;color:#ae3345;font:inherit;font-size:.72rem;cursor:pointer}
 .mobile-nav>button.mobile-logout svg{width:20px;height:20px}
 @media(max-width:760px){.shell>.sidebar{display:none}.mobile-nav{display:flex;justify-content:space-around}}
+
+/* Modal disponible desde cualquier ruta del espacio privado. */
+/* Modal de confirmación controlado por Blazor; sin JavaScript propio. */
+.account-modal-backdrop{position:fixed;inset:0;background:rgba(18,26,52,.58);z-index:1000}
+.account-dialog-open{position:fixed;inset:50% auto auto 50%;transform:translate(-50%,-50%);z-index:1001;margin:0;display:block}
+.account-dialog{width:min(92vw,440px);max-height:calc(100dvh - 40px);overflow:auto;padding:32px;border:1px solid #e3e8f2;border-radius:20px;background:#fff;color:#18243b;box-shadow:0 24px 80px rgba(16,24,48,.2)}
+.account-dialog-icon{width:48px;height:48px;display:grid;place-items:center;background:#eeedff;color:#5145e7;border-radius:14px;font-size:1.6rem;margin-bottom:18px}
+.account-dialog h2{font-size:1.45rem;line-height:1.25;letter-spacing:-.03em;margin:0 0 12px}
+.account-dialog p{color:#66738c;line-height:1.6;margin:0}
+.account-dialog-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:26px}
+.account-dialog-actions form{margin:0;flex:1}
+.account-dialog-actions button{width:100%;margin:0}
+.account-dialog button:focus-visible{outline:3px solid #9b93fa;outline-offset:3px}
+@media(max-width:480px){.account-dialog{padding:24px}.account-dialog-actions{flex-direction:column-reverse}.account-dialog-actions form{width:100%}}
+
+/* Acciones compactas y equilibradas: no heredan el tamaño de los formularios de perfil. */
+.account-dialog .account-dialog-actions{display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:stretch;margin-top:26px}
+.account-dialog .account-dialog-actions form{min-width:0;width:100%;display:block}
+.account-dialog .account-dialog-actions button{width:100%;min-width:0;height:46px;min-height:46px;max-height:46px;white-space:nowrap;line-height:1.2;padding:0 12px;margin:0;font-size:.91rem;font-weight:650;border-radius:10px}
+.account-dialog .account-dialog-cancel{background:#fff;border:1px solid #d9dfeb;color:#34415b}
+.account-dialog .account-dialog-confirm{background:#5145e7;border:1px solid #5145e7;color:#fff}
+.account-dialog .account-dialog-confirm:hover{background:#4036ce}
+.account-dialog .account-dialog-icon svg{width:23px;height:23px}
+@media(max-width:480px){.account-dialog .account-dialog-actions{grid-template-columns:1fr 1fr;gap:9px}.account-dialog .account-dialog-actions button{font-size:.85rem;padding-inline:8px}}
