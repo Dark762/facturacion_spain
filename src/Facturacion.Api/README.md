@@ -83,3 +83,12 @@ Inicia sesión en Web.App con email, contraseña y el GUID del tenant asociado. 
 
 ## Validación
 Probar 401 sin token, 403 con tenant-admin ajeno, 200 solo con propietario configurado y JWT válido. No se ha ejecutado build/test al escribir esta guía.
+
+## Acceso sin GUID de tenant (flujo de dos fases)
+
+1. `POST /api/auth/login/start` recibe `Email` y `Password`, verifica Identity y devuelve nombres/IDs de tenants activos del usuario, `CanAccessPlatform` y un `SelectionToken` firmado de **5 minutos**.
+2. `POST /api/auth/login/complete` recibe `TenantId` o `Platform=true`, con `Authorization: Bearer <SelectionToken>`. Revalida la pertenencia activa y devuelve el JWT definitivo.
+3. Un JWT con `purpose=tenant_selection` solo sirve para `/api/auth/login/complete`; un JWT con `purpose=platform` solo puede acceder a `/api/platform/*`. Los endpoints de negocio requieren el JWT normal con `tenant_id` y pertenencia validada.
+4. `Platform=true` se autoriza únicamente cuando el ID autenticado coincide con `PlatformAdmin:UserId`. El SuperAdmin ya no necesita un tenant para entrar al centro de control mediante este flujo.
+
+El endpoint anterior `POST /api/auth/login` (con TenantId) se mantiene temporalmente por compatibilidad con clientes existentes; los nuevos clientes deben utilizar las dos fases. No registrar ni persistir `SelectionToken` en logs.
