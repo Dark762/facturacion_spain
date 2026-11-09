@@ -68,13 +68,16 @@ app.MapGet("/login", async (HttpContext http, IAntiforgery antiforgery,
         [nameof(LoginView.AntiforgeryToken)] = token,
         [nameof(LoginView.ShowError)] = http.Request.Query.ContainsKey("error")
     });
-    var component = await renderer.Dispatcher.InvokeAsync(
-        () => renderer.RenderComponentAsync<LoginView>(parameters));
+    var componentHtml = await renderer.Dispatcher.InvokeAsync(async () =>
+    {
+        var component = await renderer.RenderComponentAsync<LoginView>(parameters);
+        return component.ToHtmlString();
+    });
     var html = "<!doctype html><html lang=\"es\"><head><meta charset=\"utf-8\">" +
         "<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">" +
         "<title>Iniciar sesión | FacturaciónES</title>" +
         "<link rel=\"stylesheet\" href=\"/_content/Facturacion.UI.Shared/login.css\">" +
-        "</head><body>" + component.ToHtmlString() + "</body></html>";
+        "</head><body>" + componentHtml + "</body></html>";
     return Results.Content(html, "text/html; charset=utf-8");
 }).AllowAnonymous();
 
