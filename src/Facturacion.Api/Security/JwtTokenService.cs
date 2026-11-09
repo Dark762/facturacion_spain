@@ -28,4 +28,42 @@ public sealed class JwtTokenService
             signingCredentials: new SigningCredentials(key, SecurityAlgorithms.HmacSha256));
         return (new JwtSecurityTokenHandler().WriteToken(jwt), expiry);
     }
+    // Token de preautenticación: válido únicamente para elegir tenant, nunca para la API de negocio.
+    public (string Token, DateTime ExpiresUtc) CreateSelection(ApplicationUser user)
+    {
+        var now = DateTime.UtcNow;
+        var expiry = now.AddMinutes(5);
+        var claims = new[] {
+            new Claim(ClaimTypes.NameIdentifier, user.Id),
+            new Claim(JwtRegisteredClaimNames.Sub, user.Id),
+            new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString("N")),
+            new Claim("purpose", "tenant_selection"),
+            new Claim("security_stamp", user.SecurityStamp ?? "")
+        };
+        return Sign(claims, now, expiry);
+    }
+
+    public (string Token, DateTime ExpiresUtc) CreatePlatform(ApplicationUser user)
+    {
+        var now = DateTime.UtcNow;
+        var expiry = now.AddMinutes(_options.ExpiryMinutes);
+        var claims = new[] {
+            new Claim(ClaimTypes.NameIdentifier, user.Id),
+            new Claim(JwtRegisteredClaimNames.Sub, user.Id),
+            new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString("N")),
+            new Claim("purpose", "platform"),
+            new Claim("security_stamp", user.SecurityStamp ?? "")
+        };
+        return Sign(claims, now, expiry);
+    }
+
+    private (string Token, DateTime ExpiresUtc) Sign(Claim[] claims, DateTime now, DateTime expiry)
+    {
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_options.SigningKey));
+        var jwt = new JwtSecurityToken(_options.Issuer, _options.Audience, claims,
+            notBefore: now, expires: expiry,
+            signingCredentials: new SigningCredentials(key, SecurityAlgorithms.HmacSha256));
+        return (new JwtSecurityTokenHandler().WriteToken(jwt), expiry);
+    }
+
 }
