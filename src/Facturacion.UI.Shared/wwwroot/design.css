@@ -212,3 +212,6 @@
 .account-dialog .account-dialog-confirm:hover{background:#4036ce}
 .account-dialog .account-dialog-icon svg{width:23px;height:23px}
 @media(max-width:480px){.account-dialog .account-dialog-actions{grid-template-columns:1fr 1fr;gap:9px}.account-dialog .account-dialog-actions button{font-size:.85rem;padding-inline:8px}}
+
+/* Formulario antiforgery prerenderizado, oculto hasta que Blazor abre el modal. */
+.account-dialog.account-dialog-hidden{display:none!important}
