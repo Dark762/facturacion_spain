@@ -2,7 +2,7 @@ using Facturacion.Api.Security;
 using System.Security.Claims;
 using Facturacion.Api.Responses;
 using Facturacion.Infrastructure.Identity;
-using Facturacion.Infrastructure.Billing;
+using Facturacion.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
