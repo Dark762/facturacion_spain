@@ -8,6 +8,7 @@ namespace Facturacion.Client;
 public sealed record ApiResult<T>(T? Value, HttpStatusCode StatusCode, ApiError? Error)
 {
     public bool IsSuccess => Error is null;
+    public int? TotalCount { get; init; }
 }
 
 public sealed record ApiError(string Message, string? Code = null, IReadOnlyDictionary<string, string[]>? ValidationErrors = null);
@@ -39,10 +40,14 @@ public sealed class ApiClient
         using var request = new HttpRequestMessage(method, path);
         if (body is not null) request.Content = JsonContent.Create(body, options: JsonOptions);
         using var response = await _http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
+        int? totalCount = response.Headers.TryGetValues("X-Total-Count", out var values) &&
+            int.TryParse(values.FirstOrDefault(), System.Globalization.NumberStyles.None,
+                System.Globalization.CultureInfo.InvariantCulture, out var parsedTotal) && parsedTotal >= 0
+                ? parsedTotal : null;
         if (response.IsSuccessStatusCode)
         {
             if (response.StatusCode == HttpStatusCode.NoContent)
-                return new ApiResult<T>(default, response.StatusCode, null);
+                return new ApiResult<T>(default, response.StatusCode, null) { TotalCount = totalCount };
             // Compatibilidad con endpoints antiguos (JSON directo) y nuevos (ApiResponse<T>).
             // No se exige migrar todos los controladores en el mismo despliegue.
             using var stream = await response.Content.ReadAsStreamAsync(ct);
@@ -64,9 +69,9 @@ public sealed class ApiClient
                     return new ApiResult<T>(default, response.StatusCode, new ApiError(responseMessage, responseCode));
                 }
                 return new ApiResult<T>(data.ValueKind == JsonValueKind.Null
-                    ? default : data.Deserialize<T>(JsonOptions), response.StatusCode, null);
+                    ? default : data.Deserialize<T>(JsonOptions), response.StatusCode, null) { TotalCount = totalCount };
             }
-            return new ApiResult<T>(root.Deserialize<T>(JsonOptions), response.StatusCode, null);
+            return new ApiResult<T>(root.Deserialize<T>(JsonOptions), response.StatusCode, null) { TotalCount = totalCount };
         }
 
         var message = $"La API devolvió el estado {(int)response.StatusCode}.";
