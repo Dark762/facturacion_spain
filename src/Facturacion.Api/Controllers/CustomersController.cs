@@ -84,7 +84,11 @@ public sealed class CustomersController : ControllerBase
         var entity = new Customer { TenantId = _tenant.TenantId, CompanyId = companyId };
         Apply(entity, request);
         _db.Customers.Add(entity);
-        await _db.SaveChangesAsync(ct);
+        try { await _db.SaveChangesAsync(ct); }
+        catch (DbUpdateException ex) when (IsCustomerTaxIdUniqueViolation(ex))
+        {
+            return this.ApiFailure<object>(409, "CUSTOMER_TAX_ID_DUPLICATE", "Ya existe un cliente con esta identificación fiscal en la empresa.");
+        }
         return this.ApiCreated(Url.Action(nameof(Get), new { companyId, customerId = entity.Id }) ?? $"/api/companies/{companyId}/customers/{entity.Id}", ToResponse(entity), "Cliente creado correctamente.", "CUSTOMER_CREATED");
     }
 
@@ -99,7 +103,11 @@ public sealed class CustomersController : ControllerBase
         if (await HasDuplicateTaxIdAsync(companyId, request.TaxId.Trim().ToUpperInvariant(), customerId, ct))
             return this.ApiFailure<object>(409, "CUSTOMER_TAX_ID_DUPLICATE", "Ya existe otro cliente con esta identificación fiscal en la empresa.");
         Apply(entity, request);
-        await _db.SaveChangesAsync(ct);
+        try { await _db.SaveChangesAsync(ct); }
+        catch (DbUpdateException ex) when (IsCustomerTaxIdUniqueViolation(ex))
+        {
+            return this.ApiFailure<object>(409, "CUSTOMER_TAX_ID_DUPLICATE", "Ya existe otro cliente con esta identificación fiscal en la empresa.");
+        }
         return this.ApiOk(ToResponse(entity), "Cliente actualizado correctamente.");
     }
 
@@ -117,6 +125,34 @@ public sealed class CustomersController : ControllerBase
         await _db.SaveChangesAsync(ct);
         return this.ApiOk<object?>(null, "Cliente eliminado correctamente.");
     }
+
+    // Solo se transforma el error del índice fiscal del catálogo. El resto de errores
+    // de persistencia siguen propagándose para no ocultar fallos de integridad.
+    private static bool IsCustomerTaxIdUniqueViolation(DbUpdateException ex)
+    {
+        var inner = ex.InnerException;
+        if (inner is null) return false;
+        var type = inner.GetType().Name;
+        var message = inner.Message;
+        var index = "IX_Customers_TenantId_CompanyId_TaxId";
+        var isCustomerIndex = message.Contains(index, StringComparison.OrdinalIgnoreCase) ||
+            (message.Contains("Customers.TenantId", StringComparison.OrdinalIgnoreCase) &&
+             message.Contains("Customers.CompanyId", StringComparison.OrdinalIgnoreCase) &&
+             message.Contains("Customers.TaxId", StringComparison.OrdinalIgnoreCase));
+        if (!isCustomerIndex) return false;
+
+        return type switch
+        {
+            "SqliteException" => ReadCode(inner, "SqliteExtendedErrorCode") == "2067",
+            "MySqlException" => ReadCode(inner, "Number") == "1062",
+            "PostgresException" => ReadCode(inner, "SqlState") == "23505",
+            "SqlException" => ReadCode(inner, "Number") is "2601" or "2627",
+            _ => false
+        };
+    }
+
+    private static string? ReadCode(Exception ex, string property) =>
+        ex.GetType().GetProperty(property)?.GetValue(ex)?.ToString();
 
     private Task<bool> HasDuplicateTaxIdAsync(Guid companyId, string taxId, Guid? excludeId, CancellationToken ct) =>
         _db.Customers.AsNoTracking().AnyAsync(x => x.TenantId == _tenant.TenantId &&
