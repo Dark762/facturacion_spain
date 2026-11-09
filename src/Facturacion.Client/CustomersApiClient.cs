@@ -13,6 +13,7 @@ public sealed class CustomersApiClient
     {
         if (page < 1) throw new ArgumentOutOfRangeException(nameof(page));
         if (pageSize is < 1 or > 100) throw new ArgumentOutOfRangeException(nameof(pageSize));
+        if (search?.Length > 120) throw new ArgumentOutOfRangeException(nameof(search));
         var query = $"?page={page}&pageSize={pageSize}";
         if (!string.IsNullOrWhiteSpace(search)) query += $"&search={Uri.EscapeDataString(search.Trim())}";
         return _api.GetAsync<IReadOnlyList<CustomerDto>>(ApiPaths.Customers(companyId) + query, ct);
