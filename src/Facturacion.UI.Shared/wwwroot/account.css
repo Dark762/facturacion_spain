@@ -10,3 +10,9 @@
 .account-dialog-actions button{width:100%;margin:0}
 .account-dialog button:focus-visible{outline:3px solid #9b93fa;outline-offset:3px}
 @media(max-width:480px){.account-dialog{padding:24px}.account-dialog-actions{flex-direction:column-reverse}.account-dialog-actions form{width:100%}}
+
+/* Modal interactivo Blazor: sin JavaScript propio. */
+.account-modal-backdrop{position:fixed;inset:0;z-index:1090;background:rgba(18,26,52,.58)}
+.account-dialog-open{display:block;position:fixed;z-index:1100;left:50%;top:50%;transform:translate(-50%,-50%);margin:0;max-height:calc(100dvh - 40px);overflow:auto}
+.account-dialog-actions>button{flex:1;margin:0}
+@media(max-width:480px){.account-dialog-actions>button{width:100%}}
