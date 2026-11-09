@@ -60,7 +60,7 @@ public sealed class CustomersController : ControllerBase
     [HttpGet("{customerId:guid}")]
     public async Task<IActionResult> Get(Guid companyId, Guid customerId, CancellationToken ct)
     {
-        var access = await _authorization.AuthorizeAsync(companyId, "invoices.read", ct);
+        var access = await _authorization.AuthorizeAsync(companyId, "catalog.read", ct);
         if (access.IsFailure) return this.ApiFailure<object>(403, "FORBIDDEN", "No tienes permisos para esta operación.");
         var customer = await _db.Customers.AsNoTracking()
             .Where(x => x.TenantId == _tenant.TenantId && x.CompanyId == companyId && x.Id == customerId)
@@ -110,7 +110,7 @@ public sealed class CustomersController : ControllerBase
         var entity = await _db.Customers.FirstOrDefaultAsync(x => x.TenantId == _tenant.TenantId && x.CompanyId == companyId && x.Id == customerId, ct);
         if (entity is null) return this.ApiFailure<object>(404, "CUSTOMER_NOT_FOUND", "Cliente no encontrado.");
         // No se eliminan clientes que puedan estar referenciados por facturas.
-        if (await _db.Invoices.AnyAsync(x => x.CustomerId == customerId && x.CompanyId == companyId, ct))
+        if (await _db.Invoices.AnyAsync(x => x.TenantId == _tenant.TenantId && x.CustomerId == customerId && x.CompanyId == companyId, ct))
             return this.ApiFailure<object>(409, "CUSTOMER_HAS_INVOICES", "No se puede eliminar un cliente con facturas.");
         _db.Customers.Remove(entity);
         await _db.SaveChangesAsync(ct);
