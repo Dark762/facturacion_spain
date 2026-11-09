@@ -20,3 +20,11 @@ En producción usar `Facturacion__ApiBaseUrl` y HTTPS. Persistir/compartir clave
 
 ## Limitación actual
 El formulario requiere escribir manualmente el GUID del tenant. No hay selector de tenant. Consultar [centro de control](../../docs/observability/platform-admin.md).
+
+## Nuevo flujo de inicio de sesión
+
+`GET /login` renderiza `LoginView` (correo y contraseña). `POST /login` llama a `api/auth/login/start` y almacena el token de selección en una cookie temporal protegida, HttpOnly, Secure y SameSite Strict (máximo 5 minutos). `GET /select-tenant` renderiza `TenantSelectorView` de UI.Shared y muestra únicamente las organizaciones activas y, para el propietario, el Centro de Control. `POST /select-tenant` intercambia el token temporal por un JWT definitivo y crea la cookie de sesión. Los formularios POST validan antiforgery.
+
+La selección no requiere que el usuario escriba un GUID. Para evitar exponer credenciales, los tokens temporales no se pasan en URLs. Si el usuario deja caducar la selección debe iniciar sesión de nuevo.
+
+El cambio de tenant **durante** una sesión ya iniciada y los adaptadores de autenticación nativa MAUI quedan pendientes.
