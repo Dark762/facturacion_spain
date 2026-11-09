@@ -1,23 +1,23 @@
 <div class="shell">
     <aside class="sidebar">
         <Brand />
-        <nav aria-label="Navegación privada">
-            <a href="/">Inicio</a>
-            <a href="/account">Mi perfil y seguridad</a>
-            <a href="/account?confirmLogout=1">Cerrar sesión</a>
-            <span class="muted">Facturas · próximamente</span>
-            <span class="muted">Clientes · próximamente</span>
-            <span class="muted">Empresas · próximamente</span>
+        <nav class="sidebar-links" aria-label="Navegación privada">
+            <a class="sidebar-link" href="/"><NavigationIcon Name="home" /> <span>Inicio</span></a>
+            <span class="sidebar-link sidebar-link-disabled"><NavigationIcon Name="invoice" /> <span>Facturas <small>Próximamente</small></span></span>
+            <span class="sidebar-link sidebar-link-disabled"><NavigationIcon Name="users" /> <span>Clientes <small>Próximamente</small></span></span>
+            <span class="sidebar-link sidebar-link-disabled"><NavigationIcon Name="building" /> <span>Empresas <small>Próximamente</small></span></span>
+            <a class="sidebar-link" href="/account"><NavigationIcon Name="account" /> <span>Mi perfil y seguridad</span></a>
         </nav>
+        <div class="sidebar-footer">
+            <a class="sidebar-link sidebar-logout" href="/account?confirmLogout=1"><NavigationIcon Name="logout" /> <span>Cerrar sesión</span></a>
+        </div>
     </aside>
     <main class="workspace">@ChildContent</main>
 </div>
 <nav class="mobile-nav" aria-label="Navegación móvil">
-    <a href="/">Inicio</a>
-    <span class="muted">Facturas</span>
-    <span class="muted">Clientes</span>
-    <a href="/account">Mi cuenta</a>
-    <a href="/account?confirmLogout=1">Salir</a>
+    <a href="/"><NavigationIcon Name="home" /><span>Inicio</span></a>
+    <a href="/account"><NavigationIcon Name="account" /><span>Mi cuenta</span></a>
+    <a href="/account?confirmLogout=1"><NavigationIcon Name="logout" /><span>Salir</span></a>
 </nav>
 
 @code {
