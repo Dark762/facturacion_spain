@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk.Web"><PropertyGroup><TargetFramework>net8.0</TargetFramework><Nullable>enable</Nullable><ImplicitUsings>enable</ImplicitUsings></PropertyGroup><ItemGroup><ProjectReference Include="../Facturacion.UI.Shared/Facturacion.UI.Shared.csproj" /><ProjectReference Include="../Facturacion.Client/Facturacion.Client.csproj" /></ItemGroup>  <ItemGroup>
+<Project Sdk="Microsoft.NET.Sdk.Web"><PropertyGroup><TargetFramework>net10.0</TargetFramework><Nullable>enable</Nullable><ImplicitUsings>enable</ImplicitUsings></PropertyGroup><ItemGroup><ProjectReference Include="../Facturacion.UI.Shared/Facturacion.UI.Shared.csproj" /><ProjectReference Include="../Facturacion.Client/Facturacion.Client.csproj" /></ItemGroup>  <ItemGroup>
     <ProjectReference Include="../Facturacion.Configuration/Facturacion.Configuration.csproj" />
     <ProjectReference Include="../Facturacion.Observability/Facturacion.Observability.csproj" />
     <Content Include="../Facturacion.Configuration/Shared/appsettings.json" Link="Shared/appsettings.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
