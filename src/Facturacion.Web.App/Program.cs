@@ -272,6 +272,83 @@ app.MapPost("/select-tenant", async (HttpContext http, IAntiforgery antiforgery,
 
 }).AllowAnonymous();
 
+// La cuenta se representa con un componente compartido; el JWT permanece en la cookie HttpOnly.
+app.MapGet("/account", async (HttpContext http, IAntiforgery antiforgery,
+    IHttpClientFactory clients, IServiceProvider services, CancellationToken ct) =>
+{
+    var token = http.User.FindFirstValue("api_token");
+    if (string.IsNullOrWhiteSpace(token)) return Results.Redirect("/login");
+    using var client = clients.CreateClient("FacturacionAuthApi");
+    client.DefaultRequestHeaders.Authorization =
+        new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+    using var response = await client.GetAsync("api/auth/me/profile", ct);
+    if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+        return Results.Redirect("/login");
+    if (!response.IsSuccessStatusCode)
+        return Results.Problem("No se ha podido cargar el perfil.", statusCode: 502);
+    var profile = (await response.Content.ReadFromJsonAsync<ProfileEnvelope>(cancellationToken: ct))?.Data;
+    if (profile is null) return Results.Problem("Perfil no disponible.", statusCode: 502);
+
+    var status = http.Request.Query["status"].ToString();
+    var parameters = ParameterView.FromDictionary(new Dictionary<string, object?>
+    {
+        [nameof(AccountView.Email)] = profile.Email,
+        [nameof(AccountView.DisplayName)] = profile.DisplayName ?? profile.Email,
+        [nameof(AccountView.AntiforgeryToken)] = antiforgery.GetAndStoreTokens(http).RequestToken,
+        [nameof(AccountView.IsError)] = status != "" && status != "ok",
+        [nameof(AccountView.Message)] = status switch
+        {
+            "ok" => "Contraseña actualizada. Inicia sesión de nuevo.",
+            "mismatch" => "Las nuevas contraseñas no coinciden.",
+            "invalid" => "No se ha podido cambiar la contraseña. Revisa la contraseña actual y los requisitos de seguridad.",
+            "expired" => "La sesión ha caducado. Vuelve a iniciar sesión.",
+            _ => ""
+        }
+    });
+    await using var renderer = new HtmlRenderer(services, services.GetRequiredService<ILoggerFactory>());
+    var body = await renderer.Dispatcher.InvokeAsync(async () =>
+    {
+        var component = await renderer.RenderComponentAsync<AccountView>(parameters);
+        return component.ToHtmlString();
+    });
+    var html = "<!doctype html><html lang=\"es\"><head><meta charset=\"utf-8\">" +
+        "<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">" +
+        "<title>Mi cuenta | FacturaciónES</title>" +
+        "<link rel=\"stylesheet\" href=\"/_content/Facturacion.UI.Shared/account.css\">" +
+        "</head><body>" + body + "</body></html>";
+    return Results.Content(html, "text/html; charset=utf-8");
+}).RequireAuthorization();
+
+app.MapPost("/account/change-password", async (HttpContext http,
+    IAntiforgery antiforgery, IHttpClientFactory clients, CancellationToken ct) =>
+{
+    try { await antiforgery.ValidateRequestAsync(http); }
+    catch (AntiforgeryValidationException) { return Results.BadRequest(); }
+    var form = await http.Request.ReadFormAsync(ct);
+    var current = form["currentPassword"].ToString();
+    var next = form["newPassword"].ToString();
+    var confirm = form["confirmPassword"].ToString();
+    if (string.IsNullOrWhiteSpace(current) || string.IsNullOrWhiteSpace(next) || next != confirm)
+        return Results.Redirect("/account?status=mismatch");
+    var token = http.User.FindFirstValue("api_token");
+    if (string.IsNullOrWhiteSpace(token)) return Results.Redirect("/login");
+    using var client = clients.CreateClient("FacturacionAuthApi");
+    client.DefaultRequestHeaders.Authorization =
+        new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+    using var response = await client.PostAsJsonAsync("api/auth/me/change-password",
+        new { currentPassword = current, newPassword = next }, ct);
+    if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+    {
+        await http.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+        return Results.Redirect("/login");
+    }
+    if (!response.IsSuccessStatusCode)
+        return Results.Redirect("/account?status=invalid");
+    // Cambio de security stamp: cerrar cookie actual y exigir nueva autenticación.
+    await http.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+    return Results.Redirect("/login");
+}).RequireAuthorization();
+
 app.MapPost("/logout", async (HttpContext http, IAntiforgery antiforgery) =>
 {
     try {
@@ -311,3 +388,6 @@ internal sealed record StartLoginEnvelope(StartLoginPayload? Data);
 internal sealed record StartLoginPayload(string SelectionToken, DateTime ExpiresUtc,
     TenantOptionDto[] Tenants, bool CanAccessPlatform);
 internal sealed record TenantOptionDto(Guid TenantId, string Name);
+
+internal sealed record ProfileEnvelope(ProfilePayload? Data);
+internal sealed record ProfilePayload(string UserId, string Email, string? DisplayName, bool IsActive);
