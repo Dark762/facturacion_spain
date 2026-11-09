@@ -71,12 +71,14 @@ app.UseAntiforgery();
 app.MapGet("/login", async (HttpContext http, IAntiforgery antiforgery,
     IServiceProvider services) =>
 {
+    var showLoginError = http.Request.Cookies.ContainsKey("FacturacionLoginError");
+    if (showLoginError) http.Response.Cookies.Delete("FacturacionLoginError", new CookieOptions { Path = "/login" });
     var token = antiforgery.GetAndStoreTokens(http).RequestToken;
     await using var renderer = new HtmlRenderer(services, services.GetRequiredService<ILoggerFactory>());
     var parameters = ParameterView.FromDictionary(new Dictionary<string, object?>
     {
         [nameof(LoginView.AntiforgeryToken)] = token,
-        [nameof(LoginView.ShowError)] = http.Request.Query.ContainsKey("error")
+        [nameof(LoginView.ShowError)] = showLoginError
     });
     var componentHtml = await renderer.Dispatcher.InvokeAsync(async () =>
     {
@@ -100,16 +102,16 @@ app.MapPost("/login", async (HttpContext http, IAntiforgery antiforgery,
     var email = form["email"].ToString();
     var password = form["password"].ToString();
     if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(password))
-        return Results.Redirect("/login?error=1");
+        return LoginFailed(http);
     using var client = clients.CreateClient("FacturacionAuthApi");
     using var response = await client.PostAsJsonAsync("api/auth/login/start",
         new { email, password }, ct);
-    if (!response.IsSuccessStatusCode) return Results.Redirect("/login?error=1");
+    if (!response.IsSuccessStatusCode) return LoginFailed(http);
     var envelope = await response.Content.ReadFromJsonAsync<StartLoginEnvelope>(cancellationToken: ct);
     var data = envelope?.Data;
     if (data is null || string.IsNullOrWhiteSpace(data.SelectionToken) ||
         data.ExpiresUtc <= DateTime.UtcNow || (data.Tenants.Length == 0 && !data.CanAccessPlatform))
-        return Results.Redirect("/login?error=1");
+        return LoginFailed(http);
 
     var selectionClaims = new List<Claim>
     {
@@ -222,3 +224,17 @@ internal sealed record StartLoginEnvelope(StartLoginPayload? Data);
 internal sealed record StartLoginPayload(string SelectionToken, DateTime ExpiresUtc,
     TenantOptionDto[] Tenants, bool CanAccessPlatform);
 internal sealed record TenantOptionDto(Guid TenantId, string Name);
+
+static IResult LoginFailed(HttpContext http)
+{
+    // Aviso de un solo uso: no se conserva en la URL ni reaparece al refrescar.
+    http.Response.Cookies.Append("FacturacionLoginError", "1", new CookieOptions
+    {
+        HttpOnly = true,
+        Secure = true,
+        SameSite = SameSiteMode.Lax,
+        Path = "/login",
+        MaxAge = TimeSpan.FromMinutes(1)
+    });
+    return Results.Redirect("/login");
+}
