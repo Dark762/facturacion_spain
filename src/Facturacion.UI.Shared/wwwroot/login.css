@@ -29,3 +29,10 @@
         @media(max-width:900px){.page{grid-template-columns:1fr}.showcase{display:none}.login-area{min-height:100vh;min-height:100dvh}.mobile-brand{display:flex;align-items:center;gap:10px;margin-bottom:54px;font-weight:800;color:#252354;letter-spacing:-.03em}.mobile-brand .mark{background:#5145e7;color:#fff;width:36px;height:36px;font-size:1rem}}
         @media(max-width:480px){.login-area{padding:32px 22px}.login h2{font-size:2rem}.intro{margin-bottom:26px}.copyright{margin-top:32px}}
         @media(prefers-reduced-motion:reduce){*,*:before,*:after{transition:none!important;scroll-behavior:auto!important}}
+
+/* Selector de organizaciones: reutilizado por web, desktop y móvil. */
+.tenant-choice{margin:0 0 12px}
+.tenant-button{width:100%;display:flex;align-items:center;justify-content:space-between;gap:18px;text-align:left;padding:18px 20px;border:1px solid #d8deeb;border-radius:14px;background:#fff;color:#293650;cursor:pointer;font:inherit;font-weight:700;transition:border-color .2s,box-shadow .2s,transform .2s}
+.tenant-button:hover{border-color:#6656ed;box-shadow:0 7px 24px rgba(81,69,231,.1);transform:translateY(-1px)}
+.tenant-button:focus-visible{outline:3px solid #9b93fa;outline-offset:3px}
+.tenant-name{overflow-wrap:anywhere}
