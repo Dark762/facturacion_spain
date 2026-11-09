@@ -1,37 +1,28 @@
 {
   "$schema": "https://json.schemastore.org/launchsettings.json",
   "profiles": {
-    "Development": {
+    "https": {
       "commandName": "Project",
+      "dotnetRunMessages": true,
       "launchBrowser": true,
+      "applicationUrl": "https://localhost:17236;http://localhost:15200",
       "environmentVariables": {
-        "DOTNET_ENVIRONMENT": "Development",
         "ASPNETCORE_ENVIRONMENT": "Development",
-        "ASPIRE_DASHBOARD_OTLP_ENDPOINT_URL": "https://localhost:21001",
-        "ASPIRE_RESOURCE_SERVICE_ENDPOINT_URL": "https://localhost:22001",
-        "ASPNETCORE_URLS": "https://localhost:17000"
+        "DOTNET_ENVIRONMENT": "Development",
+        "ASPIRE_DASHBOARD_OTLP_ENDPOINT_URL": "https://localhost:21151",
+        "ASPIRE_RESOURCE_SERVICE_ENDPOINT_URL": "https://localhost:22154"
       }
     },
-    "Staging": {
+    "http": {
       "commandName": "Project",
+      "dotnetRunMessages": true,
       "launchBrowser": true,
+      "applicationUrl": "http://localhost:15200",
       "environmentVariables": {
-        "DOTNET_ENVIRONMENT": "Staging",
-        "ASPNETCORE_ENVIRONMENT": "Staging",
-        "ASPIRE_DASHBOARD_OTLP_ENDPOINT_URL": "https://localhost:21011",
-        "ASPIRE_RESOURCE_SERVICE_ENDPOINT_URL": "https://localhost:22011",
-        "ASPNETCORE_URLS": "https://localhost:17010"
-      }
-    },
-    "Production": {
-      "commandName": "Project",
-      "launchBrowser": true,
-      "environmentVariables": {
-        "DOTNET_ENVIRONMENT": "Production",
-        "ASPNETCORE_ENVIRONMENT": "Production",
-        "ASPIRE_DASHBOARD_OTLP_ENDPOINT_URL": "https://localhost:21021",
-        "ASPIRE_RESOURCE_SERVICE_ENDPOINT_URL": "https://localhost:22021",
-        "ASPNETCORE_URLS": "https://localhost:17020"
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "DOTNET_ENVIRONMENT": "Development",
+        "ASPIRE_DASHBOARD_OTLP_ENDPOINT_URL": "http://localhost:19121",
+        "ASPIRE_RESOURCE_SERVICE_ENDPOINT_URL": "http://localhost:20195"
       }
     }
   }
