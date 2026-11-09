@@ -314,6 +314,7 @@ app.MapPost("/logout", async (HttpContext http, IAntiforgery antiforgery) =>
     }
 
     await http.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+    await http.SignOutAsync("TenantSelection");
 
     return Results.Redirect("/login");
 }).RequireAuthorization();
