@@ -5,6 +5,7 @@ using Facturacion.Integration.Test.Infrastructure;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.EntityFrameworkCore;
 
 namespace Facturacion.Integration.Test;
 
@@ -145,6 +146,23 @@ public sealed class CustomersControllerTests : IClassFixture<BillingDatabaseFixt
         var request = Request("FR-ABC123", "valid@example.test") with { CountryCode = "FR" };
         var result = await Controller(scope).Create(seeded.CompanyId, request, CancellationToken.None);
         Assert.Equal(201, Assert.IsAssignableFrom<ObjectResult>(result).StatusCode);
+    }
+
+    [Fact]
+    public async Task Database_rejects_duplicate_tax_id_for_same_tenant_and_company()
+    {
+        var seeded = _fixture.Seed();
+        using var scope = _fixture.CreateScope(seeded.TenantId);
+        var db = _fixture.GetDb(scope);
+        var original = db.Customers.Single(x => x.Id == seeded.CustomerId);
+        db.Customers.Add(new Customer
+        {
+            TenantId = seeded.TenantId,
+            CompanyId = seeded.CompanyId,
+            TaxId = original.TaxId,
+            LegalName = "Duplicado concurrente"
+        });
+        await Assert.ThrowsAsync<DbUpdateException>(() => db.SaveChangesAsync());
     }
 
     private static CustomersController.SaveCustomerRequest Request(string taxId, string email) =>
