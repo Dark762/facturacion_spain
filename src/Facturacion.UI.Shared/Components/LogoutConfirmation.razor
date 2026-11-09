@@ -4,20 +4,21 @@
 @if (IsOpen)
 {
     <div class="account-modal-backdrop" @onclick="Cancel" aria-hidden="true"></div>
-    <section class="account-dialog account-dialog-open" role="dialog" aria-modal="true"
+}
+    @* Renderizar el formulario desde el prerender inicial para conservar el token antiforgery. *@
+    <section class="account-dialog @(IsOpen ? "account-dialog-open" : "account-dialog-hidden")" role="dialog" aria-modal="@IsOpen"
              aria-labelledby="logout-dialog-title" aria-describedby="logout-dialog-description">
         <div class="account-dialog-icon"><NavigationIcon Name="logout" /></div>
         <h2 id="logout-dialog-title">¿Quieres cerrar sesión?</h2>
         <p id="logout-dialog-description">Saldrás de tu cuenta en este dispositivo. Podrás volver a entrar con tu correo y contraseña.</p>
         <div class="account-dialog-actions">
             <button type="button" class="account-secondary account-dialog-cancel" @onclick="Cancel">Cancelar</button>
-            <form method="post" action="/logout" data-enhance="false">
+            <form method="post" action="/logout" data-enhance="false" @formname="LogoutConfirmation">
                 <AntiforgeryToken />
                 <button type="submit" class="account-primary account-dialog-confirm">Cerrar sesión</button>
             </form>
         </div>
     </section>
-}
 @code {
     [Parameter] public bool IsOpen { get; set; }
     [Parameter] public EventCallback OnCancel { get; set; }
