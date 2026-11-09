@@ -88,6 +88,8 @@ public sealed class CustomersControllerTests : IClassFixture<BillingDatabaseFixt
         var invalid = Request("NEW123", "bad@@example");
         Assert.Equal(400, Assert.IsType<ObjectResult>(await controller.Create(seeded.CompanyId, invalid, CancellationToken.None)).StatusCode);
         var existing = _fixture.GetDb(scope).Customers.Single(x => x.Id == seeded.CustomerId);
+        existing.TaxId = "12345678Z";
+        await _fixture.GetDb(scope).SaveChangesAsync();
         Assert.Equal(409, Assert.IsType<ObjectResult>(await controller.Create(seeded.CompanyId,
             Request(existing.TaxId, "valid@example.test"), CancellationToken.None)).StatusCode);
     }
@@ -102,7 +104,10 @@ public sealed class CustomersControllerTests : IClassFixture<BillingDatabaseFixt
             TaxId = Guid.NewGuid().ToString("N"), LegalName = "Otro cliente" };
         db.Customers.Add(other);
         await db.SaveChangesAsync();
-        var existingTaxId = db.Customers.Single(x => x.Id == seeded.CustomerId).TaxId;
+        var existing = db.Customers.Single(x => x.Id == seeded.CustomerId);
+        existing.TaxId = "12345678Z";
+        await db.SaveChangesAsync();
+        var existingTaxId = existing.TaxId;
         var result = await Controller(scope).Update(seeded.CompanyId, other.Id, Request(existingTaxId, "valid@example.test"), CancellationToken.None);
         Assert.Equal(409, Assert.IsType<ObjectResult>(result).StatusCode);
         Assert.Equal("Otro cliente", db.Customers.Single(x => x.Id == other.Id).LegalName);
@@ -116,6 +121,30 @@ public sealed class CustomersControllerTests : IClassFixture<BillingDatabaseFixt
         using var scope = _fixture.CreateScope(first.TenantId);
         var result = await Controller(scope).Delete(first.CompanyId, other.CustomerId, CancellationToken.None);
         Assert.Equal(404, Assert.IsType<ObjectResult>(result).StatusCode);
+    }
+
+    [Theory]
+    [InlineData("12345678Z", 201)]
+    [InlineData("12345678A", 400)]
+    [InlineData("X1234567L", 201)]
+    [InlineData("X1234567A", 400)]
+    [InlineData("B12345678", 400)]
+    public async Task Create_validates_spanish_tax_identifiers(string taxId, int expectedStatus)
+    {
+        var seeded = _fixture.Seed();
+        using var scope = _fixture.CreateScope(seeded.TenantId);
+        var result = await Controller(scope).Create(seeded.CompanyId, Request(taxId, "valid@example.test"), CancellationToken.None);
+        Assert.Equal(expectedStatus, Assert.IsAssignableFrom<ObjectResult>(result).StatusCode);
+    }
+
+    [Fact]
+    public async Task Create_allows_foreign_tax_identifier_without_spanish_checksum()
+    {
+        var seeded = _fixture.Seed();
+        using var scope = _fixture.CreateScope(seeded.TenantId);
+        var request = Request("FR-ABC123", "valid@example.test") with { CountryCode = "FR" };
+        var result = await Controller(scope).Create(seeded.CompanyId, request, CancellationToken.None);
+        Assert.Equal(201, Assert.IsAssignableFrom<ObjectResult>(result).StatusCode);
     }
 
     private static CustomersController.SaveCustomerRequest Request(string taxId, string email) =>
