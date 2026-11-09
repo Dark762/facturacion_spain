@@ -1,30 +1,29 @@
-# Facturacion.Application (.NET 8)
+# Facturacion.Application
 
-Capa de aplicación para el modelo híbrido multi-tenant desarrollado anteriormente.
+Capa de **casos de uso** de Facturación Spain (.NET 8). Coordina el dominio, repositorios e integraciones mediante contratos, sin ser la API HTTP ni la capa de persistencia.
 
-## Incluye
-- Result, Result<T>, Error, ErrorType y ApiResponse<T>.
-- Contratos de usuario, tenant y autorización por empresa.
-- Contratos para repositorio de facturas, VERI*FACTU y B2B.
-- DTO de empresas, clientes, facturas y resultados de integraciones.
-- Caso de uso funcional para crear y consultar **borradores** de facturas.
+## Contenido real
 
-## Instalación
-1. Copia esta carpeta al mismo nivel que `Facturacion.Domain`.
-2. Asegúrate de que `Facturacion.Domain/Facturacion.Domain.csproj` existe.
-3. `dotnet sln add Facturacion.Application/Facturacion.Application.csproj`
-4. `dotnet build Facturacion.Application/Facturacion.Application.csproj`
+- Resultados y errores: `Result`, `Result<T>`, `Error`, `ErrorType` y `ApiResponse<T>`.
+- Interfaces para repositorios, contexto de tenant, permisos por empresa, unidad de trabajo, AEAT, B2B y servicios de facturas.
+- DTO de facturas, empresas, clientes, fiscalidad y transmisiones.
+- `InvoiceApplicationService`: crear y consultar **borradores** con autorización por empresa, EUR, IVA 0/4/10/21 y redondeo por línea. IVA 0 **no** implica por sí mismo exención o no sujeción.
+- `InvoiceIssuanceService`: flujo transaccional que valida preparación fiscal, bloquea la secuencia, asigna número, genera huella y cadena, crea registro y Outbox, y confirma todo o revierte. Su disponibilidad **depende del motor fiscal**.
+- `AeatSubmissionService` y `B2BInvoiceService`: preparan operaciones y **encolan**, sin remitir por sí mismos a plataformas externas.
+- `AddBillingApplication()`: registra servicios de aplicación en el contenedor DI.
 
-## Integración obligatoria
-- Implementar `IInvoiceRepository` en Infrastructure usando `BillingDbContext`.
-- Implementar y registrar `ITenantContext` seguro y `ICompanyAuthorizationService` (NO usar implementaciones que concedan todos los permisos).
-- Registrar `IInvoiceApplicationService` con `InvoiceApplicationService` en la API.
-- Configurar JWT, autenticación, autorización, middleware y traducción HTTP de Result en Facturacion.Api.
-- El `ApiResponse<T>` es un contrato de transporte: la extensión `ToActionResult` pertenece a Api, no a Application.
+## Estado de la emisión
 
-## Limitaciones intencionales
-- No implementa emisión fiscal, rectificación, cálculo fiscal completo ni integración real AEAT/B2B.
-- `CreateDraftAsync` admite solo EUR e IVA 0, 4, 10 y 21 por simplificación. IVA 0 no equivale por sí solo a exención o no sujeción.
-- Las validaciones fiscales y de direcciones se completarán antes de emitir.
-- La seguridad multi-tenant requiere autenticación real, autorización por empresa, filtros y restricciones de persistencia.
-- No se ha podido ejecutar `dotnet build` en este entorno porque el SDK .NET no está instalado.
+**En el estado actual, la emisión está deshabilitada**: `IFiscalEngine.IsReadyForIssuance` es falso porque faltan generador XML y validador XSD operativos. El caso de uso devuelve un error antes de consumir la numeración. No confundir implementación del flujo transaccional con capacidad legal de emitir.
+
+El servicio usa `IUnitOfWork`, `IInvoiceSequenceRepository`, `IFiscalRecordRepository`, `IFiscalChainRepository` y `IOutboxMessageRepository`. La numeración y el registro fiscal deben mantenerse atómicos. La integración AEAT/B2B y el consumo del Outbox son trabajo pendiente.
+
+## Dependencias y uso
+
+La capa depende de `Facturacion.Domain` y de contratos del motor `Facturacion.Verifactu`. Las implementaciones de repositorios, seguridad y contexto de tenant se registran desde Infrastructure y Api.
+
+```bash
+dotnet build src/Facturacion.Application/Facturacion.Application.csproj
+```
+
+No mover lógica HTTP ni conexiones directas a la base de datos a esta capa. Respetar el aislamiento por tenant y la autorización por empresa. Véanse [README principal](../../README.md) y [motor fiscal](../Facturacion.Verifactu/README.md).
