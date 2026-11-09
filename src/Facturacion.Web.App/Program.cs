@@ -323,7 +323,8 @@ app.MapPost("/logout", async (HttpContext http, IAntiforgery antiforgery,
     logger.LogInformation("Sesión web cerrada correctamente. TraceId: {TraceId}", http.TraceIdentifier);
 
     // 303 fuerza una navegación GET a login después del POST, sin conservar el formulario.
-    return Results.Redirect("/login", permanent: false, preserveMethod: false);
+    http.Response.Headers.Location = "/login";
+    return Results.StatusCode(StatusCodes.Status303SeeOther);
 }).RequireAuthorization();
 
 
