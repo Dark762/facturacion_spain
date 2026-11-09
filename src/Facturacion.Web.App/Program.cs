@@ -59,7 +59,7 @@ app.MapGet("/login", (HttpContext http, IAntiforgery antiforgery) =>
     var token = antiforgery.GetAndStoreTokens(http).RequestToken;
     var error = http.Request.Query.ContainsKey("error")
         ? "<p role='alert'>Credenciales o tenant no válidos.</p>" : "";
-    var html = $"""
+    var html = $$"""
     <!doctype html><html lang="es"><head><meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <title>Acceso | FacturaciónES</title></head>
