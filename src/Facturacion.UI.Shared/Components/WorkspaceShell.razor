@@ -9,7 +9,7 @@
             <a class="sidebar-link" href="/account"><NavigationIcon Name="account" /> <span>Mi perfil y seguridad</span></a>
         </nav>
         <div class="sidebar-footer">
-            <a class="sidebar-link sidebar-logout" href="/account?confirmLogout=1"><NavigationIcon Name="logout" /> <span>Cerrar sesión</span></a>
+            <button type="button" class="sidebar-link sidebar-logout" @onclick="OpenLogout"><NavigationIcon Name="logout" /> <span>Cerrar sesión</span></button>
         </div>
     </aside>
     <main class="workspace">@ChildContent</main>
@@ -17,9 +17,13 @@
 <nav class="mobile-nav" aria-label="Navegación móvil">
     <a href="/"><NavigationIcon Name="home" /><span>Inicio</span></a>
     <a href="/account"><NavigationIcon Name="account" /><span>Mi cuenta</span></a>
-    <a href="/account?confirmLogout=1"><NavigationIcon Name="logout" /><span>Salir</span></a>
+    <button type="button" class="mobile-logout" @onclick="OpenLogout"><NavigationIcon Name="logout" /><span>Salir</span></button>
 </nav>
+<LogoutConfirmation IsOpen="_logoutOpen" OnCancel="CloseLogout" />
 
 @code {
+    private bool _logoutOpen;
+    private void OpenLogout() => _logoutOpen = true;
+    private void CloseLogout() => _logoutOpen = false;
     [Parameter, EditorRequired] public RenderFragment? ChildContent { get; set; }
 }
