@@ -21,3 +21,7 @@ Comprobar que las modificaciones visuales funcionan tanto en Web.App como en Web
 **Desktop/Mobile:** un futuro host Blazor Hybrid (.NET MAUI) puede reutilizar la presentación y el CSS. El formulario HTML actual utiliza POST a `/login`, apropiado para el host web; para Blazor Hybrid será necesario conectar el componente a un flujo de autenticación nativo (cliente API + almacenamiento seguro del token), en lugar de depender de cookies del servidor. No se ha implementado todavía ese host ni su adaptador.
 
 Al modificar la vista, mantener campos `email`, `password`, `tenantId` y el token antiforgery para conservar compatibilidad con el endpoint web.
+
+## Selector de tenant
+
+`Components/TenantSelectorView.razor` presenta las organizaciones disponibles por nombre y una entrada de plataforma opcional. No autentica ni almacena tokens. Web.App le proporciona `Tenants`, `CanAccessPlatform` y el token antiforgery. Desktop y Mobile pueden reutilizar su presentación y conectar el evento de selección a su propio adaptador de autenticación cuando existan esos hosts.
