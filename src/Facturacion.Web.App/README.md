@@ -44,3 +44,11 @@ La ruta `/account` ahora es `Components/Pages/Account.razor` con `@rendermode In
 `Facturacion.UI.Shared/Components/LogoutConfirmation.razor` muestra la confirmación mediante estado y eventos Blazor (`@onclick`), integrado en `AccountView.razor`. El enlace del menú `/account?confirmLogout=1` abre la confirmación. El cierre definitivo sigue siendo `POST /logout`, protegido con antiforgery; cancelar no ejecuta ninguna petición. Se eliminó `account.js` y el renderizado manual con `HtmlRenderer` de `/account`.
 
 No se utiliza JavaScript propio. La referencia a `_framework/blazor.web.js` en `App.razor` es **el runtime oficial de Blazor**, necesario para los eventos interactivos en Web; los hosts MAUI/desktop utilizan su runtime Blazor Hybrid correspondiente. El componente compartido no depende de APIs del navegador.
+
+## Modal de cierre de sesión sin JavaScript propio
+
+La página `Components/Pages/Account.razor` utiliza `@rendermode InteractiveServer` y presenta `Facturacion.UI.Shared.Components.AccountView`. Este componente administra la visibilidad de `LogoutConfirmation.razor` mediante estado Blazor, `@onclick` y `EventCallback`. No existe `account.js` ni se necesita interoperabilidad JavaScript para abrir o cancelar el diálogo.
+
+La entrada del menú `/account?confirmLogout=1` abre la confirmación al entrar a la página; el botón «Cerrar sesión» también la abre. La acción confirmada usa un formulario POST normal a `/logout` con `<AntiforgeryToken />`; la cookie HttpOnly solo se elimina desde el servidor. La página de cuenta usa `GET /api/auth/me/profile` con el JWT obtenido del estado autenticado.
+
+La interfaz es compartida con Blazor Hybrid; el formulario POST a `/logout` es específico del host web y deberá abstraerse mediante un servicio de sesión para MAUI cuando se incorpore ese host. La capa de componentes no debe almacenar tokens.
