@@ -1,7 +1,8 @@
 :root{font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;color:#18243b;background:#f8faff}*{box-sizing:border-box}body{margin:0;min-height:100vh}.account-panel{max-width:750px;margin:0 auto;padding:clamp(25px,5vw,64px) 22px 80px}.account-heading{margin-bottom:30px}.account-kicker{font-size:.8rem;font-weight:800;color:#5145e7;letter-spacing:.12em;text-transform:uppercase}.account-heading h1{font-size:clamp(2rem,4vw,2.8rem);letter-spacing:-.05em;margin:10px 0}.account-heading p,.account-muted{color:#66738c;line-height:1.6}.account-card{background:#fff;border:1px solid #e3e8f2;border-radius:20px;padding:clamp(20px,4vw,32px);margin:18px 0;box-shadow:0 8px 28px rgba(20,35,60,.035)}.account-card h2{font-size:1.25rem;margin:0 0 18px}.account-card dl{margin:0}.account-card dl>div{display:flex;justify-content:space-between;gap:15px;padding:13px 0;border-bottom:1px solid #edf0f5}.account-card dl>div:last-child{border-bottom:0}.account-card dt{color:#69758c}.account-card dd{margin:0;font-weight:650;overflow-wrap:anywhere;text-align:right}.account-card label{display:block;font-weight:700;font-size:.9rem;margin:18px 0 8px}.account-card input{display:block;width:100%;height:50px;padding:12px 14px;border:1px solid #d8deeb;border-radius:11px;background:#fff;font:inherit}.account-card input:focus{outline:3px solid rgba(81,69,231,.16);border-color:#5145e7}.account-primary,.account-secondary{display:inline-flex;align-items:center;justify-content:center;min-height:48px;padding:12px 22px;border-radius:11px;font:inherit;font-weight:750;cursor:pointer;margin-top:22px}.account-primary{border:1px solid #5145e7;background:#5145e7;color:#fff}.account-secondary{border:1px solid #d8deeb;background:#fff;color:#293650}.account-primary:hover{background:#4036ce}.account-secondary:hover{background:#f6f7fc}.account-message{padding:15px;border-radius:12px}.account-error{background:#fff1f2;color:#9b2638;border:1px solid #fecdd3}.account-success{background:#ecfdf5;color:#166534;border:1px solid #bbf7d0}@media(max-width:550px){.account-card dl>div{display:block}.account-card dd{text-align:left;margin-top:5px}.account-primary,.account-secondary{width:100%}}
-/* Confirmación accesible del cierre de sesión */
+/* Modal de confirmación controlado por Blazor; sin JavaScript propio. */
+.account-modal-backdrop{position:fixed;inset:0;background:rgba(18,26,52,.58);z-index:1000}
+.account-dialog-open{position:fixed;inset:50% auto auto 50%;transform:translate(-50%,-50%);z-index:1001;margin:0;display:block}
 .account-dialog{width:min(92vw,440px);max-height:calc(100dvh - 40px);overflow:auto;padding:32px;border:1px solid #e3e8f2;border-radius:20px;background:#fff;color:#18243b;box-shadow:0 24px 80px rgba(16,24,48,.2)}
-.account-dialog::backdrop{background:rgba(18,26,52,.58);backdrop-filter:blur(3px)}
 .account-dialog-icon{width:48px;height:48px;display:grid;place-items:center;background:#eeedff;color:#5145e7;border-radius:14px;font-size:1.6rem;margin-bottom:18px}
 .account-dialog h2{font-size:1.45rem;line-height:1.25;letter-spacing:-.03em;margin:0 0 12px}
 .account-dialog p{color:#66738c;line-height:1.6;margin:0}
@@ -10,9 +11,3 @@
 .account-dialog-actions button{width:100%;margin:0}
 .account-dialog button:focus-visible{outline:3px solid #9b93fa;outline-offset:3px}
 @media(max-width:480px){.account-dialog{padding:24px}.account-dialog-actions{flex-direction:column-reverse}.account-dialog-actions form{width:100%}}
-
-/* Modal interactivo Blazor: sin JavaScript propio. */
-.account-modal-backdrop{position:fixed;inset:0;z-index:1090;background:rgba(18,26,52,.58)}
-.account-dialog-open{display:block;position:fixed;z-index:1100;left:50%;top:50%;transform:translate(-50%,-50%);margin:0;max-height:calc(100dvh - 40px);overflow:auto}
-.account-dialog-actions>button{flex:1;margin:0}
-@media(max-width:480px){.account-dialog-actions>button{width:100%}}
