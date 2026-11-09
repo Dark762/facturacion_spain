@@ -88,7 +88,8 @@ internal sealed class ConfigureJwtBearer(IOptions<JwtOptions> jwt)
             {
                 var userManager = context.HttpContext.RequestServices
                     .GetRequiredService<UserManager<ApplicationUser>>();
-                var id = context.Principal?.FindFirstValue(ClaimTypes.NameIdentifier);
+                var id = context.Principal?.FindFirstValue(ClaimTypes.NameIdentifier)
+                    ?? context.Principal?.FindFirstValue(System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.Sub);
                 var stamp = context.Principal?.FindFirst("security_stamp")?.Value;
                 var user = id is null ? null : await userManager.FindByIdAsync(id);
                 if (user is null || !user.IsActive || user.SecurityStamp != stamp)
