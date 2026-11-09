@@ -107,6 +107,12 @@ La rama `develop` **ya incluye** `CustomersController` con GET listado/detalle, 
 - **Pendiente:** búsqueda y paginación, pruebas de integración de API (permisos y aislamiento), validación formal de identificadores/correo, revisión de borrado y comprobación de build/test.
 - **Sin validar:** no se han ejecutado `dotnet build` ni `dotnet test` desde el conector GitHub.
 
+## Avance de FC-01 (2026-11-09)
+
+Se añadió a `CustomersController` búsqueda opcional por nombre/NIF y paginación (`page`, `pageSize`, máximo 100), comprobación previa de duplicados de identificación fiscal por empresa y validación básica de correo y código de país. La respuesta del listado sigue siendo un array para mantener compatibilidad con `CustomersApiClient`; por tanto, todavía no proporciona recuento total ni metadatos de paginación. El cliente web aún no expone controles de búsqueda y páginas.
+
+**Limitaciones pendientes:** la prevención de duplicados no es segura frente a concurrencia sin una restricción única en base de datos; revisar datos históricos y esquemas de los cuatro motores antes de introducirla. No se han ejecutado compilación ni pruebas. Faltan pruebas de API, validación fiscal específica de NIF/NIE/CIF, casos de eliminación con referencias y seguridad multi-tenant; FC-01 permanece abierto.
+
 ## Próximo cambio de código
 
 **FC-01**: inspeccionar `Customer`, `ICustomerRepository`, `CustomerRepository`, autorizaciones, DTO y esquema SQL; implementar primero la API y los casos de uso de clientes con pruebas multi-tenant. No comenzar catálogo/presupuestos antes de estabilizar este contrato.
