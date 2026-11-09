@@ -15,9 +15,17 @@
 }
 else
 {
+    <label for="customer-search">Buscar por nombre o NIF</label>
+    <input id="customer-search" @bind="_search" @bind:event="oninput" maxlength="120" />
+    <button @onclick="SearchAsync">Buscar</button>
     <button @onclick="LoadAsync">Actualizar lista</button>
     @if (_error is not null) { <p role="alert">@_error</p> }
     <CustomersTable Customers="_customers" />
+    <nav aria-label="Paginación de clientes">
+        <button disabled="@(_page <= 1 || _loading)" @onclick="PreviousAsync">Anterior</button>
+        <span>Página @_page</span>
+        <button disabled="@(!_hasNext || _loading)" @onclick="NextAsync">Siguiente</button>
+    </nav>
     <h2>@(_editingId is null ? "Nuevo cliente" : "Editar cliente")</h2>
     <CustomerEditor @key="_editor" Model="_editor" Saving="_saving" OnSave="SaveAsync" />
     @if (_editingId is not null) { <button @onclick="CancelEdit">Cancelar edición</button> }
@@ -42,6 +50,15 @@ else
     private Guid? _editingId;
     private bool _saving;
     private string? _error;
+    private string _search = "";
+    private int _page = 1;
+    private const int PageSize = 20;
+    private bool _hasNext;
+    private bool _loading;
+
+    private async Task SearchAsync() { _page = 1; await LoadAsync(); }
+    private async Task PreviousAsync() { if (_page > 1) { _page--; await LoadAsync(); } }
+    private async Task NextAsync() { if (_hasNext) { _page++; await LoadAsync(); } }
 
     protected override async Task OnInitializedAsync()
     {
@@ -52,13 +69,17 @@ else
     private async Task LoadAsync()
     {
         if (_api is null) return;
+        if (_loading) return;
+        _loading = true;
         try
         {
-            var result = await _api.ListAsync(CompanyId);
+            var result = await _api.SearchAsync(CompanyId, _search, _page, PageSize);
             _customers = result.Value;
+            _hasNext = result.IsSuccess && (_customers?.Count ?? 0) == PageSize;
             _error = result.Error?.Message;
         }
         catch (HttpRequestException) { _error = "No se pudo contactar con la API."; }
+        finally { _loading = false; }
     }
 
     private void Edit(CustomerDto customer)
