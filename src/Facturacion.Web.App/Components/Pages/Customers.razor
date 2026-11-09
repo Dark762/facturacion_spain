@@ -23,7 +23,7 @@ else
     <CustomersTable Customers="_customers" />
     <nav aria-label="Paginación de clientes">
         <button disabled="@(_page <= 1 || _loading)" @onclick="PreviousAsync">Anterior</button>
-        <span>Página @_page</span>
+        <span>Página @_page de @_totalPages (@_totalCount clientes)</span>
         <button disabled="@(!_hasNext || _loading)" @onclick="NextAsync">Siguiente</button>
     </nav>
     <h2>@(_editingId is null ? "Nuevo cliente" : "Editar cliente")</h2>
@@ -54,6 +54,8 @@ else
     private int _page = 1;
     private const int PageSize = 20;
     private bool _hasNext;
+    private int _totalCount;
+    private int _totalPages = 1;
     private bool _loading;
 
     private async Task SearchAsync() { _page = 1; await LoadAsync(); }
@@ -74,8 +76,15 @@ else
         try
         {
             var result = await _api.SearchAsync(CompanyId, _search, _page, PageSize);
-            _customers = result.Value;
-            _hasNext = result.IsSuccess && (_customers?.Count ?? 0) == PageSize;
+            if (result.IsSuccess)
+            {
+                _customers = result.Value;
+                _totalCount = result.TotalCount ?? (_page - 1) * PageSize + (_customers?.Count ?? 0);
+                _totalPages = Math.Max(1, (int)Math.Ceiling((double)_totalCount / PageSize));
+                _hasNext = result.TotalCount.HasValue
+                    ? _page < _totalPages
+                    : (_customers?.Count ?? 0) == PageSize;
+            }
             _error = result.Error?.Message;
         }
         catch (HttpRequestException) { _error = "No se pudo contactar con la API."; }
