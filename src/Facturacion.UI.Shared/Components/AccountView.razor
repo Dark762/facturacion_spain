@@ -1,0 +1,43 @@
+@namespace Facturacion.UI.Shared.Components
+@using Microsoft.AspNetCore.Components
+
+<section class="account-panel">
+  <div class="account-heading"><span class="account-kicker">Mi cuenta</span><h1>Perfil y seguridad</h1><p>Consulta tus datos y protege el acceso a tu cuenta.</p></div>
+  @if (!string.IsNullOrEmpty(Message))
+  {
+    <p class="account-message @(IsError ? "account-error" : "account-success")" role="status">@Message</p>
+  }
+  <div class="account-card">
+    <h2>Información personal</h2>
+    <dl><div><dt>Correo electrónico</dt><dd>@Email</dd></div><div><dt>Nombre de usuario</dt><dd>@DisplayName</dd></div></dl>
+  </div>
+  <div class="account-card">
+    <h2>Cambiar contraseña</h2>
+    <p class="account-muted">Introduce tu contraseña actual y elige una nueva.</p>
+    <form method="post" action="/account/change-password">
+      <input type="hidden" name="__RequestVerificationToken" value="@AntiforgeryToken" />
+      <label for="currentPassword">Contraseña actual</label>
+      <input id="currentPassword" name="currentPassword" type="password" autocomplete="current-password" required />
+      <label for="newPassword">Nueva contraseña</label>
+      <input id="newPassword" name="newPassword" type="password" autocomplete="new-password" minlength="8" required />
+      <label for="confirmPassword">Confirmar nueva contraseña</label>
+      <input id="confirmPassword" name="confirmPassword" type="password" autocomplete="new-password" minlength="8" required />
+      <button type="submit" class="account-primary">Actualizar contraseña</button>
+    </form>
+  </div>
+  <div class="account-card" id="logout">
+    <h2>Sesión</h2>
+    <p class="account-muted">Cierra la sesión en este dispositivo cuando termines.</p>
+    <form method="post" action="/logout">
+      <input type="hidden" name="__RequestVerificationToken" value="@AntiforgeryToken" />
+      <button type="submit" class="account-secondary">Cerrar sesión</button>
+    </form>
+  </div>
+</section>
+@code {
+  [Parameter] public string Email { get; set; } = "";
+  [Parameter] public string DisplayName { get; set; } = "";
+  [Parameter] public string? AntiforgeryToken { get; set; }
+  [Parameter] public string? Message { get; set; }
+  [Parameter] public bool IsError { get; set; }
+}
