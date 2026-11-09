@@ -93,6 +93,12 @@ Convertir Facturación Spain en un SaaS comercial completo para autónomos y pym
 7. Mantener separadas factura comercial, registro fiscal, documento B2B, estado de transmisión y estado de cobro.
 8. Entregas pequeñas mediante pull requests revisables; no fusionar automáticamente a `main`.
 
+## Actualización FC-01 tras revisar `develop` (2026-11-09)
+
+La rama `develop` **ya incluye** `CustomersController` con GET listado/detalle, POST, PUT y DELETE; `CustomersApiClient` con los cinco métodos; permisos `catalog.read` y `catalog.write` por empresa; comprobación de tenant en consultas; validación básica de campos y bloqueo de borrado de clientes con facturas. Por tanto, el CRUD básico **no está pendiente de implementar desde cero**. Esta información prevalece sobre el inventario inicial, realizado sobre una rama anterior.
+
+**Pendiente para cerrar FC-01:** verificar pruebas de API y UI existentes, añadir cobertura de autorización/aislamiento de lectura y escritura, duplicados y concurrencia; revisar paginación y búsqueda del listado; validar reglas de identificación fiscal y correo según alcance acordado; comprobar que el borrado respeta todas las referencias y que la experiencia de UI cubre los casos comerciales. No afirmar que FC-01 está completo hasta ejecutar y pasar las pruebas.
+
 ## Próximo cambio de código
 
 **FC-01**: inspeccionar `Customer`, `ICustomerRepository`, `CustomerRepository`, autorizaciones, DTO y esquema SQL; implementar primero la API y los casos de uso de clientes con pruebas multi-tenant. No comenzar catálogo/presupuestos antes de estabilizar este contrato.
