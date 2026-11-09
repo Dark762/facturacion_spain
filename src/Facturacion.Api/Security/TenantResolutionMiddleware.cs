@@ -12,6 +12,24 @@ public sealed class TenantResolutionMiddleware
     {
         if (http.User.Identity?.IsAuthenticated == true)
         {
+            var purpose = http.User.FindFirst("purpose")?.Value;
+            var path = http.Request.Path;
+            // La preautenticación solo puede invocar la elección de tenant.
+            if (purpose == "tenant_selection")
+            {
+                if (path.Equals("/api/auth/login/complete", StringComparison.OrdinalIgnoreCase))
+                { await _next(http); return; }
+                http.Response.StatusCode = StatusCodes.Status403Forbidden;
+                return;
+            }
+            // El token de plataforma no habilita rutas ordinarias ni consultas de negocio.
+            if (purpose == "platform")
+            {
+                if (path.StartsWithSegments("/api/platform"))
+                { await _next(http); return; }
+                http.Response.StatusCode = StatusCodes.Status403Forbidden;
+                return;
+            }
             var userId = http.User.FindFirstValue(ClaimTypes.NameIdentifier);
             var raw = http.User.FindFirst("tenant_id")?.Value;
             if (string.IsNullOrWhiteSpace(userId) || !Guid.TryParse(raw, out var tenantId))
