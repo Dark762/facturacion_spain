@@ -115,15 +115,18 @@ app.MapPost("/login", async (HttpContext http, IAntiforgery antiforgery,
         return LoginFailed(http);
     using var client = clients.CreateClient("FacturacionAuthApi");
 
-    using var response = await client.PostAsJsonAsync("api/auth/login/start",
-        new { email, password }, ct);
-    if (!response.IsSuccessStatusCode) return Results.Redirect("/login?error=1");
+    using var response = await client.PostAsJsonAsync("api/auth/login/start",new { email, password }, ct);
+
+    if (!response.IsSuccessStatusCode)
+        return Results.Redirect("/login?error=1");
+
     var envelope = await response.Content.ReadFromJsonAsync<StartLoginEnvelope>(cancellationToken: ct);
 
     var data = envelope?.Data;
 
     if (data is null || string.IsNullOrWhiteSpace(data.SelectionToken) ||
-        data.ExpiresUtc <= DateTime.UtcNow || (data.Tenants.Length == 0 && !data.CanAccessPlatform))
+                                                  data.ExpiresUtc <= DateTime.UtcNow ||
+                                                  (data.Tenants.Length == 0 && !data.CanAccessPlatform))
         return LoginFailed(http);
 
     var selectionClaims = new List<Claim>
