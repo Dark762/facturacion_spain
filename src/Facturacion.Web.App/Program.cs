@@ -52,7 +52,11 @@ builder.Services.AddHttpClient("FacturacionAuthApi", client =>
 
     if (string.IsNullOrWhiteSpace(url)) throw new InvalidOperationException("Facturacion:ApiBaseUrl es obligatorio para iniciar sesión.");
     client.BaseAddress = new Uri(url, UriKind.Absolute);
-});
+})
+// HttpClient elimina la cabecera Authorization al seguir una redirección. Si la
+// API responde con un 307/308 (por ejemplo http->https), /login/complete llegaría
+// sin token y devolvería un 401 engañoso. Mejor no seguirla y avisar en el log.
+.ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler { AllowAutoRedirect = false });
 builder.Services.AddRazorComponents().AddInteractiveServerComponents();
 
 // Configurable por host: en móvil/escritorio se utiliza el mismo registro con su URL.
@@ -161,6 +165,7 @@ app.MapGet("/select-tenant", async (HttpContext http, IAntiforgery antiforgery,
     {
         [nameof(TenantSelectorView.AntiforgeryToken)] = antiforgery.GetAndStoreTokens(http).RequestToken,
         [nameof(TenantSelectorView.ShowError)] = http.Request.Query.ContainsKey("error"),
+        [nameof(TenantSelectorView.ErrorCode)] = http.Request.Query["error"].ToString(),
         [nameof(TenantSelectorView.CanAccessPlatform)] = selection.Principal.FindFirstValue("platform_allowed") == "true",
         [nameof(TenantSelectorView.Tenants)] = tenants
             .Select(t => new TenantSelectorView.TenantOption(t.TenantId, t.Name)).ToArray()
@@ -206,7 +211,7 @@ app.MapPost("/select-tenant", async (HttpContext http, IAntiforgery antiforgery,
     if (!platform)
     {
         if (!Guid.TryParse(form["tenantId"], out var parsed))
-            return Results.Redirect("/select-tenant?error=1");
+            return Results.Redirect("/select-tenant?error=400");
         tenantId = parsed;
     }
 
@@ -219,13 +224,31 @@ app.MapPost("/select-tenant", async (HttpContext http, IAntiforgery antiforgery,
         new { tenantId, platform }, ct);
 
     if (!response.IsSuccessStatusCode)
-        return Results.Redirect("/select-tenant?error=1");
+    {
+        var logger = http.RequestServices.GetRequiredService<ILoggerFactory>()
+            .CreateLogger("Facturacion.Web.App.TenantSelection");
+        var status = (int)response.StatusCode;
+
+        if (status is >= 300 and < 400)
+        {
+            logger.LogWarning(
+                "La API respondió con una redirección HTTP {StatusCode} hacia {Location} al completar la selección. " +
+                "Revisa Facturacion:ApiBaseUrl (esquema y puerto finales): HttpClient no reenvía el token Bearer en redirecciones.",
+                status, response.Headers.Location);
+            return Results.Redirect("/select-tenant?error=502");
+        }
+
+        logger.LogWarning(
+            "Fallo al completar la selección de organización. HTTP {StatusCode} ({ReasonPhrase}), plataforma {Platform}, TraceId {TraceId}",
+            status, response.StatusCode, platform, http.TraceIdentifier);
+        return Results.Redirect($"/select-tenant?error={status}");
+    }
 
     var envelope = await response.Content.ReadFromJsonAsync<LoginEnvelope>(cancellationToken: ct);
 
     if (string.IsNullOrWhiteSpace(envelope?.Data?.AccessToken) ||
         envelope.Data.ExpiresUtc <= DateTime.UtcNow)
-        return Results.Redirect("/select-tenant?error=1");
+        return Results.Redirect("/select-tenant?error=502");
 
     var claims = new List<Claim>
     {
@@ -280,6 +303,7 @@ static IResult LoginFailed(HttpContext http)
 
 app.MapRazorComponents<App>().AddInteractiveServerRenderMode().RequireAuthorization();
 app.Run();
+
 internal sealed record LoginEnvelope(LoginPayload? Data);
 internal sealed record LoginPayload(string AccessToken, DateTime ExpiresUtc);
 

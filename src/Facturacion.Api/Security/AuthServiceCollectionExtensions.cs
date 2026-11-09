@@ -59,9 +59,15 @@ public static class AuthServiceCollectionExtensions
 /// Proyecta JwtOptions ya validado sobre el middleware. La clave se lee del
 /// contenedor, no de un cierre sobre IConfiguration, para que recargar la
 /// configuracion con reloadOnChange tenga efecto.
+///
+/// Debe ser IConfigureNamedOptions: el handler de JwtBearer resuelve
+/// IOptionsMonitor&lt;JwtBearerOptions&gt; con el nombre del esquema ("Bearer"),
+/// y las IConfigureOptions sin nombre solo se aplican al nombre por defecto.
+/// Si esto se rompe, el middleware se queda sin clave de firma y responde 401
+/// a cualquier token valido.
 /// </summary>
 internal sealed class ConfigureJwtBearer(IOptions<JwtOptions> jwt)
-    : IConfigureOptions<JwtBearerOptions>
+    : IConfigureNamedOptions<JwtBearerOptions>
 {
     public void Configure(JwtBearerOptions options) => Configure(Options.Options.DefaultName, options);
 

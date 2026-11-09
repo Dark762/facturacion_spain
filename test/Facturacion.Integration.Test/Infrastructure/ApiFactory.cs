@@ -19,7 +19,7 @@ namespace Facturacion.Integration.Test.Infrastructure;
 /// Levanta la API real (Program) sustituyendo MySQL por SQLite, de modo que
 /// se ejercita el arranque completo: DI, CORS, JWT y middleware de tenant.
 /// </summary>
-public sealed class ApiFactory : WebApplicationFactory<Program>
+public class ApiFactory : WebApplicationFactory<Program>
 {
     public const string SigningKey = "integration-test-signing-key-32-bytes-min!!";
     public const string AllowedOrigin = "https://app.example.test";
@@ -29,6 +29,12 @@ public sealed class ApiFactory : WebApplicationFactory<Program>
     /// user-secrets, que contienen la cadena de conexion real.
     /// </summary>
     public const string TestEnvironment = "Integration";
+
+    /// <summary>
+    /// La mayoria de las pruebas sustituyen JWT por una identidad fija. Las que
+    /// ejercitan el login real lo desactivan para usar el esquema JwtBearer.
+    /// </summary>
+    protected virtual bool UseTestAuthentication => true;
 
     private readonly SqliteConnection _connection = new("DataSource=:memory:");
     private bool _schemaReady;
@@ -75,9 +81,13 @@ protected override void ConfigureWebHost(IWebHostBuilder builder)
 
             // La emision real de JWT no es el objeto de estas pruebas: se sustituye
             // por un esquema con identidad estable para poder fijar el tenant.
-            services.AddAuthentication(TestAuthHandler.SchemeName)
-                .AddScheme<AuthenticationSchemeOptions, TestAuthHandler>(
-                    TestAuthHandler.SchemeName, _ => { });
+            // Las pruebas del flujo de login desactivan esta sustitucion.
+            if (UseTestAuthentication)
+            {
+                services.AddAuthentication(TestAuthHandler.SchemeName)
+                    .AddScheme<AuthenticationSchemeOptions, TestAuthHandler>(
+                        TestAuthHandler.SchemeName, _ => { });
+            }
 
             ReplaceWithSqlite<BillingDbContext>(services, _connection);
             ReplaceWithSqlite<AuthDbContext>(services, _connection);
