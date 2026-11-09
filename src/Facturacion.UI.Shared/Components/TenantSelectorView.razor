@@ -1,0 +1,50 @@
+@namespace Facturacion.UI.Shared.Components
+@using Microsoft.AspNetCore.Components
+
+<main class="page">
+    <aside class="showcase" aria-label="FacturaciónES">
+        <div class="brand"><span class="mark" aria-hidden="true">F</span> FacturaciónES</div>
+        <div class="pitch">
+            <span class="eyebrow"><span class="dot" aria-hidden="true"></span> Tu espacio de gestión</span>
+            <h1>Elige tu espacio de trabajo.</h1>
+            <p>Accede a la organización que deseas gestionar de forma segura.</p>
+        </div>
+        <div class="foot">Facturación electrónica · España</div>
+    </aside>
+    <section class="login-area" aria-labelledby="selection-title">
+        <div class="login">
+            <div class="mobile-brand"><span class="mark" aria-hidden="true">F</span> FacturaciónES</div>
+            <div class="kicker">Un paso más</div>
+            <h2 id="selection-title">Selecciona tu organización</h2>
+            <p class="intro">Elige el espacio al que quieres acceder.</p>
+            @if (ShowError)
+            {
+                <p class="alert" role="alert">No se ha podido acceder a ese espacio. Inténtalo de nuevo.</p>
+            }
+            @foreach (var tenant in Tenants)
+            {
+                <form method="post" action="/select-tenant" class="tenant-choice">
+                    <input type="hidden" name="__RequestVerificationToken" value="@AntiforgeryToken" />
+                    <input type="hidden" name="tenantId" value="@tenant.Id" />
+                    <button type="submit" class="tenant-button"><span class="tenant-name">@tenant.Name</span><span aria-hidden="true">→</span></button>
+                </form>
+            }
+            @if (CanAccessPlatform)
+            {
+                <form method="post" action="/select-tenant" class="tenant-choice">
+                    <input type="hidden" name="__RequestVerificationToken" value="@AntiforgeryToken" />
+                    <input type="hidden" name="platform" value="true" />
+                    <button type="submit" class="tenant-button"><span class="tenant-name">Centro de Control · Plataforma</span><span aria-hidden="true">→</span></button>
+                </form>
+            }
+            <p class="help"><a href="/login">Volver al inicio de sesión</a></p>
+        </div>
+    </section>
+</main>
+@code {
+    public sealed record TenantOption(Guid Id, string Name);
+    [Parameter] public IReadOnlyList<TenantOption> Tenants { get; set; } = Array.Empty<TenantOption>();
+    [Parameter] public bool CanAccessPlatform { get; set; }
+    [Parameter] public string? AntiforgeryToken { get; set; }
+    [Parameter] public bool ShowError { get; set; }
+}
