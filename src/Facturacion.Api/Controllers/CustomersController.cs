@@ -63,6 +63,8 @@ public sealed class CustomersController : ControllerBase
         var access = await _authorization.AuthorizeAsync(companyId, "catalog.write", ct);
         if (access.IsFailure) return this.ApiFailure<object>(403, "FORBIDDEN", "No tienes permisos para esta operación.");
         if (!IsValid(request)) return this.ApiFailure<object>(400, "CUSTOMER_INVALID", "Datos de cliente no válidos.");
+        if (await HasDuplicateTaxIdAsync(companyId, request.TaxId.Trim(), null, ct))
+            return this.ApiFailure<object>(409, "CUSTOMER_TAX_ID_DUPLICATE", "Ya existe un cliente con esta identificación fiscal en la empresa.");
         var entity = new Customer { TenantId = _tenant.TenantId, CompanyId = companyId };
         Apply(entity, request);
         _db.Customers.Add(entity);
@@ -78,6 +80,8 @@ public sealed class CustomersController : ControllerBase
         if (!IsValid(request)) return this.ApiFailure<object>(400, "CUSTOMER_INVALID", "Datos de cliente no válidos.");
         var entity = await _db.Customers.FirstOrDefaultAsync(x => x.TenantId == _tenant.TenantId && x.CompanyId == companyId && x.Id == customerId, ct);
         if (entity is null) return this.ApiFailure<object>(404, "CUSTOMER_NOT_FOUND", "Cliente no encontrado.");
+        if (await HasDuplicateTaxIdAsync(companyId, request.TaxId.Trim(), customerId, ct))
+            return this.ApiFailure<object>(409, "CUSTOMER_TAX_ID_DUPLICATE", "Ya existe otro cliente con esta identificación fiscal en la empresa.");
         Apply(entity, request);
         await _db.SaveChangesAsync(ct);
         return this.ApiOk(ToResponse(entity), "Cliente actualizado correctamente.");
@@ -97,6 +101,10 @@ public sealed class CustomersController : ControllerBase
         await _db.SaveChangesAsync(ct);
         return this.ApiOk<object?>(null, "Cliente eliminado correctamente.");
     }
+
+    private Task<bool> HasDuplicateTaxIdAsync(Guid companyId, string taxId, Guid? excludeId, CancellationToken ct) =>
+        _db.Customers.AsNoTracking().AnyAsync(x => x.TenantId == _tenant.TenantId &&
+            x.CompanyId == companyId && x.TaxId == taxId && (!excludeId.HasValue || x.Id != excludeId.Value), ct);
 
     private static bool IsValid(SaveCustomerRequest r) =>
         !string.IsNullOrWhiteSpace(r.TaxId) && r.TaxId.Length <= 20 &&
