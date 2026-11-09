@@ -28,10 +28,22 @@
   <div class="account-card" id="logout">
     <h2>Sesión</h2>
     <p class="account-muted">Cierra la sesión en este dispositivo cuando termines.</p>
-    <form method="post" action="/logout">
-      <input type="hidden" name="__RequestVerificationToken" value="@AntiforgeryToken" />
-      <button type="submit" class="account-secondary">Cerrar sesión</button>
-    </form>
+    <button type="button" class="account-secondary" data-open-logout> Cerrar sesión </button>
+  </div>
+  <dialog id="logout-confirmation" class="account-dialog" aria-labelledby="logout-dialog-title" aria-describedby="logout-dialog-description">
+    <div class="account-dialog-icon" aria-hidden="true">↪</div>
+    <h2 id="logout-dialog-title">¿Quieres cerrar sesión?</h2>
+    <p id="logout-dialog-description">Saldrás de tu cuenta en este dispositivo. Podrás volver a entrar con tu correo y contraseña.</p>
+    <div class="account-dialog-actions">
+      <form method="dialog">
+        <button type="submit" class="account-secondary">Cancelar</button>
+      </form>
+      <form method="post" action="/logout">
+        <input type="hidden" name="__RequestVerificationToken" value="@AntiforgeryToken" />
+        <button type="submit" class="account-primary">Sí, cerrar sesión</button>
+      </form>
+    </div>
+  </dialog>
   </div>
 </section>
 @code {
