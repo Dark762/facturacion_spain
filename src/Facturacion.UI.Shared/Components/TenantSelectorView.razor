@@ -19,7 +19,7 @@
             <p class="intro">Elige el espacio al que quieres acceder.</p>
             @if (ShowError)
             {
-                <p class="alert" role="alert">No se ha podido acceder a ese espacio. Inténtalo de nuevo.</p>
+                <p class="alert" role="alert">@ErrorMessage</p>
             }
             @foreach (var tenant in Tenants)
             {
@@ -47,4 +47,13 @@
     [Parameter] public bool CanAccessPlatform { get; set; }
     [Parameter] public string? AntiforgeryToken { get; set; }
     [Parameter] public bool ShowError { get; set; }
+    [Parameter] public string? ErrorCode { get; set; }
+    private string ErrorMessage => ErrorCode switch
+    {
+        "401" => "La sesión de selección ha caducado o no es válida. Vuelve a iniciar sesión.",
+        "403" => "No tienes permiso para acceder a esta organización. Si el problema persiste, contacta con el administrador.",
+        "400" => "La selección no es válida. Vuelve a intentarlo.",
+        "500" => "Se ha producido un error interno al abrir la organización. Consulta los registros de la API.",
+        _ => "No se ha podido acceder a ese espacio. Inténtalo de nuevo."
+    };
 }
