@@ -6,14 +6,14 @@
     <div class="account-modal-backdrop" @onclick="Cancel" aria-hidden="true"></div>
     <section class="account-dialog account-dialog-open" role="dialog" aria-modal="true"
              aria-labelledby="logout-dialog-title" aria-describedby="logout-dialog-description">
-        <div class="account-dialog-icon" aria-hidden="true">↪</div>
+        <div class="account-dialog-icon"><NavigationIcon Name="logout" /></div>
         <h2 id="logout-dialog-title">¿Quieres cerrar sesión?</h2>
         <p id="logout-dialog-description">Saldrás de tu cuenta en este dispositivo. Podrás volver a entrar con tu correo y contraseña.</p>
         <div class="account-dialog-actions">
-            <button type="button" class="account-secondary" @onclick="Cancel">Cancelar</button>
+            <button type="button" class="account-secondary account-dialog-cancel" @onclick="Cancel">Cancelar</button>
             <form method="post" action="/logout" data-enhance="false">
                 <AntiforgeryToken />
-                <button type="submit" class="account-primary">Sí, cerrar sesión</button>
+                <button type="submit" class="account-primary account-dialog-confirm">Cerrar sesión</button>
             </form>
         </div>
     </section>
