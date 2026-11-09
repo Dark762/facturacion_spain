@@ -9,6 +9,15 @@ public sealed class CustomersApiClient
     public Task<ApiResult<IReadOnlyList<CustomerDto>>> ListAsync(Guid companyId, CancellationToken ct = default) =>
         _api.GetAsync<IReadOnlyList<CustomerDto>>(ApiPaths.Customers(companyId), ct);
 
+    public Task<ApiResult<IReadOnlyList<CustomerDto>>> SearchAsync(Guid companyId, string? search, int page = 1, int pageSize = 20, CancellationToken ct = default)
+    {
+        if (page < 1) throw new ArgumentOutOfRangeException(nameof(page));
+        if (pageSize is < 1 or > 100) throw new ArgumentOutOfRangeException(nameof(pageSize));
+        var query = $"?page={page}&pageSize={pageSize}";
+        if (!string.IsNullOrWhiteSpace(search)) query += $"&search={Uri.EscapeDataString(search.Trim())}";
+        return _api.GetAsync<IReadOnlyList<CustomerDto>>(ApiPaths.Customers(companyId) + query, ct);
+    }
+
     public Task<ApiResult<CustomerDto>> GetAsync(Guid companyId, Guid customerId, CancellationToken ct = default) =>
         _api.GetAsync<CustomerDto>($"{ApiPaths.Customers(companyId)}/{customerId:D}", ct);
     public Task<ApiResult<CustomerDto>> CreateAsync(Guid companyId, SaveCustomerDto request, CancellationToken ct = default) =>
