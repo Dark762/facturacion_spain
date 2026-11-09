@@ -1,3 +1,4 @@
+using OpenTelemetry;
 using OpenTelemetry.Metrics;
 using Microsoft.Extensions.Configuration;
 using Microsoft.AspNetCore.Http;
