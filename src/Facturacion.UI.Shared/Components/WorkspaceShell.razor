@@ -12,7 +12,10 @@
             <button type="button" class="sidebar-link sidebar-logout" @onclick="OpenLogout"><NavigationIcon Name="logout" /> <span>Cerrar sesión</span></button>
         </div>
     </aside>
-    <main class="workspace">@ChildContent</main>
+    <div class="workspace-column">
+        @HeaderContent
+        <main class="workspace">@ChildContent</main>
+    </div>
 </div>
 <nav class="mobile-nav" aria-label="Navegación móvil">
     <a href="/"><NavigationIcon Name="home" /><span>Inicio</span></a>
@@ -27,4 +30,5 @@
     private void OpenLogout() => _logoutOpen = true;
     private void CloseLogout() => _logoutOpen = false;
     [Parameter, EditorRequired] public RenderFragment? ChildContent { get; set; }
+    [Parameter] public RenderFragment? HeaderContent { get; set; }
 }
