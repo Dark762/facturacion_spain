@@ -10,9 +10,9 @@ else if (Customers.Count > 0)
         <thead>
             <tr>
                 <th scope="col">Cliente</th>
-                <th scope="col">NIF / Identificación fiscal</th>
+                <th scope="col">Contacto</th>
+                <th scope="col">NIF / CIF</th>
                 <th scope="col">Ciudad</th>
-                <th scope="col">Correo electrónico</th>
                 <th scope="col" class="customer-actions-heading">Acciones</th>
             </tr>
         </thead>
@@ -20,10 +20,15 @@ else if (Customers.Count > 0)
             @foreach (var customer in Customers)
             {
                 <tr>
-                    <td class="customer-name">@customer.LegalName</td>
+                    <td>
+                        <div class="customer-identity">
+                            <span class="customer-avatar" aria-hidden="true">@(string.IsNullOrWhiteSpace(customer.LegalName) ? "?" : customer.LegalName[..1].ToUpperInvariant())</span>
+                            <span class="customer-name">@customer.LegalName</span>
+                        </div>
+                    </td>
+                    <td class="customer-contact">@(string.IsNullOrWhiteSpace(customer.Email) ? "—" : customer.Email)</td>
                     <td>@customer.TaxId</td>
                     <td>@(string.IsNullOrWhiteSpace(customer.City) ? "—" : customer.City)</td>
-                    <td>@(string.IsNullOrWhiteSpace(customer.Email) ? "—" : customer.Email)</td>
                     <td class="customer-row-actions">
                         <button type="button" class="customer-text-button" @onclick="() => OnEdit.InvokeAsync(customer)">Editar</button>
                         <button type="button" class="customer-text-button customer-delete-button" @onclick="() => OnDelete.InvokeAsync(customer.Id)">Eliminar</button>
