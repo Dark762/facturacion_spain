@@ -17,7 +17,7 @@ public sealed class CustomerEditModel
     public static CustomerEditModel From(CustomerDto c) => new()
     {
         TaxId = c.TaxId, LegalName = c.LegalName, Address = c.Address,
-        PostalCode = c.PostalCode, City = c.City, CountryCode = c.CountryCode,
+        PostalCode = c.PostalCode, City = c.City, CountryCode = string.IsNullOrWhiteSpace(c.CountryCode) ? "ES" : c.CountryCode,
         Email = c.Email, IsBusiness = c.IsBusiness
     };
 }
