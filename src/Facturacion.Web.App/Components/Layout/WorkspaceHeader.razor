@@ -1,0 +1,47 @@
+@using System.Net.Http.Headers
+@using System.Net.Http.Json
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Components.Authorization
+@inject AuthenticationStateProvider Authentication
+@inject IHttpClientFactory Clients
+
+<header class="workspace-header" aria-label="Contexto de facturación">
+    <div class="workspace-header-context">
+        <span class="workspace-header-label">Actividad de facturación</span>
+        <strong class="workspace-header-name">@_activity</strong>
+    </div>
+    <a class="workspace-header-account" href="/account">Mi cuenta</a>
+</header>
+
+@code {
+    private string _activity = "Sin actividad seleccionada";
+
+    protected override async Task OnInitializedAsync()
+    {
+        var state = await Authentication.GetAuthenticationStateAsync();
+        var token = state.User.FindFirstValue("api_token");
+        if (state.User.Identity?.IsAuthenticated != true || string.IsNullOrWhiteSpace(token) ||
+            !Guid.TryParse(state.User.FindFirstValue("tenant_id"), out _))
+            return;
+
+        try
+        {
+            using var client = Clients.CreateClient("FacturacionAuthApi");
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            using var response = await client.GetAsync("api/my/companies");
+            if (!response.IsSuccessStatusCode) return;
+            var companies = (await response.Content.ReadFromJsonAsync<CompanyEnvelope>())?.Data;
+            _activity = companies?.Count switch
+            {
+                1 => companies[0].LegalName,
+                > 1 => "Varias empresas autorizadas",
+                _ => "Sin actividad asignada"
+            };
+        }
+        catch (HttpRequestException) { }
+        catch (System.Text.Json.JsonException) { }
+    }
+
+    private sealed record CompanyEnvelope(List<CompanyItem>? Data);
+    private sealed record CompanyItem(Guid Id, string LegalName);
+}
