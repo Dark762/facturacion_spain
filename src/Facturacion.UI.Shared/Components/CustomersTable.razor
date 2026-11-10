@@ -4,22 +4,30 @@
 {
     <p class="muted">Cargando clientes…</p>
 }
-else if (Customers.Count == 0)
+else if (Customers.Count > 0)
 {
-    <p class="muted">Todavía no hay clientes registrados para esta empresa.</p>
-}
-else
-{
-    <table class="data-table">
-        <thead><tr><th scope="col">Cliente</th><th scope="col">NIF</th><th scope="col">Ciudad</th><th scope="col">Correo</th></tr></thead>
+    <table class="data-table customer-data-table">
+        <thead>
+            <tr>
+                <th scope="col">Cliente</th>
+                <th scope="col">NIF / Identificación fiscal</th>
+                <th scope="col">Ciudad</th>
+                <th scope="col">Correo electrónico</th>
+                <th scope="col" class="customer-actions-heading">Acciones</th>
+            </tr>
+        </thead>
         <tbody>
             @foreach (var customer in Customers)
             {
                 <tr>
-                    <td>@customer.LegalName</td>
+                    <td class="customer-name">@customer.LegalName</td>
                     <td>@customer.TaxId</td>
-                    <td>@customer.City</td>
-                    <td>@customer.Email</td>
+                    <td>@(string.IsNullOrWhiteSpace(customer.City) ? "—" : customer.City)</td>
+                    <td>@(string.IsNullOrWhiteSpace(customer.Email) ? "—" : customer.Email)</td>
+                    <td class="customer-row-actions">
+                        <button type="button" class="customer-text-button" @onclick="() => OnEdit.InvokeAsync(customer)">Editar</button>
+                        <button type="button" class="customer-text-button customer-delete-button" @onclick="() => OnDelete.InvokeAsync(customer.Id)">Eliminar</button>
+                    </td>
                 </tr>
             }
         </tbody>
@@ -28,4 +36,6 @@ else
 
 @code {
     [Parameter] public IReadOnlyList<CustomerDto>? Customers { get; set; }
+    [Parameter] public EventCallback<CustomerDto> OnEdit { get; set; }
+    [Parameter] public EventCallback<Guid> OnDelete { get; set; }
 }
