@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Facturacion.Api.Responses;
 using Facturacion.Application.Provisioning;
+using Facturacion.Configuration.Security;
 using Facturacion.Infrastructure.Identity;
 using Facturacion.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authorization;
@@ -24,7 +25,7 @@ public sealed class TenantAdministrationController : ControllerBase
     // El JWT identifica el tenant; NUNCA aceptar TenantId desde el body.
     private async Task<Guid?> GetAdminTenantAsync(CancellationToken ct)
     {
-        var id = User.FindFirstValue("tenant_id");
+        var id = User.FindFirstValue(FacturacionClaim.TenantId.ToClaimType());
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (!Guid.TryParse(id, out var tenantId) || string.IsNullOrWhiteSpace(userId)) return null;
         var hasActiveMembership = await _auth.TenantUsers.AnyAsync(x => x.TenantId == tenantId && x.UserId == userId && x.IsActive, ct);

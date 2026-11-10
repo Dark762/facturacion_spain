@@ -41,7 +41,7 @@ else
     protected override async Task OnInitializedAsync()
     {
         var state = await Authentication.GetAuthenticationStateAsync();
-        var token = state.User.FindFirstValue("api_token");
+        var token = state.User.FindFirstValue(FacturacionClaim.ApiToken.ToClaimType());
         if (string.IsNullOrWhiteSpace(token)) { _unauthorized = true; _loading = false; return; }
         try
         {

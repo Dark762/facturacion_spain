@@ -16,6 +16,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../../src/Facturacion.Application/Facturacion.Application.csproj" />
+    <ProjectReference Include="../../src/Facturacion.Configuration/Facturacion.Configuration.csproj" />
     <ProjectReference Include="../../src/Facturacion.Verifactu/Facturacion.Verifactu.csproj" />
     <ProjectReference Include="../../src/Facturacion.Payments.Stripe/Facturacion.Payments.Stripe.csproj" />
   </ItemGroup>

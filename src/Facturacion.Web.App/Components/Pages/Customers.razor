@@ -173,8 +173,8 @@
     protected override async Task OnInitializedAsync()
     {
         var state = await Authentication.GetAuthenticationStateAsync();
-        var token = state.User.FindFirstValue("api_token");
-        var selectedTenant = state.User.FindFirstValue("tenant_id");
+        var token = state.User.FindFirstValue(FacturacionClaim.ApiToken.ToClaimType());
+        var selectedTenant = state.User.FindFirstValue(FacturacionClaim.TenantId.ToClaimType());
         if (state.User.Identity?.IsAuthenticated != true || string.IsNullOrWhiteSpace(token) ||
             !Guid.TryParse(selectedTenant, out _))
         {

@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Headers;
+using Facturacion.Configuration.Security;
 using Facturacion.Integration.Test.Infrastructure;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -116,8 +117,8 @@ public sealed class ApiPipelineTests : IClassFixture<ApiFactory>
             {
                 new System.Security.Claims.Claim(
                     System.Security.Claims.ClaimTypes.NameIdentifier, "forged-user"),
-                new System.Security.Claims.Claim("tenant_id", Guid.NewGuid().ToString("D")),
-                new System.Security.Claims.Claim("security_stamp", "forged")
+                new System.Security.Claims.Claim(FacturacionClaim.TenantId.ToClaimType(), Guid.NewGuid().ToString("D")),
+                new System.Security.Claims.Claim(FacturacionClaim.SecurityStamp.ToClaimType(), "forged")
             },
             notBefore: DateTime.UtcNow,
             expires: DateTime.UtcNow.AddMinutes(15),

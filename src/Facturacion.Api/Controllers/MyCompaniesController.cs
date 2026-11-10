@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using Facturacion.Api.Responses;
+using Facturacion.Configuration.Security;
 using Facturacion.Infrastructure.Identity;
 using Facturacion.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authorization;
@@ -27,7 +28,7 @@ public sealed class MyCompaniesController : ControllerBase
     public async Task<IActionResult> List(CancellationToken ct)
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        var tenantClaim = User.FindFirstValue("tenant_id");
+        var tenantClaim = User.FindFirstValue(FacturacionClaim.TenantId.ToClaimType());
         if (string.IsNullOrWhiteSpace(userId) || !Guid.TryParse(tenantClaim, out var tenantId))
             return this.ApiFailure<object>(401, "UNAUTHORIZED", "Sesión no válida.");
 

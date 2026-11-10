@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using Facturacion.Configuration.Security;
 using Facturacion.Infrastructure.Identity;
 using Facturacion.Observability;
 using Facturacion.Infrastructure.Multitenancy;
@@ -12,10 +13,10 @@ public sealed class TenantResolutionMiddleware
     {
         if (http.User.Identity?.IsAuthenticated == true)
         {
-            var purpose = http.User.FindFirst("purpose")?.Value;
+            var purpose = http.User.FindFirst(FacturacionClaim.Purpose.ToClaimType())?.Value;
             var path = http.Request.Path;
             // La preautenticación solo puede invocar la elección de tenant.
-            if (purpose == "tenant_selection")
+            if (purpose == FacturacionClaimPurpose.TenantSelection.ToClaimValue())
             {
                 if (path.Equals("/api/auth/login/complete", StringComparison.OrdinalIgnoreCase))
                 { await _next(http); return; }
@@ -23,7 +24,7 @@ public sealed class TenantResolutionMiddleware
                 return;
             }
             // El token de plataforma no habilita rutas ordinarias ni consultas de negocio.
-            if (purpose == "platform")
+            if (purpose == FacturacionClaimPurpose.Platform.ToClaimValue())
             {
                 if (path.StartsWithSegments("/api/platform"))
                 { await _next(http); return; }
@@ -31,7 +32,7 @@ public sealed class TenantResolutionMiddleware
                 return;
             }
             var userId = http.User.FindFirstValue(ClaimTypes.NameIdentifier);
-            var raw = http.User.FindFirst("tenant_id")?.Value;
+            var raw = http.User.FindFirst(FacturacionClaim.TenantId.ToClaimType())?.Value;
             if (string.IsNullOrWhiteSpace(userId) || !Guid.TryParse(raw, out var tenantId))
             { http.Response.StatusCode = StatusCodes.Status401Unauthorized; return; }
             var valid = await auth.TenantUsers.AsNoTracking().AnyAsync(

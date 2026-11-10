@@ -57,9 +57,9 @@ else if (_selectedCompany is not null)
     protected override async Task OnInitializedAsync()
     {
         var state = await Authentication.GetAuthenticationStateAsync();
-        var token = state.User.FindFirstValue("api_token");
+        var token = state.User.FindFirstValue(FacturacionClaim.ApiToken.ToClaimType());
         if (state.User.Identity?.IsAuthenticated != true || string.IsNullOrWhiteSpace(token) ||
-            !Guid.TryParse(state.User.FindFirstValue("tenant_id"), out _))
+            !Guid.TryParse(state.User.FindFirstValue(FacturacionClaim.TenantId.ToClaimType()), out _))
         {
             _unauthorized = true;
             _loading = false;

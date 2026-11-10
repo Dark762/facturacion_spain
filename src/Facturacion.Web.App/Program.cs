@@ -9,8 +9,10 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using Facturacion.Client;
 using Facturacion.Configuration;
-using Facturacion.Configuration.Options;
+using Facturacion.Configuration.Security;
 using Microsoft.Extensions.Options;
+// Alias para evitar ambigüedad con Microsoft.AspNetCore.Builder.SessionOptions (sesiones HTTP).
+using SessionSettings = Facturacion.Configuration.Options.SessionOptions;
 using Facturacion.Observability;
 using Facturacion.Web.App.Components;
 
@@ -22,7 +24,7 @@ builder.Services.AddFacturacionObservability(builder.Configuration, "Facturacion
 // La web de aplicacion es una capa de presentacion: habla con la API por HTTP,
 // no toca base de datos. No declara ninguna seccion obligatoria.
 builder.Services.AddFacturacionOptions(ConfigurationScope.None);
-builder.Services.AddOptions<SessionOptions>().BindConfiguration(SessionOptions.SectionName)
+builder.Services.AddOptions<SessionSettings>().BindConfiguration(SessionSettings.SectionName)
     .Validate(x => x.IdleTimeoutMinutes is >= 2 and <= 240 && x.WarningBeforeSeconds >= 10 && x.WarningBeforeSeconds < x.IdleTimeoutMinutes * 60 && x.HeartbeatIntervalSeconds is >= 10 and <= 300, "Session: tiempos no válidos.")
     .ValidateOnStart();
 
@@ -39,7 +41,7 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
         options.ExpireTimeSpan = TimeSpan.FromMinutes(builder.Configuration.GetValue<int>("Session:IdleTimeoutMinutes", 15));
         options.Events.OnValidatePrincipal = context =>
         {
-            var raw = context.Principal?.FindFirstValue("api_expires_utc");
+            var raw = context.Principal?.FindFirstValue(FacturacionClaim.ApiExpiresUtc.ToClaimType());
             if (!DateTimeOffset.TryParse(raw, System.Globalization.CultureInfo.InvariantCulture,
                     System.Globalization.DateTimeStyles.RoundtripKind, out var expires) || expires <= DateTimeOffset.UtcNow)
                 context.RejectPrincipal();
@@ -151,9 +153,9 @@ app.MapPost("/login", async (HttpContext http, IAntiforgery antiforgery,
 
     var selectionClaims = new List<Claim>
     {
-        new("selection_token", data.SelectionToken),
-        new("tenants", JsonSerializer.Serialize(data.Tenants)),
-        new("platform_allowed", data.CanAccessPlatform ? "true" : "false")
+        new(FacturacionClaim.SelectionToken.ToClaimType(), data.SelectionToken),
+        new(FacturacionClaim.Tenants.ToClaimType(), JsonSerializer.Serialize(data.Tenants)),
+        new(FacturacionClaim.PlatformAllowed.ToClaimType(), data.CanAccessPlatform ? "true" : "false")
     };
 
     await http.SignInAsync("TenantSelection",
@@ -173,7 +175,7 @@ app.MapGet("/select-tenant", async (HttpContext http, IAntiforgery antiforgery,
     var selection = await http.AuthenticateAsync("TenantSelection");
     if (!selection.Succeeded || selection.Principal is null)
         return Results.Redirect("/login");
-    var raw = selection.Principal.FindFirstValue("tenants");
+    var raw = selection.Principal.FindFirstValue(FacturacionClaim.Tenants.ToClaimType());
     TenantOptionDto[] tenants;
     try { tenants = JsonSerializer.Deserialize<TenantOptionDto[]>(raw ?? "") ?? []; }
     catch (JsonException) { return Results.Redirect("/login"); }
@@ -182,7 +184,7 @@ app.MapGet("/select-tenant", async (HttpContext http, IAntiforgery antiforgery,
         [nameof(TenantSelectorView.AntiforgeryToken)] = antiforgery.GetAndStoreTokens(http).RequestToken,
         [nameof(TenantSelectorView.ShowError)] = http.Request.Query.ContainsKey("error"),
         [nameof(TenantSelectorView.ErrorCode)] = http.Request.Query["error"].ToString(),
-        [nameof(TenantSelectorView.CanAccessPlatform)] = selection.Principal.FindFirstValue("platform_allowed") == "true",
+        [nameof(TenantSelectorView.CanAccessPlatform)] = selection.Principal.FindFirstValue(FacturacionClaim.PlatformAllowed.ToClaimType()) == "true",
         [nameof(TenantSelectorView.Tenants)] = tenants
             .Select(t => new TenantSelectorView.TenantOption(t.TenantId, t.Name)).ToArray()
     });
@@ -216,7 +218,7 @@ app.MapPost("/select-tenant", async (HttpContext http, IAntiforgery antiforgery,
     if (!selection.Succeeded || selection.Principal is null)
         return Results.Redirect("/login");
 
-    var selectionToken = selection.Principal.FindFirstValue("selection_token");
+    var selectionToken = selection.Principal.FindFirstValue(FacturacionClaim.SelectionToken.ToClaimType());
 
     if (string.IsNullOrWhiteSpace(selectionToken)) return Results.Redirect("/login");
 
@@ -269,11 +271,11 @@ app.MapPost("/select-tenant", async (HttpContext http, IAntiforgery antiforgery,
 
     var claims = new List<Claim>
     {
-        new("api_token", envelope.Data.AccessToken),
-        new("api_expires_utc", envelope.Data.ExpiresUtc.ToString("O", System.Globalization.CultureInfo.InvariantCulture))
+        new(FacturacionClaim.ApiToken.ToClaimType(), envelope.Data.AccessToken),
+        new(FacturacionClaim.ApiExpiresUtc.ToClaimType(), envelope.Data.ExpiresUtc.ToString("O", System.Globalization.CultureInfo.InvariantCulture))
     };
 
-    if (tenantId.HasValue) claims.Add(new Claim("tenant_id", tenantId.Value.ToString("D")));
+    if (tenantId.HasValue) claims.Add(new Claim(FacturacionClaim.TenantId.ToClaimType(), tenantId.Value.ToString("D")));
 
     var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
 
@@ -304,7 +306,7 @@ app.MapPost("/account/change-password", async (HttpContext http,
     var confirm = form["confirmPassword"].ToString();
     if (string.IsNullOrWhiteSpace(current) || string.IsNullOrWhiteSpace(next) || next != confirm)
         return Results.Redirect("/account?status=mismatch");
-    var token = http.User.FindFirstValue("api_token");
+    var token = http.User.FindFirstValue(FacturacionClaim.ApiToken.ToClaimType());
     if (string.IsNullOrWhiteSpace(token)) return Results.Redirect("/login");
     using var client = clients.CreateClient("FacturacionAuthApi");
     client.DefaultRequestHeaders.Authorization =
@@ -332,7 +334,7 @@ app.MapPost("/session/heartbeat", async (HttpContext http, IAntiforgery antiforg
     var authentication = await http.AuthenticateAsync(CookieAuthenticationDefaults.AuthenticationScheme);
     if (!authentication.Succeeded || authentication.Principal is null)
         return Results.Unauthorized();
-    if (!DateTimeOffset.TryParse(authentication.Principal.FindFirstValue("api_expires_utc"),
+    if (!DateTimeOffset.TryParse(authentication.Principal.FindFirstValue(FacturacionClaim.ApiExpiresUtc.ToClaimType()),
             System.Globalization.CultureInfo.InvariantCulture,
             System.Globalization.DateTimeStyles.RoundtripKind, out var tokenExpires) ||
         tokenExpires <= DateTimeOffset.UtcNow)
@@ -340,7 +342,7 @@ app.MapPost("/session/heartbeat", async (HttpContext http, IAntiforgery antiforg
         await http.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
         return Results.Unauthorized();
     }
-    var cookieExpires = DateTimeOffset.UtcNow.AddMinutes(http.RequestServices.GetRequiredService<IOptions<SessionOptions>>().Value.IdleTimeoutMinutes);
+    var cookieExpires = DateTimeOffset.UtcNow.AddMinutes(http.RequestServices.GetRequiredService<IOptions<SessionSettings>>().Value.IdleTimeoutMinutes);
     if (cookieExpires > tokenExpires) cookieExpires = tokenExpires;
     await http.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, authentication.Principal,
         new AuthenticationProperties { IsPersistent = false, ExpiresUtc = cookieExpires, AllowRefresh = true });

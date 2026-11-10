@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Facturacion.Api.Responses;
 using Facturacion.Application.Invitations;
+using Facturacion.Configuration.Security;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -17,7 +18,7 @@ public sealed class TenantInvitationsController : ControllerBase
     [Authorize]
     public async Task<IActionResult> Invite([FromBody] InviteTenantUserRequest request, CancellationToken ct)
     {
-        if (!Guid.TryParse(User.FindFirstValue("tenant_id"), out var tenantId)) return this.ApiFailure<object>(403, "FORBIDDEN", "No tienes permisos para esta operación.");
+        if (!Guid.TryParse(User.FindFirstValue(FacturacionClaim.TenantId.ToClaimType()), out var tenantId)) return this.ApiFailure<object>(403, "FORBIDDEN", "No tienes permisos para esta operación.");
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (string.IsNullOrWhiteSpace(userId)) return this.ApiFailure<object>(401, "UNAUTHORIZED", "Debes iniciar sesión.");
         try { return this.ApiOk(await _service.InviteAsync(tenantId, userId, request, ct), "Invitación enviada correctamente."); }

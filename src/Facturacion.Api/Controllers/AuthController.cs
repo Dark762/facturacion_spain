@@ -1,6 +1,7 @@
 using Facturacion.Api.Security;
 using System.Security.Claims;
 using Facturacion.Api.Responses;
+using Facturacion.Configuration.Security;
 using Facturacion.Infrastructure.Identity;
 using Facturacion.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authorization;
@@ -82,7 +83,7 @@ public sealed class AuthController : ControllerBase
     [HttpPost("login/complete")]
     public async Task<IActionResult> CompleteLogin(CompleteLoginRequest input, CancellationToken ct)
     {
-        if (User.FindFirst("purpose")?.Value != "tenant_selection")
+        if (User.FindFirst(FacturacionClaim.Purpose.ToClaimType())?.Value != FacturacionClaimPurpose.TenantSelection.ToClaimValue())
             return this.ApiFailure<object>(403, "INVALID_TOKEN_PURPOSE", "Sesión de selección no válida.");
 
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);

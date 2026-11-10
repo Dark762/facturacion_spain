@@ -3,6 +3,7 @@ using System.Text;
 using Facturacion.Api.Security;
 using Facturacion.Application.Interfaces;
 using Facturacion.Configuration.Options;
+using Facturacion.Configuration.Security;
 using Facturacion.Infrastructure.Identity;
 using Facturacion.Infrastructure.Multitenancy;
 using Facturacion.Infrastructure.Persistence.Providers;
@@ -114,7 +115,7 @@ internal sealed class ConfigureJwtBearer(IOptions<JwtOptions> jwt)
                     .GetRequiredService<UserManager<ApplicationUser>>();
                 var id = context.Principal?.FindFirstValue(ClaimTypes.NameIdentifier)
                     ?? context.Principal?.FindFirstValue(System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.Sub);
-                var stamp = context.Principal?.FindFirst("security_stamp")?.Value;
+                var stamp = context.Principal?.FindFirst(FacturacionClaim.SecurityStamp.ToClaimType())?.Value;
                 var user = id is null ? null : await userManager.FindByIdAsync(id);
                 if (user is null || !user.IsActive || user.SecurityStamp != stamp)
                 {

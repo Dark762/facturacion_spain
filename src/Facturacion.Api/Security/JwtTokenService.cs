@@ -3,6 +3,7 @@ using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
 using Facturacion.Configuration.Options;
+using Facturacion.Configuration.Security;
 using Facturacion.Infrastructure.Identity;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
@@ -19,8 +20,8 @@ public sealed class JwtTokenService
             new Claim(ClaimTypes.NameIdentifier, user.Id),
             new Claim(JwtRegisteredClaimNames.Sub, user.Id),
             new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString("N")),
-            new Claim("tenant_id", tenantId.ToString("D")),
-            new Claim("security_stamp", user.SecurityStamp ?? "")
+            new Claim(FacturacionClaim.TenantId.ToClaimType(), tenantId.ToString("D")),
+            new Claim(FacturacionClaim.SecurityStamp.ToClaimType(), user.SecurityStamp ?? "")
         };
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_options.SigningKey));
         var jwt = new JwtSecurityToken(_options.Issuer, _options.Audience, claims,
@@ -38,8 +39,8 @@ public sealed class JwtTokenService
             new Claim(ClaimTypes.NameIdentifier, user.Id),
             new Claim(JwtRegisteredClaimNames.Sub, user.Id),
             new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString("N")),
-            new Claim("purpose", "tenant_selection"),
-            new Claim("security_stamp", user.SecurityStamp ?? "")
+            new Claim(FacturacionClaim.Purpose.ToClaimType(), FacturacionClaimPurpose.TenantSelection.ToClaimValue()),
+            new Claim(FacturacionClaim.SecurityStamp.ToClaimType(), user.SecurityStamp ?? "")
         };
 
         return Sign(claims, now, expiry);
@@ -54,8 +55,8 @@ public sealed class JwtTokenService
             new Claim(ClaimTypes.NameIdentifier, user.Id),
             new Claim(JwtRegisteredClaimNames.Sub, user.Id),
             new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString("N")),
-            new Claim("purpose", "platform"),
-            new Claim("security_stamp", user.SecurityStamp ?? "")
+            new Claim(FacturacionClaim.Purpose.ToClaimType(), FacturacionClaimPurpose.Platform.ToClaimValue()),
+            new Claim(FacturacionClaim.SecurityStamp.ToClaimType(), user.SecurityStamp ?? "")
         };
 
         return Sign(claims, now, expiry);

@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using System.Text.Encodings.Web;
+using Facturacion.Configuration.Security;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -34,8 +35,8 @@ public sealed class TestAuthHandler : AuthenticationHandler<AuthenticationScheme
         var claims = new[]
         {
             new Claim(ClaimTypes.NameIdentifier, userId),
-            new Claim("tenant_id", tenantId.ToString("D")),
-            new Claim("security_stamp", "test-stamp")
+            new Claim(FacturacionClaim.TenantId.ToClaimType(), tenantId.ToString("D")),
+            new Claim(FacturacionClaim.SecurityStamp.ToClaimType(), "test-stamp")
         };
 
         var identity = new ClaimsIdentity(claims, SchemeName);
