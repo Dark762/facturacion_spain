@@ -15,7 +15,7 @@
             @if (ShowHeading) { <h1>Mis clientes</h1> }
 
         </div>
-        @if (_api is not null && !_showEditor)
+        @if (_api is not null)
         {
             <button type="button" class="button customer-primary-action" @onclick="StartCreate">+ Añadir cliente</button>
         }
@@ -120,10 +120,20 @@
         }
         @if (_showEditor)
         {
-            <section class="customer-editor-card">
-                <h2>@(_editingId is null ? "Nuevo cliente" : "Editar cliente")</h2>
-                <CustomerEditor @key="_editor" Model="_editor" Saving="_saving" OnSave="SaveAsync" />
-                <button type="button" class="button button-outline" @onclick="CancelEdit">Cancelar</button>
+            <div class="customer-editor-backdrop" aria-hidden="true"></div>
+            <section class="customer-editor-dialog" role="dialog" aria-modal="true" aria-labelledby="customer-editor-title">
+                <div class="customer-editor-header">
+                    <div>
+                        <h2 id="customer-editor-title">@(_editingId is null ? "Añadir cliente" : "Editar cliente")</h2>
+                        <p>Completa los datos de facturación del cliente.</p>
+                    </div>
+                    <button type="button" class="customer-editor-close" aria-label="Cerrar formulario" disabled="@_saving" @onclick="CancelEdit">×</button>
+                </div>
+                @if (_error is not null)
+                {
+                    <p class="customer-error" role="alert">@_error</p>
+                }
+                <CustomerEditor @key="_editor" Model="_editor" Saving="_saving" OnSave="SaveAsync" OnCancel="CancelEdit" />
             </section>
         }
     }
@@ -203,13 +213,14 @@
 
     private void Edit(CustomerDto customer)
     {
+        _error = null;
         _showEditor = true;
         _editingId = customer.Id;
         _editor = CustomerEditModel.From(customer);
     }
 
-    private void StartCreate() { _editingId = null; _editor = new(); _showEditor = true; }
-    private void CancelEdit() { _editingId = null; _editor = new(); _showEditor = false; }
+    private void StartCreate() { if (_saving) return; _error = null; _editingId = null; _editor = new(); _showEditor = true; }
+    private void CancelEdit() { if (_saving) return; _error = null; _editingId = null; _editor = new(); _showEditor = false; }
 
     private async Task SaveAsync(SaveCustomerDto input)
     {
