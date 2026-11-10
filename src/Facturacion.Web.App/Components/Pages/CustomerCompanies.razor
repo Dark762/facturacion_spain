@@ -7,9 +7,7 @@
 @inject AuthenticationStateProvider Authentication
 @inject IHttpClientFactory Clients
 
-<PageTitle>Seleccionar empresa | Clientes</PageTitle>
-<h1>Clientes</h1>
-<p class="muted">Selecciona una empresa para gestionar su catálogo de clientes.</p>
+<PageTitle>Mis clientes | Facturación ES</PageTitle>
 @if (_loading)
 {
     <p>Cargando empresas autorizadas…</p>
@@ -26,14 +24,25 @@ else if (_companies.Count == 0)
 {
     <p>No tienes empresas activas asignadas.</p>
 }
-else
+else if (_selectedCompany is not null)
 {
-    <ul>
-        @foreach (var company in _companies)
-        {
-            <li><a href="@($"/catalog/{company.Id:D}/customers")">@company.LegalName</a></li>
-        }
-    </ul>
+    @if (_companies.Count > 1)
+    {
+        <div class="section">
+            <label for="active-company">Gestionar clientes de</label>
+            <select id="active-company" value="@_selectedCompany.Id" @onchange="ChangeCompany">
+                @foreach (var company in _companies)
+                {
+                    <option value="@company.Id">@company.LegalName</option>
+                }
+            </select>
+        </div>
+    }
+    else
+    {
+        <p class="muted">Actividad: @_selectedCompany.LegalName</p>
+    }
+    <Customers @key="_selectedCompany.Id" CompanyId="_selectedCompany.Id" ShowHeading="true" />
 }
 
 @code {
@@ -41,6 +50,13 @@ else
     private bool _unauthorized;
     private string? _error;
     private List<CompanyItem> _companies = new();
+    private CompanyItem? _selectedCompany;
+
+    private void ChangeCompany(ChangeEventArgs args)
+    {
+        if (Guid.TryParse(args.Value?.ToString(), out var id))
+            _selectedCompany = _companies.FirstOrDefault(x => x.Id == id) ?? _selectedCompany;
+    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -61,7 +77,11 @@ else
             using var response = await client.GetAsync("api/my/companies");
             if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized) _unauthorized = true;
             else if (!response.IsSuccessStatusCode) _error = "No se pudieron consultar las empresas autorizadas.";
-            else _companies = (await response.Content.ReadFromJsonAsync<CompanyEnvelope>())?.Data ?? new();
+            else
+            {
+                _companies = (await response.Content.ReadFromJsonAsync<CompanyEnvelope>())?.Data ?? new();
+                _selectedCompany = _companies.FirstOrDefault();
+            }
         }
         catch (HttpRequestException) { _error = "No se pudo contactar con la API."; }
         catch (System.Text.Json.JsonException) { _error = "La API devolvió una respuesta no válida."; }
