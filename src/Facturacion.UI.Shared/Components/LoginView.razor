@@ -16,6 +16,10 @@
             <div class="kicker">Bienvenido de nuevo</div>
             <h2 id="login-title">Inicia sesión</h2>
             <p class="intro">Accede a tu espacio de trabajo con tus credenciales.</p>
+            @if (SessionEndReason is "expired" or "inactive")
+            {
+              <p class="alert" role="alert">@(SessionEndReason == "inactive" ? "Tu sesión se ha cerrado por inactividad. Vuelve a iniciar sesión." : "Tu sesión ha caducado. Vuelve a iniciar sesión.")</p>
+            }
             @if (ShowError) { <p class="alert" role="alert">No hemos podido iniciar sesión. Comprueba tus credenciales.</p> }
             <form method="post" action="/login">
               <input type="hidden" name="__RequestVerificationToken" value="@AntiforgeryToken">
@@ -31,4 +35,5 @@
 @code {
     [Parameter] public string? AntiforgeryToken { get; set; }
     [Parameter] public bool ShowError { get; set; }
+    [Parameter] public string? SessionEndReason { get; set; }
 }
