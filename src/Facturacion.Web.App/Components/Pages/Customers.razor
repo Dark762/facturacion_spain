@@ -219,7 +219,7 @@
         _editor = CustomerEditModel.From(customer);
     }
 
-    private void StartCreate() { if (_saving) return; _error = null; _editingId = null; _editor = new(); _showEditor = true; }
+    private void StartCreate() { if (_saving) return; _error = null; _editingId = null; _editor = new() { CountryCode = "ES" }; _showEditor = true; }
     private void CancelEdit() { if (_saving) return; _error = null; _editingId = null; _editor = new(); _showEditor = false; }
 
     private async Task SaveAsync(SaveCustomerDto input)
