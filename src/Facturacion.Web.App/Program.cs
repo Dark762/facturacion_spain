@@ -9,6 +9,8 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using Facturacion.Client;
 using Facturacion.Configuration;
+using Facturacion.Configuration.Options;
+using Microsoft.Extensions.Options;
 using Facturacion.Observability;
 using Facturacion.Web.App.Components;
 
@@ -20,6 +22,9 @@ builder.Services.AddFacturacionObservability(builder.Configuration, "Facturacion
 // La web de aplicacion es una capa de presentacion: habla con la API por HTTP,
 // no toca base de datos. No declara ninguna seccion obligatoria.
 builder.Services.AddFacturacionOptions(ConfigurationScope.None);
+builder.Services.AddOptions<SessionOptions>().BindConfiguration(SessionOptions.SectionName)
+    .Validate(x => x.IdleTimeoutMinutes is >= 2 and <= 240 && x.WarningBeforeSeconds >= 10 && x.WarningBeforeSeconds < x.IdleTimeoutMinutes * 60 && x.HeartbeatIntervalSeconds is >= 10 and <= 300, "Session: tiempos no válidos.")
+    .ValidateOnStart();
 
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
@@ -31,7 +36,15 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
         options.Cookie.Path = "/";
         options.LoginPath = "/login";
         options.AccessDeniedPath = "/login";
-        options.ExpireTimeSpan = TimeSpan.FromMinutes(15);
+        options.ExpireTimeSpan = TimeSpan.FromMinutes(builder.Configuration.GetValue<int>("Session:IdleTimeoutMinutes", 15));
+        options.Events.OnValidatePrincipal = context =>
+        {
+            var raw = context.Principal?.FindFirstValue("api_expires_utc");
+            if (!DateTimeOffset.TryParse(raw, System.Globalization.CultureInfo.InvariantCulture,
+                    System.Globalization.DateTimeStyles.RoundtripKind, out var expires) || expires <= DateTimeOffset.UtcNow)
+                context.RejectPrincipal();
+            return Task.CompletedTask;
+        };
         options.SlidingExpiration = true;
     })
     .AddCookie("TenantSelection", options =>
@@ -268,8 +281,8 @@ app.MapPost("/select-tenant", async (HttpContext http, IAntiforgery antiforgery,
         new ClaimsPrincipal(identity), new AuthenticationProperties
         {
             IsPersistent = false,
-            ExpiresUtc = DateTimeOffset.UtcNow.AddMinutes(15) < new DateTimeOffset(envelope.Data.ExpiresUtc, TimeSpan.Zero)
-                ? DateTimeOffset.UtcNow.AddMinutes(15)
+            ExpiresUtc = DateTimeOffset.UtcNow.AddMinutes(builder.Configuration.GetValue<int>("Session:IdleTimeoutMinutes", 15)) < new DateTimeOffset(envelope.Data.ExpiresUtc, TimeSpan.Zero)
+                ? DateTimeOffset.UtcNow.AddMinutes(builder.Configuration.GetValue<int>("Session:IdleTimeoutMinutes", 15))
                 : new DateTimeOffset(envelope.Data.ExpiresUtc, TimeSpan.Zero),
             AllowRefresh = true
         });
@@ -327,12 +340,19 @@ app.MapPost("/session/heartbeat", async (HttpContext http, IAntiforgery antiforg
         await http.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
         return Results.Unauthorized();
     }
-    var cookieExpires = DateTimeOffset.UtcNow.AddMinutes(15);
+    var cookieExpires = DateTimeOffset.UtcNow.AddMinutes(http.RequestServices.GetRequiredService<IOptions<SessionOptions>>().Value.IdleTimeoutMinutes);
     if (cookieExpires > tokenExpires) cookieExpires = tokenExpires;
     await http.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, authentication.Principal,
         new AuthenticationProperties { IsPersistent = false, ExpiresUtc = cookieExpires, AllowRefresh = true });
     return Results.Ok(new { expiresUtc = cookieExpires });
 }).RequireAuthorization();
+
+app.MapGet("/session/ended", async (HttpContext http, string? reason) =>
+{
+    await http.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+    await http.SignOutAsync("TenantSelection");
+    return Results.Redirect(reason == "inactive" ? "/login?reason=inactive" : "/login?reason=expired");
+}).AllowAnonymous();
 
 app.MapPost("/session/end", async (HttpContext http, IAntiforgery antiforgery) =>
 {
