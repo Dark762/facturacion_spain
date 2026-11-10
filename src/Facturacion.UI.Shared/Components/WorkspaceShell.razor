@@ -1,16 +1,25 @@
-<form id="session-security-token" hidden method="post"><AntiforgeryToken /></form>
-<div id="session-idle-warning" class="session-idle-backdrop" hidden>
-    <section class="session-idle-dialog" role="alertdialog" aria-modal="true" aria-labelledby="session-idle-title" aria-describedby="session-idle-description">
-        <h2 id="session-idle-title">¿Sigues ahí?</h2>
-        <p id="session-idle-description">Tu sesión se cerrará por inactividad si no continúas trabajando.</p>
-        <p class="session-idle-countdown">Tiempo restante: <strong id="session-idle-seconds">60</strong> segundos</p>
-        <div class="session-idle-actions">
-            <button id="session-idle-end" type="button" class="button button-outline">Cerrar sesión</button>
-            <button id="session-idle-continue" type="button" class="button">Continuar sesión</button>
-        </div>
-    </section>
-</div>
-<div class="shell">
+@using Microsoft.AspNetCore.Components
+@using Microsoft.Extensions.Options
+@using Facturacion.Configuration.Options
+@implements IAsyncDisposable
+@inject IOptions<SessionOptions> SessionSettings
+@inject NavigationManager Navigation
+
+@if (_warningOpen)
+{
+    <div class="session-idle-backdrop">
+        <section class="session-idle-dialog" role="alertdialog" aria-modal="true" aria-labelledby="session-idle-title">
+            <h2 id="session-idle-title">¿Sigues ahí?</h2>
+            <p>Tu sesión se cerrará por inactividad si no continúas trabajando.</p>
+            <p class="session-idle-countdown">Tiempo restante: <strong>@_remainingSeconds</strong> segundos</p>
+            <div class="session-idle-actions">
+                <button type="button" class="button button-outline" @onclick="EndSession">Cerrar sesión</button>
+                <button type="button" class="button" @onclick="ContinueSession">Continuar sesión</button>
+            </div>
+        </section>
+    </div>
+}
+<div class="shell" @onpointerdown="RegisterActivity" @onkeydown="RegisterActivity" @onwheel="RegisterActivity">
     <aside class="sidebar">
         <Brand />
         <nav class="sidebar-links" aria-label="Navegación privada">
@@ -38,7 +47,59 @@
 <LogoutConfirmation IsOpen="_logoutOpen" OnCancel="CloseLogout" />
 
 @code {
+    private DateTimeOffset _lastActivity = DateTimeOffset.UtcNow;
+    private bool _warningOpen;
+    private int _remainingSeconds;
+    private CancellationTokenSource? _timerCancellation;
     private bool _logoutOpen;
+    protected override void OnInitialized()
+    {
+        _timerCancellation = new CancellationTokenSource();
+        _ = WatchInactivityAsync(_timerCancellation.Token);
+    }
+    private void RegisterActivity()
+    {
+        if (!_warningOpen) _lastActivity = DateTimeOffset.UtcNow;
+    }
+    private void ContinueSession()
+    {
+        _warningOpen = false;
+        _lastActivity = DateTimeOffset.UtcNow;
+        // Navegación real para que ASP.NET Core compruebe y renueve la cookie.
+        Navigation.NavigateTo(Navigation.Uri, forceLoad: true);
+    }
+    private void EndSession() => Navigation.NavigateTo("/session/ended?reason=inactive", forceLoad: true);
+    private async Task WatchInactivityAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            using var timer = new PeriodicTimer(TimeSpan.FromSeconds(1));
+            while (await timer.WaitForNextTickAsync(cancellationToken))
+            {
+                var elapsed = DateTimeOffset.UtcNow - _lastActivity;
+                var timeout = TimeSpan.FromMinutes(SessionSettings.Value.IdleTimeoutMinutes);
+                var remaining = timeout - elapsed;
+                if (remaining <= TimeSpan.Zero)
+                {
+                    await InvokeAsync(EndSession);
+                    return;
+                }
+                var warn = remaining <= TimeSpan.FromSeconds(SessionSettings.Value.WarningBeforeSeconds);
+                var seconds = Math.Max(0, (int)Math.Ceiling(remaining.TotalSeconds));
+                if (warn != _warningOpen || (warn && seconds != _remainingSeconds))
+                {
+                    await InvokeAsync(() => { _warningOpen = warn; _remainingSeconds = seconds; StateHasChanged(); });
+                }
+            }
+        }
+        catch (OperationCanceledException) { }
+    }
+    public ValueTask DisposeAsync()
+    {
+        _timerCancellation?.Cancel();
+        _timerCancellation?.Dispose();
+        return ValueTask.CompletedTask;
+    }
     private void OpenLogout() => _logoutOpen = true;
     private void CloseLogout() => _logoutOpen = false;
     [Parameter, EditorRequired] public RenderFragment? ChildContent { get; set; }
