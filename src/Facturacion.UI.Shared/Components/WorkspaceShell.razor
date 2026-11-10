@@ -1,3 +1,15 @@
+<form id="session-security-token" hidden method="post"><AntiforgeryToken /></form>
+<div id="session-idle-warning" class="session-idle-backdrop" hidden>
+    <section class="session-idle-dialog" role="alertdialog" aria-modal="true" aria-labelledby="session-idle-title" aria-describedby="session-idle-description">
+        <h2 id="session-idle-title">¿Sigues ahí?</h2>
+        <p id="session-idle-description">Tu sesión se cerrará por inactividad si no continúas trabajando.</p>
+        <p class="session-idle-countdown">Tiempo restante: <strong id="session-idle-seconds">60</strong> segundos</p>
+        <div class="session-idle-actions">
+            <button id="session-idle-end" type="button" class="button button-outline">Cerrar sesión</button>
+            <button id="session-idle-continue" type="button" class="button">Continuar sesión</button>
+        </div>
+    </section>
+</div>
 <div class="shell">
     <aside class="sidebar">
         <Brand />
