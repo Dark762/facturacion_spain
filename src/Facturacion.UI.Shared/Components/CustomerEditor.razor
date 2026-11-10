@@ -4,6 +4,10 @@
 <EditForm Model="Model" OnValidSubmit="SaveAsync" class="customer-editor-form">
     <DataAnnotationsValidator />
     <ValidationSummary />
+    @if (_taxIdError is not null)
+    {
+        <p class="customer-taxid-error" role="alert">@_taxIdError</p>
+    }
     <div><label>Nombre o razón social <InputText @bind-Value="Model.LegalName" /></label></div>
     <div><label>NIF <InputText @bind-Value="Model.TaxId" /></label></div>
     <div><label>Dirección <InputText @bind-Value="Model.Address" /></label></div>
@@ -23,7 +27,55 @@
     [Parameter] public bool Saving { get; set; }
     [Parameter] public EventCallback<SaveCustomerDto> OnSave { get; set; }
     [Parameter] public EventCallback OnCancel { get; set; }
-    private Task SaveAsync() => OnSave.InvokeAsync(new SaveCustomerDto(
-        Model.TaxId, Model.LegalName, Model.Address, Model.PostalCode,
-        Model.City, Model.CountryCode, Model.Email, Model.IsBusiness));
+    private string? _taxIdError;
+    private Task SaveAsync()
+    {
+        _taxIdError = null;
+        if (string.Equals(Model.CountryCode, "ES", StringComparison.OrdinalIgnoreCase) &&
+            !IsValidSpanishTaxId(Model.TaxId))
+        {
+            _taxIdError = "El NIF, NIE o CIF no es válido. Comprueba el número y su letra o dígito de control.";
+            return Task.CompletedTask;
+        }
+        return OnSave.InvokeAsync(new SaveCustomerDto(
+            Model.TaxId.Trim().ToUpperInvariant(), Model.LegalName, Model.Address, Model.PostalCode,
+            Model.City, Model.CountryCode, Model.Email, Model.IsBusiness));
+    }
+
+    private static bool IsValidSpanishTaxId(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return false;
+        var id = value.Trim().ToUpperInvariant();
+        if (id.Length != 9 || !id.All(char.IsAsciiLetterOrDigit)) return false;
+        const string nifLetters = "TRWAGMYFPDXBNJZSQVHLCKE";
+        if (id[..8].All(char.IsAsciiDigit) && char.IsAsciiLetter(id[8]))
+            return nifLetters[int.Parse(id[..8], System.Globalization.CultureInfo.InvariantCulture) % 23] == id[8];
+        if ("XYZ".Contains(id[0]) && id.Substring(1, 7).All(char.IsAsciiDigit) && char.IsAsciiLetter(id[8]))
+        {
+            var number = (id[0] - 'X').ToString(System.Globalization.CultureInfo.InvariantCulture) + id.Substring(1, 7);
+            return nifLetters[int.Parse(number, System.Globalization.CultureInfo.InvariantCulture) % 23] == id[8];
+        }
+        if (!"ABCDEFGHJNPQRSUVW".Contains(id[0]) || !id.Substring(1, 7).All(char.IsAsciiDigit))
+            return false;
+        var sum = 0;
+        for (var i = 1; i <= 7; i++)
+        {
+            var digit = id[i] - '0';
+            if (i % 2 == 1)
+            {
+                var doubled = digit * 2;
+                sum += doubled / 10 + doubled % 10;
+            }
+            else sum += digit;
+        }
+        var check = (10 - sum % 10) % 10;
+        var expectedDigit = (char)('0' + check);
+        var expectedLetter = "JABCDEFGHI"[check];
+        return id[0] switch
+        {
+            'A' or 'B' or 'E' or 'H' => id[8] == expectedDigit,
+            'N' or 'P' or 'Q' or 'S' or 'W' => id[8] == expectedLetter,
+            _ => id[8] == expectedDigit || id[8] == expectedLetter
+        };
+    }
 }
