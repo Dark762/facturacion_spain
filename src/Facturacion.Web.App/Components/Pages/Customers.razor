@@ -9,70 +9,88 @@
 @inject IHttpClientFactory Clients
 
 <PageTitle>Clientes | Facturación ES</PageTitle>
-@if (ShowHeading) { <h1>Mis clientes</h1> }
-<p class="muted"><a href="/customers">Volver a mis clientes</a></p>
-@if (_unauthorized)
-{
-    <p role="alert">Tu sesión no está disponible. <a href="/login">Inicia sesión</a>.</p>
-}
-else if (_initializing)
-{
-    <p>Cargando sesión…</p>
-}
-
-@if (!_unauthorized && !_initializing && _api is null)
-{
-    <p>Configura Facturacion:ApiBaseUrl para conectar el catálogo.</p>
-}
-else if (!_unauthorized && !_initializing)
-{
-    <label for="customer-search">Buscar por nombre o NIF</label>
-    <input id="customer-search" @bind="_search" @bind:event="oninput" maxlength="120" />
-    <button @onclick="SearchAsync">Buscar</button>
-    <button @onclick="LoadAsync">Actualizar lista</button>
-    @if (_error is not null) { <p role="alert">@_error</p> }
-    @if (!_loading && _customers is { Count: 0 } && _page == 1 && string.IsNullOrWhiteSpace(_search))
-    {
-        <section class="section">
-            <h2>Todavía no tienes clientes</h2>
-            <p class="muted">Añade tu primer cliente para comenzar a facturar.</p>
-            <button @onclick="StartCreate">Añadir primer cliente</button>
-        </section>
-    }
-    else
-    {
-        <CustomersTable Customers="_customers" />
-    }
-    <nav aria-label="Paginación de clientes">
-        <button disabled="@(_page <= 1 || _loading)" @onclick="PreviousAsync">Anterior</button>
-        <span>Página @_page de @_totalPages (@_totalCount clientes)</span>
-        <button disabled="@(!_hasNext || _loading)" @onclick="NextAsync">Siguiente</button>
-    </nav>
-    @if (!_showEditor)
-    {
-        @if (_customers is { Count: > 0 })
+<section class="customer-page">
+    <div class="customer-page-heading">
+        <div>
+            @if (ShowHeading) { <h1>Mis clientes</h1> }
+            <p class="muted">Gestiona los datos de tus clientes para la facturación.</p>
+        </div>
+        @if (_api is not null && !_showEditor)
         {
-            <button @onclick="StartCreate">Añadir cliente</button>
+            <button type="button" class="button customer-primary-action" @onclick="StartCreate">+ Añadir cliente</button>
         }
+    </div>
+    @if (_unauthorized)
+    {
+        <p class="notice" role="alert">Tu sesión no está disponible. <a href="/login">Inicia sesión</a>.</p>
+    }
+    else if (_initializing)
+    {
+        <p class="muted">Cargando sesión…</p>
+    }
+    else if (_api is null)
+    {
+        <p class="notice" role="alert">No se pudo conectar el catálogo de clientes.</p>
     }
     else
     {
-        <h2>@(_editingId is null ? "Nuevo cliente" : "Editar cliente")</h2>
-        <CustomerEditor @key="_editor" Model="_editor" Saving="_saving" OnSave="SaveAsync" />
-        <button @onclick="CancelEdit">Cancelar</button>
-    }
-    @if (_customers is not null)
-    {
-        @foreach (var customer in _customers)
-        {
-            <div>
-                <span>@customer.LegalName</span>
-                <button @onclick="() => Edit(customer)">Editar</button>
-                <button @onclick="() => DeleteAsync(customer.Id)">Eliminar</button>
+        <div class="customer-list-card">
+            <div class="customer-filters">
+                <div class="customer-search-field">
+                    <label for="customer-search">Buscar clientes</label>
+                    <input id="customer-search" type="search" placeholder="Nombre, razón social o NIF" @bind="_search" @bind:event="oninput" @onkeydown="SearchOnEnterAsync" maxlength="120" />
+                </div>
+                <button type="button" class="button customer-search-button" disabled="@_loading" @onclick="SearchAsync">Buscar</button>
+                <button type="button" class="button button-outline customer-clear-button" disabled="@_loading" @onclick="ClearSearchAsync">Limpiar filtros</button>
             </div>
+            @if (_error is not null) { <p class="customer-error" role="alert">@_error</p> }
+            @if (_loading && _customers is null)
+            {
+                <p class="muted customer-loading">Cargando clientes…</p>
+            }
+            else if (!_loading && _customers is { Count: 0 })
+            {
+                <div class="customer-empty">
+                    <div class="customer-empty-icon" aria-hidden="true">◎</div>
+                    <h2>@(string.IsNullOrWhiteSpace(_appliedSearch) ? "Todavía no tienes clientes" : "No encontramos clientes")</h2>
+                    <p class="muted">@(string.IsNullOrWhiteSpace(_appliedSearch) ? "Añade tu primer cliente para comenzar a gestionar tus contactos de facturación." : "Prueba con otro nombre o NIF, o limpia los filtros para ver todos los clientes.")</p>
+                    @if (string.IsNullOrWhiteSpace(_appliedSearch))
+                    {
+                        <button type="button" class="button" @onclick="StartCreate">Añadir primer cliente</button>
+                    }
+                    else
+                    {
+                        <button type="button" class="button button-outline" @onclick="ClearSearchAsync">Limpiar búsqueda</button>
+                    }
+                </div>
+            }
+            else
+            {
+                <div class="customer-table-wrap">
+                    <CustomersTable Customers="_customers" OnEdit="Edit" OnDelete="DeleteAsync" />
+                </div>
+                @if (_totalPages > 1 || _hasNext)
+                {
+                    <nav class="customer-pagination" aria-label="Paginación de clientes">
+                        <span>Página @_page de @_totalPages · @_totalCount clientes</span>
+                        <div class="customer-pagination-buttons">
+                            <button type="button" class="button button-outline" disabled="@(_page <= 1 || _loading)" @onclick="PreviousAsync">Anterior</button>
+                            <button type="button" class="button button-outline" disabled="@(!_hasNext || _loading)" @onclick="NextAsync">Siguiente</button>
+                        </div>
+                    </nav>
+                }
+            }
+        </div>
+        @if (_showEditor)
+        {
+            <section class="customer-editor-card">
+                <h2>@(_editingId is null ? "Nuevo cliente" : "Editar cliente")</h2>
+                <CustomerEditor @key="_editor" Model="_editor" Saving="_saving" OnSave="SaveAsync" />
+                <button type="button" class="button button-outline" @onclick="CancelEdit">Cancelar</button>
+            </section>
         }
     }
-}
+</section>
 
 @code {
     [Parameter] public Guid CompanyId { get; set; }
@@ -88,6 +106,7 @@ else if (!_unauthorized && !_initializing)
     private bool _saving;
     private string? _error;
     private string _search = "";
+    private string _appliedSearch = "";
     private int _page = 1;
     private const int PageSize = 20;
     private bool _hasNext;
@@ -95,7 +114,9 @@ else if (!_unauthorized && !_initializing)
     private int _totalPages = 1;
     private bool _loading;
 
-    private async Task SearchAsync() { _page = 1; await LoadAsync(); }
+    private async Task SearchAsync() { _page = 1; _appliedSearch = _search.Trim(); await LoadAsync(); }
+    private async Task ClearSearchAsync() { _search = ""; _appliedSearch = ""; _page = 1; await LoadAsync(); }
+    private async Task SearchOnEnterAsync(KeyboardEventArgs args) { if (args.Key == "Enter") await SearchAsync(); }
     private async Task PreviousAsync() { if (_page > 1) { _page--; await LoadAsync(); } }
     private async Task NextAsync() { if (_hasNext) { _page++; await LoadAsync(); } }
 
@@ -125,7 +146,7 @@ else if (!_unauthorized && !_initializing)
         _loading = true;
         try
         {
-            var result = await _api.SearchAsync(CompanyId, _search, _page, PageSize);
+            var result = await _api.SearchAsync(CompanyId, _appliedSearch, _page, PageSize);
             if (result.IsSuccess)
             {
                 _customers = result.Value;
