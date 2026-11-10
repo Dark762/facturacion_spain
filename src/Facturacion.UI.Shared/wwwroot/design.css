@@ -360,3 +360,6 @@
 .customer-editor-actions .button{min-height:42px;border-radius:9px}
 .customer-editor-dialog .customer-error{margin:0 0 15px}
 @media(max-width:580px){.customer-editor-dialog{padding:20px;max-height:calc(100dvh - 20px)}.customer-editor-form{grid-template-columns:1fr}.customer-editor-form>div{grid-column:1/-1}.customer-editor-actions{flex-wrap:wrap}.customer-editor-actions .button{flex:1}}
+
+/* País predeterminado de clientes: lectura visible sin entrada editable */
+.customer-editor-form .customer-country-readonly{display:flex;align-items:center;min-height:43px;padding:10px 12px;border:1px solid #e2e8f0;border-radius:9px;background:#f8fafc;color:#475569;font-weight:500}
