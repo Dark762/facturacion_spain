@@ -2,18 +2,29 @@
 @rendermode InteractiveServer
 @using Facturacion.Client
 @using Microsoft.AspNetCore.Components.Web
-@inject IServiceProvider Services
+@using System.Net.Http.Headers
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Components.Authorization
+@inject AuthenticationStateProvider Authentication
+@inject IHttpClientFactory Clients
 
 <PageTitle>Clientes | Facturación ES</PageTitle>
 <h1>Clientes</h1>
 <p class="muted">Empresa: @CompanyId</p>
-<p class="notice">Esta pantalla requiere autenticación API; la integración de sesión del área privada está pendiente. No introduzcas datos reales hasta habilitarla.</p>
+@if (_unauthorized)
+{
+    <p role="alert">Tu sesión no está disponible. <a href="/login">Inicia sesión</a>.</p>
+}
+else if (_initializing)
+{
+    <p>Cargando sesión…</p>
+}
 
-@if (_api is null)
+@if (!_unauthorized && !_initializing && _api is null)
 {
     <p>Configura Facturacion:ApiBaseUrl para conectar el catálogo.</p>
 }
-else
+else if (!_unauthorized && !_initializing)
 {
     <label for="customer-search">Buscar por nombre o NIF</label>
     <input id="customer-search" @bind="_search" @bind:event="oninput" maxlength="120" />
@@ -45,6 +56,9 @@ else
 @code {
     [Parameter] public Guid CompanyId { get; set; }
     private CustomersApiClient? _api;
+    private HttpClient? _http;
+    private bool _unauthorized;
+    private bool _initializing = true;
     private IReadOnlyList<CustomerDto>? _customers;
     private CustomerEditModel _editor = new();
     private Guid? _editingId;
@@ -64,8 +78,21 @@ else
 
     protected override async Task OnInitializedAsync()
     {
-        _api = Services.GetService(typeof(CustomersApiClient)) as CustomersApiClient;
-        if (_api is not null) await LoadAsync();
+        var state = await Authentication.GetAuthenticationStateAsync();
+        var token = state.User.FindFirstValue("api_token");
+        var selectedTenant = state.User.FindFirstValue("tenant_id");
+        if (state.User.Identity?.IsAuthenticated != true || string.IsNullOrWhiteSpace(token) ||
+            !Guid.TryParse(selectedTenant, out _))
+        {
+            _unauthorized = true;
+            _initializing = false;
+            return;
+        }
+        _http = Clients.CreateClient("FacturacionAuthApi");
+        _http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        _api = new CustomersApiClient(new ApiClient(_http));
+        _initializing = false;
+        await LoadAsync();
     }
 
     private async Task LoadAsync()
