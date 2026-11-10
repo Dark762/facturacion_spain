@@ -13,7 +13,7 @@
     <div class="customer-page-heading">
         <div>
             @if (ShowHeading) { <h1>Mis clientes</h1> }
-            <p class="muted">Gestiona los datos de tus clientes para la facturación.</p>
+            <p class="muted">Organiza tus contactos y mantén sus datos de facturación al día.</p>
         </div>
         @if (_api is not null && !_showEditor)
         {
@@ -35,13 +35,23 @@
     else
     {
         <div class="customer-list-card">
+            <div class="customer-directory-heading">
+                <div>
+                    <h2>Directorio</h2>
+                    <p class="muted">@(string.IsNullOrWhiteSpace(_appliedSearch) ? "Todos tus clientes" : "Resultados de la búsqueda")</p>
+                </div>
+                @if (_customers is not null && !_loading)
+                {
+                    <span class="customer-count">@_totalCount @( _totalCount == 1 ? "cliente" : "clientes")</span>
+                }
+            </div>
             <div class="customer-filters">
                 <div class="customer-search-field">
                     <label for="customer-search">Buscar clientes</label>
                     <input id="customer-search" type="search" placeholder="Nombre, razón social o NIF" @bind="_search" @bind:event="oninput" @onkeydown="SearchOnEnterAsync" maxlength="120" />
                 </div>
                 <button type="button" class="button customer-search-button" disabled="@_loading" @onclick="SearchAsync">Buscar</button>
-                <button type="button" class="button button-outline customer-clear-button" disabled="@_loading" @onclick="ClearSearchAsync">Limpiar filtros</button>
+                <button type="button" class="button button-outline customer-clear-button" disabled="@_loading" @onclick="ClearSearchAsync">Limpiar</button>
             </div>
             @if (_error is not null) { <p class="customer-error" role="alert">@_error</p> }
             @if (_loading && _customers is null)
@@ -67,7 +77,7 @@
             else
             {
                 <div class="customer-table-wrap">
-                    <CustomersTable Customers="_customers" OnEdit="Edit" OnDelete="DeleteAsync" />
+                    <CustomersTable Customers="_customers" OnEdit="Edit" OnDelete="RequestDelete" />
                 </div>
                 @if (_totalPages > 1 || _hasNext)
                 {
@@ -81,6 +91,19 @@
                 }
             }
         </div>
+        @if (_pendingDelete is not null)
+        {
+            <div class="customer-confirm-backdrop" aria-hidden="true"></div>
+            <section class="customer-confirm-dialog" role="alertdialog" aria-modal="true" aria-labelledby="customer-confirm-title" aria-describedby="customer-confirm-description">
+                <div class="customer-confirm-icon" aria-hidden="true">!</div>
+                <h2 id="customer-confirm-title">¿Eliminar cliente?</h2>
+                <p id="customer-confirm-description">Se eliminará a <strong>@_pendingDelete.LegalName</strong> del catálogo. Esta acción no se puede deshacer.</p>
+                <div class="customer-confirm-actions">
+                    <button type="button" class="button button-outline" disabled="@_deleting" @onclick="CancelDelete">Cancelar</button>
+                    <button type="button" class="button customer-danger-action" disabled="@_deleting" @onclick="ConfirmDeleteAsync">@(_deleting ? "Eliminando…" : "Sí, eliminar")</button>
+                </div>
+            </section>
+        }
         @if (_showEditor)
         {
             <section class="customer-editor-card">
@@ -113,6 +136,8 @@
     private int _totalCount;
     private int _totalPages = 1;
     private bool _loading;
+    private CustomerDto? _pendingDelete;
+    private bool _deleting;
 
     private async Task SearchAsync() { _page = 1; _appliedSearch = _search.Trim(); await LoadAsync(); }
     private async Task ClearSearchAsync() { _search = ""; _appliedSearch = ""; _page = 1; await LoadAsync(); }
@@ -188,6 +213,21 @@
         finally { _saving = false; }
     }
 
+    private void RequestDelete(Guid id)
+    {
+        _pendingDelete = _customers?.FirstOrDefault(customer => customer.Id == id);
+    }
+
+    private void CancelDelete() { if (!_deleting) _pendingDelete = null; }
+
+    private async Task ConfirmDeleteAsync()
+    {
+        if (_pendingDelete is null || _deleting) return;
+        _deleting = true;
+        try { await DeleteAsync(_pendingDelete.Id); }
+        finally { _deleting = false; }
+    }
+
     private async Task DeleteAsync(Guid id)
     {
         if (_api is null) return;
@@ -195,7 +235,16 @@
         {
             var result = await _api.DeleteAsync(CompanyId, id);
             _error = result.Error?.Message;
-            if (result.IsSuccess) await LoadAsync();
+            if (result.IsSuccess)
+            {
+                _pendingDelete = null;
+                await LoadAsync();
+                if (_customers is { Count: 0 } && _page > 1)
+                {
+                    _page--;
+                    await LoadAsync();
+                }
+            }
         }
         catch (HttpRequestException) { _error = "No se pudo contactar con la API."; }
     }
