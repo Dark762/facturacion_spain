@@ -363,3 +363,6 @@
 
 /* País predeterminado de clientes: lectura visible sin entrada editable */
 .customer-editor-form .customer-country-readonly{display:flex;align-items:center;min-height:43px;padding:10px 12px;border:1px solid #e2e8f0;border-radius:9px;background:#f8fafc;color:#475569;font-weight:500}
+
+/* Validación fiscal en el formulario de clientes */
+.customer-editor-form .customer-taxid-error{grid-column:1/-1;margin:0;padding:11px 13px;border:1px solid #fecaca;border-radius:8px;background:#fff1f2;color:#991b1b;font-size:.83rem}
