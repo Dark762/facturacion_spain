@@ -215,3 +215,13 @@
 
 /* Formulario antiforgery prerenderizado, oculto hasta que Blazor abre el modal. */
 .account-dialog.account-dialog-hidden{display:none!important}
+
+/* Barra de contexto de la aplicación privada: junto al menú lateral. */
+.workspace-column{min-width:0;display:flex;flex-direction:column}
+.workspace-header{min-height:76px;padding:14px 48px;display:flex;align-items:center;justify-content:space-between;gap:20px;background:#fff;border-bottom:1px solid #e6eaf2}
+.workspace-header-context{display:flex;flex-direction:column;gap:4px;min-width:0}
+.workspace-header-label{font-size:.76rem;font-weight:650;color:#64748b}
+.workspace-header-name{font-size:1rem;font-weight:750;color:#18243b;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.workspace-header-account{font-size:.85rem;font-weight:650;color:#5145e7;white-space:nowrap}
+.workspace-header-account:hover{text-decoration:underline}
+@media(max-width:760px){.workspace-header{padding:14px 20px;min-height:68px}.workspace-header-name{font-size:.93rem}.workspace-header-account{font-size:.8rem}}
