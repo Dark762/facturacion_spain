@@ -366,3 +366,25 @@
 
 /* Validación fiscal en el formulario de clientes */
 .customer-editor-form .customer-taxid-error{grid-column:1/-1;margin:0;padding:11px 13px;border:1px solid #fecaca;border-radius:8px;background:#fff1f2;color:#991b1b;font-size:.83rem}
+
+/* FC-01 responsive: el directorio ocupa el ancho disponible del área de trabajo */
+.shell>.workspace-column{min-width:0;width:100%}
+.shell>.workspace-column>.workspace{box-sizing:border-box;width:100%;max-width:none;min-width:0}
+.workspace .customer-page{box-sizing:border-box;width:100%;max-width:none;min-width:0}
+.customer-page .customer-page-heading,.customer-page .customer-view-tabs,.customer-page .customer-list-card{width:100%;box-sizing:border-box;min-width:0}
+.customer-page .customer-overview{grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr))}
+.customer-page .customer-list-card{overflow:hidden}
+.customer-page .customer-table-wrap{width:100%;max-width:100%;min-width:0;overflow-x:auto}
+.customer-page .customer-data-table{width:100%;min-width:0;table-layout:auto}
+.customer-page .customer-data-table th,.customer-page .customer-data-table td{min-width:0}
+.customer-page .customer-data-table th:first-child{width:29%}
+.customer-page .customer-data-table th:nth-child(2){width:28%}
+.customer-page .customer-data-table th:nth-child(3){width:18%}
+.customer-page .customer-data-table th:nth-child(4){width:15%}
+.customer-page .customer-data-table th:last-child{width:10%}
+.customer-page .customer-identity{min-width:0}
+.customer-page .customer-name{overflow-wrap:anywhere}
+.customer-page .customer-contact{overflow-wrap:anywhere}
+@media(max-width:900px){.shell>.workspace-column>.workspace{padding:28px 24px}.customer-page .customer-data-table{min-width:690px}}
+@media(max-width:760px){.shell>.workspace-column>.workspace{padding:22px 16px}.customer-page .customer-data-table{min-width:660px}.customer-page .customer-filters{flex-wrap:wrap}.customer-page .customer-search-field{flex:1 1 100%;max-width:none}}
+@media(max-width:440px){.shell>.workspace-column>.workspace{padding:18px 12px}.customer-page .customer-page-heading{align-items:stretch}.customer-page .customer-primary-action{width:100%;text-align:center}.customer-page .customer-overview-card{padding:18px}.customer-page .customer-directory-heading{flex-wrap:wrap}.customer-page .customer-data-table{min-width:640px}}
