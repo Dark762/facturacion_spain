@@ -38,10 +38,6 @@ else if (_selectedCompany is not null)
             </select>
         </div>
     }
-    else
-    {
-        <p class="muted">Actividad: @_selectedCompany.LegalName</p>
-    }
     <Customers @key="_selectedCompany.Id" CompanyId="_selectedCompany.Id" ShowHeading="true" />
 }
 
