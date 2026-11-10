@@ -265,3 +265,36 @@
 .customer-editor-card h2{margin:0 0 20px;font-size:1.35rem}
 @media(max-width:760px){.customer-page-heading{align-items:stretch;flex-direction:column}.customer-primary-action{align-self:flex-start}.customer-filters{padding:16px;flex-wrap:wrap}.customer-search-field{flex-basis:100%}.customer-filters .button{flex:1}.customer-empty{padding:46px 18px}.customer-pagination{flex-wrap:wrap}.customer-editor-card{padding:18px}}
 @media(max-width:420px){.customer-filters .button{flex-basis:100%}.customer-pagination-buttons{width:100%}.customer-pagination-buttons .button{flex:1}}
+
+/* FC-01: directorio visual v2, datos reales y confirmación de borrado */
+.customer-page{max-width:1240px}
+.customer-page-heading{margin-bottom:28px}
+.customer-page-heading h1{font-weight:800}
+.customer-primary-action{background:#5145e7;border-color:#5145e7;box-shadow:0 5px 12px rgba(81,69,231,.15)}
+.customer-directory-heading{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:25px 26px 18px}
+.customer-directory-heading h2{font-size:1.15rem;letter-spacing:-.025em;color:#18243b;margin:0 0 5px}
+.customer-directory-heading p{font-size:.83rem;margin:0}
+.customer-count{display:inline-flex;align-items:center;border:1px solid #e0e5f0;border-radius:999px;padding:7px 12px;background:#f8f9ff;color:#4f46a5;font-size:.8rem;font-weight:700;white-space:nowrap}
+.customer-filters{padding:0 26px 24px;border-bottom:1px solid #e9edf5;align-items:end}
+.customer-search-field label{font-size:.79rem;color:#64748b}
+.customer-search-field input{background:#fafbff;border-color:#dfe5ef}
+.customer-data-table{min-width:760px}
+.customer-data-table th{background:#fafbfe;text-transform:uppercase;letter-spacing:.035em;font-size:.72rem}
+.customer-data-table td{padding-block:18px}
+.customer-identity{display:flex;align-items:center;gap:12px;min-width:190px}
+.customer-avatar{width:38px;height:38px;flex:0 0 38px;display:grid;place-items:center;border-radius:12px;background:#eeedff;color:#5145e7;font-weight:800;font-size:.95rem}
+.customer-contact{max-width:250px;overflow-wrap:anywhere}
+.customer-text-button{padding:7px 9px;border-radius:7px}
+.customer-text-button:hover{background:#f1efff;text-decoration:none}
+.customer-delete-button:hover{background:#fff1f2}
+.customer-pagination{padding:20px 26px;background:#fff}
+.customer-confirm-backdrop{position:fixed;inset:0;background:rgba(18,26,52,.55);z-index:1200}
+.customer-confirm-dialog{position:fixed;z-index:1201;top:50%;left:50%;transform:translate(-50%,-50%);width:min(92vw,430px);max-height:90dvh;overflow:auto;background:#fff;border-radius:18px;border:1px solid #e4e9f2;padding:28px;box-shadow:0 24px 75px rgba(15,23,42,.23)}
+.customer-confirm-icon{display:grid;place-items:center;width:46px;height:46px;border-radius:14px;background:#fff1f2;color:#b42318;font-size:1.5rem;font-weight:800;margin-bottom:16px}
+.customer-confirm-dialog h2{margin:0 0 10px;font-size:1.3rem;color:#18243b}
+.customer-confirm-dialog p{margin:0;color:#64748b;line-height:1.6}
+.customer-confirm-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:24px}
+.customer-danger-action{background:#b42318;border-color:#b42318;color:#fff}
+.customer-danger-action:hover{background:#912018}
+.customer-confirm-actions button:disabled{opacity:.55;cursor:wait}
+@media(max-width:760px){.customer-directory-heading{padding:20px 16px 16px}.customer-filters{padding:0 16px 20px}.customer-pagination{padding:16px}.customer-confirm-dialog{padding:22px}}
