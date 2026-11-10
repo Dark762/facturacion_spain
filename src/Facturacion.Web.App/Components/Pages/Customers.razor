@@ -13,13 +13,26 @@
     <div class="customer-page-heading">
         <div>
             @if (ShowHeading) { <h1>Mis clientes</h1> }
-            <p class="muted">Organiza tus contactos y mantén sus datos de facturación al día.</p>
+
         </div>
         @if (_api is not null && !_showEditor)
         {
             <button type="button" class="button customer-primary-action" @onclick="StartCreate">+ Añadir cliente</button>
         }
     </div>
+    <nav class="customer-view-tabs" aria-label="Vista del catálogo">
+        <span class="customer-view-tab-active" aria-current="page">Directorio de clientes</span>
+    </nav>
+    @if (_api is not null && _customers is not null && string.IsNullOrWhiteSpace(_appliedSearch))
+    {
+        <div class="customer-overview">
+            <div class="customer-overview-card">
+                <span class="customer-overview-label">Total de clientes</span>
+                <strong>@_totalCount.ToString("N0")</strong>
+                <span class="customer-overview-caption">Registrados en esta actividad</span>
+            </div>
+        </div>
+    }
     @if (_unauthorized)
     {
         <p class="notice" role="alert">Tu sesión no está disponible. <a href="/login">Inicia sesión</a>.</p>
@@ -37,7 +50,7 @@
         <div class="customer-list-card">
             <div class="customer-directory-heading">
                 <div>
-                    <h2>Directorio</h2>
+                    <h2>Todos los clientes</h2>
                     <p class="muted">@(string.IsNullOrWhiteSpace(_appliedSearch) ? "Todos tus clientes" : "Resultados de la búsqueda")</p>
                 </div>
                 @if (_customers is not null && !_loading)
@@ -47,8 +60,9 @@
             </div>
             <div class="customer-filters">
                 <div class="customer-search-field">
-                    <label for="customer-search">Buscar clientes</label>
-                    <input id="customer-search" type="search" placeholder="Nombre, razón social o NIF" @bind="_search" @bind:event="oninput" @onkeydown="SearchOnEnterAsync" maxlength="120" />
+                    <span class="customer-search-glyph" aria-hidden="true">⌕</span>
+                    <label class="customer-visually-hidden" for="customer-search">Buscar clientes</label>
+                    <input id="customer-search" type="search" placeholder="Buscar por nombre o NIF..." @bind="_search" @bind:event="oninput" @onkeydown="SearchOnEnterAsync" maxlength="120" />
                 </div>
                 <button type="button" class="button customer-search-button" disabled="@_loading" @onclick="SearchAsync">Buscar</button>
                 <button type="button" class="button button-outline customer-clear-button" disabled="@_loading" @onclick="ClearSearchAsync">Limpiar</button>
@@ -82,7 +96,7 @@
                 @if (_totalPages > 1 || _hasNext)
                 {
                     <nav class="customer-pagination" aria-label="Paginación de clientes">
-                        <span>Página @_page de @_totalPages · @_totalCount clientes</span>
+                        <span class="customer-pagination-status">Página @_page de @_totalPages</span>
                         <div class="customer-pagination-buttons">
                             <button type="button" class="button button-outline" disabled="@(_page <= 1 || _loading)" @onclick="PreviousAsync">Anterior</button>
                             <button type="button" class="button button-outline" disabled="@(!_hasNext || _loading)" @onclick="NextAsync">Siguiente</button>
