@@ -31,8 +31,8 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
         options.Cookie.Path = "/";
         options.LoginPath = "/login";
         options.AccessDeniedPath = "/login";
-        options.ExpireTimeSpan = TimeSpan.FromHours(8);
-        options.SlidingExpiration = false;
+        options.ExpireTimeSpan = TimeSpan.FromMinutes(15);
+        options.SlidingExpiration = true;
     })
     .AddCookie("TenantSelection", options =>
     {
@@ -78,6 +78,7 @@ app.UseAntiforgery();
 app.MapGet("/login", async (HttpContext http, IAntiforgery antiforgery,
     IServiceProvider services) =>
 {
+    var sessionEnded = http.Request.Query["reason"].ToString() is "expired" or "inactive" ? http.Request.Query["reason"].ToString() : null;
     var showLoginError = http.Request.Cookies.ContainsKey("FacturacionLoginError");
     if (showLoginError) http.Response.Cookies.Delete("FacturacionLoginError", new CookieOptions { Path = "/login" });
     var token = antiforgery.GetAndStoreTokens(http).RequestToken;
@@ -85,7 +86,8 @@ app.MapGet("/login", async (HttpContext http, IAntiforgery antiforgery,
     var parameters = ParameterView.FromDictionary(new Dictionary<string, object?>
     {
         [nameof(LoginView.AntiforgeryToken)] = token,
-        [nameof(LoginView.ShowError)] = showLoginError
+        [nameof(LoginView.ShowError)] = showLoginError,
+        [nameof(LoginView.SessionEndReason)] = sessionEnded
     });
     var componentHtml = await renderer.Dispatcher.InvokeAsync(async () =>
     {
@@ -254,7 +256,8 @@ app.MapPost("/select-tenant", async (HttpContext http, IAntiforgery antiforgery,
 
     var claims = new List<Claim>
     {
-        new("api_token", envelope.Data.AccessToken)
+        new("api_token", envelope.Data.AccessToken),
+        new("api_expires_utc", envelope.Data.ExpiresUtc.ToString("O", System.Globalization.CultureInfo.InvariantCulture))
     };
 
     if (tenantId.HasValue) claims.Add(new Claim("tenant_id", tenantId.Value.ToString("D")));
@@ -265,7 +268,10 @@ app.MapPost("/select-tenant", async (HttpContext http, IAntiforgery antiforgery,
         new ClaimsPrincipal(identity), new AuthenticationProperties
         {
             IsPersistent = false,
-            ExpiresUtc = new DateTimeOffset(envelope.Data.ExpiresUtc, TimeSpan.Zero)
+            ExpiresUtc = DateTimeOffset.UtcNow.AddMinutes(15) < new DateTimeOffset(envelope.Data.ExpiresUtc, TimeSpan.Zero)
+                ? DateTimeOffset.UtcNow.AddMinutes(15)
+                : new DateTimeOffset(envelope.Data.ExpiresUtc, TimeSpan.Zero),
+            AllowRefresh = true
         });
 
     await http.SignOutAsync("TenantSelection");
@@ -303,6 +309,39 @@ app.MapPost("/account/change-password", async (HttpContext http,
     await http.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
     return Results.Redirect("/login");
 }).RequireAuthorization();
+
+// La actividad se confirma desde el navegador con antiforgery. La cookie se renueva
+// sin superar la caducidad absoluta del token emitido por la API.
+app.MapPost("/session/heartbeat", async (HttpContext http, IAntiforgery antiforgery) =>
+{
+    try { await antiforgery.ValidateRequestAsync(http); }
+    catch (AntiforgeryValidationException) { return Results.BadRequest(); }
+    var authentication = await http.AuthenticateAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+    if (!authentication.Succeeded || authentication.Principal is null)
+        return Results.Unauthorized();
+    if (!DateTimeOffset.TryParse(authentication.Principal.FindFirstValue("api_expires_utc"),
+            System.Globalization.CultureInfo.InvariantCulture,
+            System.Globalization.DateTimeStyles.RoundtripKind, out var tokenExpires) ||
+        tokenExpires <= DateTimeOffset.UtcNow)
+    {
+        await http.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+        return Results.Unauthorized();
+    }
+    var cookieExpires = DateTimeOffset.UtcNow.AddMinutes(15);
+    if (cookieExpires > tokenExpires) cookieExpires = tokenExpires;
+    await http.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, authentication.Principal,
+        new AuthenticationProperties { IsPersistent = false, ExpiresUtc = cookieExpires, AllowRefresh = true });
+    return Results.Ok(new { expiresUtc = cookieExpires });
+}).RequireAuthorization();
+
+app.MapPost("/session/end", async (HttpContext http, IAntiforgery antiforgery) =>
+{
+    try { await antiforgery.ValidateRequestAsync(http); }
+    catch (AntiforgeryValidationException) { return Results.BadRequest(); }
+    await http.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+    await http.SignOutAsync("TenantSelection");
+    return Results.Ok();
+}).AllowAnonymous();
 
 app.MapPost("/logout", async (HttpContext http, IAntiforgery antiforgery,
     ILogger<Program> logger) =>
