@@ -9,7 +9,7 @@
     <div><label>Dirección <InputText @bind-Value="Model.Address" /></label></div>
     <div><label>Código postal <InputText @bind-Value="Model.PostalCode" /></label></div>
     <div><label>Ciudad <InputText @bind-Value="Model.City" /></label></div>
-    <div><label>País (ISO 2) <InputText @bind-Value="Model.CountryCode" /></label></div>
+    <div><label>País <span class="customer-country-readonly">@(string.Equals(Model.CountryCode, "ES", StringComparison.OrdinalIgnoreCase) ? "España" : Model.CountryCode)</span></label></div>
     <div><label>Correo <InputText @bind-Value="Model.Email" /></label></div>
     <div><label><InputCheckbox @bind-Value="Model.IsBusiness" /> Empresa</label></div>
     <div class="customer-editor-actions">
