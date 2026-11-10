@@ -129,9 +129,9 @@
                     </div>
                     <button type="button" class="customer-editor-close" aria-label="Cerrar formulario" disabled="@_saving" @onclick="CancelEdit">×</button>
                 </div>
-                @if (_error is not null)
+                @if (_editorError is not null)
                 {
-                    <p class="customer-error" role="alert">@_error</p>
+                    <p class="customer-error" role="alert">@_editorError</p>
                 }
                 <CustomerEditor @key="_editor" Model="_editor" Saving="_saving" OnSave="SaveAsync" OnCancel="CancelEdit" />
             </section>
@@ -152,6 +152,7 @@
     private Guid? _editingId;
     private bool _saving;
     private string? _error;
+    private string? _editorError;
     private string _search = "";
     private string _appliedSearch = "";
     private int _page = 1;
@@ -213,28 +214,42 @@
 
     private void Edit(CustomerDto customer)
     {
-        _error = null;
+        _editorError = null;
         _showEditor = true;
         _editingId = customer.Id;
         _editor = CustomerEditModel.From(customer);
     }
 
-    private void StartCreate() { if (_saving) return; _error = null; _editingId = null; _editor = new() { CountryCode = "ES" }; _showEditor = true; }
-    private void CancelEdit() { if (_saving) return; _error = null; _editingId = null; _editor = new(); _showEditor = false; }
+    private void StartCreate() { if (_saving) return; _editorError = null; _editingId = null; _editor = new() { CountryCode = "ES" }; _showEditor = true; }
+    private void CancelEdit() { if (_saving) return; _editorError = null; _editingId = null; _editor = new(); _showEditor = false; }
 
     private async Task SaveAsync(SaveCustomerDto input)
     {
         if (_api is null || _saving) return;
+        _editorError = null;
         _saving = true;
         try
         {
             var result = _editingId is Guid id
                 ? await _api.UpdateAsync(CompanyId, id, input)
                 : await _api.CreateAsync(CompanyId, input);
-            _error = result.Error?.Message;
-            if (result.IsSuccess) { CancelEdit(); await LoadAsync(); }
+            if (result.IsSuccess)
+            {
+                _saving = false;
+                CancelEdit();
+                await LoadAsync();
+            }
+            else
+            {
+                _editorError = result.Error?.Code switch
+                {
+                    "CUSTOMER_TAX_ID_DUPLICATE" => "Ya existe un cliente con ese NIF, NIE o CIF en esta empresa.",
+                    "CUSTOMER_INVALID" => "Revisa el NIF, NIE o CIF y los datos del cliente. El identificador fiscal debe ser válido para España.",
+                    _ => result.Error?.Message ?? "No se pudo guardar el cliente."
+                };
+            }
         }
-        catch (HttpRequestException) { _error = "No se pudo contactar con la API."; }
+        catch (HttpRequestException) { _editorError = "No se pudo contactar con la API. Inténtalo de nuevo."; }
         finally { _saving = false; }
     }
 
