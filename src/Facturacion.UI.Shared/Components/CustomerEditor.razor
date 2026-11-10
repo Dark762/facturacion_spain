@@ -1,7 +1,7 @@
 @using Facturacion.Client
 @using Microsoft.AspNetCore.Components.Forms
 
-<EditForm Model="Model" OnValidSubmit="SaveAsync">
+<EditForm Model="Model" OnValidSubmit="SaveAsync" class="customer-editor-form">
     <DataAnnotationsValidator />
     <ValidationSummary />
     <div><label>Nombre o razón social <InputText @bind-Value="Model.LegalName" /></label></div>
@@ -12,13 +12,17 @@
     <div><label>País (ISO 2) <InputText @bind-Value="Model.CountryCode" /></label></div>
     <div><label>Correo <InputText @bind-Value="Model.Email" /></label></div>
     <div><label><InputCheckbox @bind-Value="Model.IsBusiness" /> Empresa</label></div>
-    <button type="submit" disabled="@Saving">@(Saving ? "Guardando…" : "Guardar cliente")</button>
+    <div class="customer-editor-actions">
+        <button type="button" class="button button-outline" disabled="@Saving" @onclick="OnCancel">Cancelar</button>
+        <button type="submit" class="button" disabled="@Saving">@(Saving ? "Guardando…" : "Guardar cliente")</button>
+    </div>
 </EditForm>
 
 @code {
     [Parameter, EditorRequired] public CustomerEditModel Model { get; set; } = new();
     [Parameter] public bool Saving { get; set; }
     [Parameter] public EventCallback<SaveCustomerDto> OnSave { get; set; }
+    [Parameter] public EventCallback OnCancel { get; set; }
     private Task SaveAsync() => OnSave.InvokeAsync(new SaveCustomerDto(
         Model.TaxId, Model.LegalName, Model.Address, Model.PostalCode,
         Model.City, Model.CountryCode, Model.Email, Model.IsBusiness));
