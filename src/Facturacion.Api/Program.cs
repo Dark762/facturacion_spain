@@ -100,6 +100,7 @@ builder.Services.AddSaasInvitations();
 // Canal de correo (verificacion de registro e invitaciones)
 builder.Services.AddFacturacionEmail();
 
+builder.Services.AddScoped<SystemIncidentRecorder>();
 builder.Services.AddExceptionHandler<ApiExceptionHandler>();
 builder.Services.AddProblemDetails();
 
