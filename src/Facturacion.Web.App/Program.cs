@@ -90,6 +90,30 @@ app.UseAuthorization();
 app.UseAntiforgery();
 // La vista es un componente Razor compartido con desktop y mobile.
 // La autenticación y la emisión de la cookie permanecen exclusivamente en este host.
+
+app.MapPost("/platform/incidents/status", async (HttpContext http,
+    IAntiforgery antiforgery, IHttpClientFactory clients, CancellationToken ct) =>
+{
+    if (http.User.Identity?.IsAuthenticated != true) return Results.Unauthorized();
+    try { await antiforgery.ValidateRequestAsync(http); }
+    catch (AntiforgeryValidationException) { return Results.BadRequest(); }
+    var form = await http.Request.ReadFormAsync(ct);
+    if (!Guid.TryParse(form["id"], out var id)) return Results.BadRequest();
+    var status = form["status"].ToString();
+    if (status is not ("Open" or "Investigating" or "Resolved")) return Results.BadRequest();
+    var token = http.User.FindFirstValue(FacturacionClaim.ApiToken.ToClaimType());
+    if (string.IsNullOrWhiteSpace(token)) return Results.Forbid();
+    using var client = clients.CreateClient("FacturacionAuthApi");
+    client.DefaultRequestHeaders.Authorization =
+        new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+    using var response = await client.PatchAsJsonAsync(
+        $"api/platform/incidents/{id}/status", new { Status = status }, ct);
+    if (response.StatusCode is System.Net.HttpStatusCode.Unauthorized or System.Net.HttpStatusCode.Forbidden)
+        return Results.Forbid();
+    if (!response.IsSuccessStatusCode) return Results.Problem("No se pudo actualizar la incidencia.", statusCode: 502);
+    return Results.Redirect("/platform/incidents");
+}).RequireAuthorization();
+
 app.MapGet("/login", async (HttpContext http, IAntiforgery antiforgery,
     IServiceProvider services) =>
 {
