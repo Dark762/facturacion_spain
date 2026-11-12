@@ -8,6 +8,10 @@ Logging estructurado con Serilog, contexto HTTP validado y métricas OpenTelemet
 - `FacturacionLogging:EnableFile`: habilita archivos rotativos (por defecto false).
 - `FacturacionLogging:FilePath`: obligatorio si EnableFile=true.
 - `FacturacionLogging:RetentionDays`: número de archivos retenidos, no necesariamente días exactos.
+- `FacturacionLogging:Centralized:Enabled`: activa el sink Seq opcional (false por defecto).
+- `FacturacionLogging:Centralized:Provider`: `Seq` cuando está habilitado.
+- `FacturacionLogging:Centralized:ServerUrl`: URL HTTP(S) absoluta sin credenciales.
+- `FacturacionLogging:Centralized:ApiKey`: clave opcional; suministrar como secreto o variable de entorno, nunca en Git.
 - `FacturacionMetrics:EnableOtlp`: habilita exportación OTLP.
 - `FacturacionMetrics:OtlpEndpoint`: URL HTTP(S) absoluta opcional; Aspire puede suministrar `OTEL_EXPORTER_OTLP_ENDPOINT`.
 
