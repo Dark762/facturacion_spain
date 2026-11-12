@@ -1,0 +1,131 @@
+@page "/platform/incidents"
+@using System.Net.Http.Headers
+@using System.Net.Http.Json
+@using System.Security.Claims
+@inject IHttpClientFactory Clients
+@inject IHttpContextAccessor HttpAccessor
+@inject Microsoft.AspNetCore.Antiforgery.IAntiforgery Antiforgery
+
+<PageTitle>Incidencias | FacturaciónES</PageTitle>
+<h1>Incidencias del sistema</h1>
+<p><a href="/platform">Volver al Centro de Control</a></p>
+@if (_forbidden)
+{
+    <p role="alert">No tienes permisos de administrador de plataforma.</p>
+}
+else if (_error)
+{
+    <p role="alert">No se pudieron cargar las incidencias. Comprueba la API y la actualización de base de datos.</p>
+}
+else if (_result is null)
+{
+    <p>Cargando incidencias…</p>
+}
+else
+{
+    <form method="get" action="/platform/incidents">
+        <label>Estado
+            <select name="status">
+                <option value="">Todos</option>
+                <option value="Open" selected="@(_status == "Open")">Abiertas</option>
+                <option value="Investigating" selected="@(_status == "Investigating")">Investigando</option>
+                <option value="Resolved" selected="@(_status == "Resolved")">Resueltas</option>
+            </select>
+        </label>
+        <label>Código <input name="code" value="@Code" maxlength="80" /></label>
+        <label>Servicio <input name="application" value="@Application" maxlength="80" /></label>
+        <label>Desde (UTC) <input type="date" name="from" value="@From" /></label>
+        <label>Hasta (UTC) <input type="date" name="to" value="@To" /></label>
+        <button type="submit">Filtrar</button>
+    </form>
+    <p>Total: @_result.Total</p>
+    <table>
+        <thead><tr><th>Fecha UTC</th><th>Servicio</th><th>Operación</th><th>Gravedad</th><th>Código</th><th>TraceId</th><th>Tenant</th><th>Estado</th><th>Gestión</th></tr></thead>
+        <tbody>
+            @foreach (var incident in _result.Items)
+            {
+                <tr>
+                    <td>@incident.CreatedAt.ToString("yyyy-MM-dd HH:mm")</td>
+                    <td>@incident.Application</td>
+                    <td>@incident.Operation</td>
+                    <td>@incident.Severity</td>
+                    <td>@incident.ErrorCode</td>
+                    <td>@(incident.TraceId ?? "—")</td>
+                    <td>@(incident.TenantId?.ToString() ?? "—")</td>
+                    <td>@incident.Status</td>
+                    <td>
+                        @if (_csrf is not null)
+                        {
+                            <form method="post" action="/platform/incidents/status">
+                                <input type="hidden" name="__RequestVerificationToken" value="@_csrf" />
+                                <input type="hidden" name="id" value="@incident.Id" />
+                                <select name="status" aria-label="Nuevo estado">
+                                    <option value="Open">Abierta</option>
+                                    <option value="Investigating">Investigando</option>
+                                    <option value="Resolved">Resuelta</option>
+                                </select>
+                                <button type="submit">Guardar</button>
+                            </form>
+                        }
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+    <p>Página @_page</p>
+    @if (_page > 1)
+    {
+        <a href="@PageUrl(_page - 1)">Anterior</a>
+    }
+    @if (_result.Items.Length == 25)
+    {
+        <a href="@PageUrl(_page + 1)">Siguiente</a>
+    }
+}
+@code {
+    [SupplyParameterFromQuery(Name = "page")] public int? Page { get; set; }
+    [SupplyParameterFromQuery(Name = "status")] public string? Status { get; set; }
+    [SupplyParameterFromQuery(Name = "code")] public string? Code { get; set; }
+    [SupplyParameterFromQuery(Name = "application")] public string? Application { get; set; }
+    [SupplyParameterFromQuery(Name = "from")] public string? From { get; set; }
+    [SupplyParameterFromQuery(Name = "to")] public string? To { get; set; }
+    private int _page = 1;
+    private string? _status;
+    private string? _csrf;
+    private bool _forbidden;
+    private bool _error;
+    private IncidentPage? _result;
+    private string PageUrl(int page) => "/platform/incidents?page=" + page +
+        "&status=" + Uri.EscapeDataString(Status ?? "") + "&code=" + Uri.EscapeDataString(Code ?? "") +
+        "&application=" + Uri.EscapeDataString(Application ?? "") +
+        "&from=" + Uri.EscapeDataString(From ?? "") + "&to=" + Uri.EscapeDataString(To ?? "");
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _page = Math.Clamp(Page ?? 1, 1, 100000);
+        _status = Status;
+        var http = HttpAccessor.HttpContext;
+        if (http is null) { _forbidden = true; return; }
+        _csrf = Antiforgery.GetAndStoreTokens(http).RequestToken;
+        var token = http.User.FindFirstValue(FacturacionClaim.ApiToken.ToClaimType());
+        if (string.IsNullOrWhiteSpace(token)) { _forbidden = true; return; }
+        try
+        {
+            using var client = Clients.CreateClient("FacturacionAuthApi");
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            using var response = await client.GetAsync("api/platform/incidents" + PageUrl(_page).Replace("/platform/incidents", ""));
+            if (response.StatusCode is System.Net.HttpStatusCode.Forbidden or System.Net.HttpStatusCode.Unauthorized)
+            { _forbidden = true; return; }
+            if (!response.IsSuccessStatusCode) { _error = true; return; }
+            _result = (await response.Content.ReadFromJsonAsync<Envelope<IncidentPage>>())?.Data;
+            if (_result is null) _error = true;
+        }
+        catch (HttpRequestException) { _error = true; }
+        catch (System.Text.Json.JsonException) { _error = true; }
+    }
+    private sealed record Envelope<T>(T? Data);
+    private sealed record IncidentPage(int Total, IncidentItem[] Items);
+    private sealed record IncidentItem(Guid Id, DateTimeOffset CreatedAt, string Application,
+        string Operation, string Severity, string ErrorCode, string Status,
+        string? TraceId, Guid? TenantId);
+}
