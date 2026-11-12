@@ -1,9 +1,13 @@
 @using Microsoft.AspNetCore.Components
 @using Microsoft.Extensions.Options
 @using Facturacion.Configuration.Options
+@using Facturacion.Configuration.Security
+@using Microsoft.AspNetCore.Components.Authorization
+@using System.Security.Claims
 @implements IAsyncDisposable
 @inject IOptions<SessionOptions> SessionSettings
 @inject NavigationManager Navigation
+@inject AuthenticationStateProvider Authentication
 
 @if (_warningOpen)
 {
@@ -23,10 +27,18 @@
     <aside class="sidebar">
         <Brand />
         <nav class="sidebar-links" aria-label="Navegación privada">
-            <a class="sidebar-link" href="/"><NavigationIcon Name="home" /> <span>Inicio</span></a>
+            @if (_isPlatformAdmin)
+            {
+                <a class="sidebar-link" href="/platform"><NavigationIcon Name="home" /> <span>Panel de plataforma</span></a>
+                <a class="sidebar-link" href="/platform/incidents"><NavigationIcon Name="invoice" /> <span>Incidencias</span></a>
+            }
+            else
+            {
+                <a class="sidebar-link" href="/"><NavigationIcon Name="home" /> <span>Inicio</span></a>
             <span class="sidebar-link sidebar-link-disabled"><NavigationIcon Name="invoice" /> <span>Facturas <small>Próximamente</small></span></span>
             <a class="sidebar-link" href="/customers"><NavigationIcon Name="users" /> <span>Clientes</span></a>
             <span class="sidebar-link sidebar-link-disabled"><NavigationIcon Name="building" /> <span>Empresas <small>Próximamente</small></span></span>
+            }
             <a class="sidebar-link" href="/account"><NavigationIcon Name="account" /> <span>Mi perfil y seguridad</span></a>
         </nav>
         <div class="sidebar-footer">
@@ -39,8 +51,16 @@
     </div>
 </div>
 <nav class="mobile-nav" aria-label="Navegación móvil">
-    <a href="/"><NavigationIcon Name="home" /><span>Inicio</span></a>
+    @if (_isPlatformAdmin)
+    {
+        <a href="/platform"><NavigationIcon Name="home" /><span>Plataforma</span></a>
+        <a href="/platform/incidents"><NavigationIcon Name="invoice" /><span>Incidencias</span></a>
+    }
+    else
+    {
+        <a href="/"><NavigationIcon Name="home" /><span>Inicio</span></a>
     <a href="/customers"><NavigationIcon Name="users" /><span>Clientes</span></a>
+    }
     <a href="/account"><NavigationIcon Name="account" /><span>Mi cuenta</span></a>
     <button type="button" class="mobile-logout" @onclick="OpenLogout"><NavigationIcon Name="logout" /><span>Salir</span></button>
 </nav>
@@ -52,6 +72,13 @@
     private int _remainingSeconds;
     private CancellationTokenSource? _timerCancellation;
     private bool _logoutOpen;
+    private bool _isPlatformAdmin;
+    protected override async Task OnInitializedAsync()
+    {
+        var state = await Authentication.GetAuthenticationStateAsync();
+        _isPlatformAdmin = state.User.Identity?.IsAuthenticated == true &&
+            state.User.FindFirstValue(FacturacionClaim.Purpose.ToClaimType()) == FacturacionClaimPurpose.Platform.ToClaimValue();
+    }
     protected override void OnInitialized()
     {
         _timerCancellation = new CancellationTokenSource();
