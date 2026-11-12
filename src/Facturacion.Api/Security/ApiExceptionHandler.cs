@@ -1,6 +1,7 @@
 using System.Net;
 using Facturacion.Application.Common.Results;
 using Facturacion.Application.Billing;
+using Facturacion.Infrastructure.Billing;
 using Microsoft.AspNetCore.Diagnostics;
 
 namespace Facturacion.Api.Security;
@@ -9,8 +10,13 @@ namespace Facturacion.Api.Security;
 public sealed class ApiExceptionHandler : IExceptionHandler
 {
     private readonly ILogger<ApiExceptionHandler> _logger;
+    private readonly SystemIncidentRecorder _incidents;
 
-    public ApiExceptionHandler(ILogger<ApiExceptionHandler> logger) => _logger = logger;
+    public ApiExceptionHandler(ILogger<ApiExceptionHandler> logger, SystemIncidentRecorder incidents)
+    {
+        _logger = logger;
+        _incidents = incidents;
+    }
 
     public async ValueTask<bool> TryHandleAsync(
         HttpContext context, Exception exception, CancellationToken ct)
@@ -33,6 +39,13 @@ public sealed class ApiExceptionHandler : IExceptionHandler
             _logger.LogError(exception, "Error HTTP {StatusCode}, código {ErrorCode}, trace {TraceId}",
                 status, code, context.TraceIdentifier);
 
+        if (status >= 500)
+        {
+            var tenant = context.Items.TryGetValue("TenantId", out var tenantValue) &&
+                Guid.TryParse(tenantValue?.ToString(), out var tenantId) ? tenantId : (Guid?)null;
+            await _incidents.RecordAsync("Facturacion.Api", "HttpRequest", code,
+                context.TraceIdentifier, tenant, ct);
+        }
         if (exception is EmailDeliveryException) context.Response.Headers.RetryAfter = "60";
         context.Response.StatusCode = status;
         await context.Response.WriteAsJsonAsync(
