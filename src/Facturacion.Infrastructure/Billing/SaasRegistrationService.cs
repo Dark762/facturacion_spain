@@ -78,7 +78,7 @@ public sealed class SaasRegistrationService : ISaasRegistrationService
         // Expira automáticamente en pocos minutos y no se persiste en claro.
         var token = await _users.GenerateTwoFactorTokenAsync(user, TokenOptions.DefaultEmailProvider);
 
-        await _emails.SendConfirmationAsync(email, intent.Id, token, ct);
+        await SendRegistrationEmailAsync(email, intent.Id, token, "Register", ct);
         _logger.LogInformation("Registro SaaS iniciado y correo de verificación enviado. RegistrationId {RegistrationId}", intent.Id);
 
         return new RegistrationResponse(intent.Id, "Comprueba tu correo para verificar la cuenta.");
@@ -106,8 +106,37 @@ public sealed class SaasRegistrationService : ISaasRegistrationService
 
         var token = await _users.GenerateTwoFactorTokenAsync(user, TokenOptions.DefaultEmailProvider);
 
-        await _emails.SendConfirmationAsync(email, intent.Id, token, ct);
+        try
+        {
+            await SendRegistrationEmailAsync(email, intent.Id, token, "Resume", ct);
+        }
+        catch (EmailDeliveryException)
+        {
+            // No revelar la existencia del registro mediante diferencias de respuesta.
+            return new RegistrationResponse(Guid.NewGuid(), genericMessage);
+        }
         return new RegistrationResponse(intent.Id, genericMessage);
+    }
+
+    private async Task SendRegistrationEmailAsync(string email, Guid registrationId, string token,
+        string operation, CancellationToken ct)
+    {
+        try
+        {
+            await OperationTelemetry.MeasureAsync(_logger, "RegistrationEmail" + operation,
+                registrationId, async () =>
+                {
+                    await _emails.SendConfirmationAsync(email, registrationId, token, ct);
+                    return true;
+                }, ct);
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
+        catch (EmailDeliveryException ex)
+        {
+            _logger.LogError("Fallo de correo de registro. Operation {Operation}, RegistrationId {RegistrationId}, ErrorCode {ErrorCode}, Transient {IsTransient}",
+                operation, registrationId, ex.ErrorCode, ex.IsTransient);
+            throw;
+        }
     }
 
     public async Task<RegistrationProgress> VerifyAndResumeAsync(Guid id, string token, string newPassword, CancellationToken ct)
