@@ -5,9 +5,9 @@
 @inject AuthenticationStateProvider Authentication
 @inject IHttpClientFactory Clients
 
-<header class="workspace-header" aria-label="Contexto de facturación">
+<header class="workspace-header" aria-label="Contexto de trabajo">
     <div class="workspace-header-context">
-        <span class="workspace-header-label">Actividad de facturación</span>
+        <span class="workspace-header-label">@(_isPlatformAdmin ? "Área de administración" : "Actividad de facturación")</span>
         <strong class="workspace-header-name">@_activity</strong>
     </div>
     <a class="workspace-header-account" href="/account">Mi cuenta</a>
@@ -15,10 +15,14 @@
 
 @code {
     private string _activity = "Sin actividad seleccionada";
+    private bool _isPlatformAdmin;
 
     protected override async Task OnInitializedAsync()
     {
         var state = await Authentication.GetAuthenticationStateAsync();
+        _isPlatformAdmin = state.User.Identity?.IsAuthenticated == true &&
+            state.User.FindFirstValue(FacturacionClaim.Purpose.ToClaimType()) == FacturacionClaimPurpose.Platform.ToClaimValue();
+        if (_isPlatformAdmin) { _activity = "Administración de plataforma"; return; }
         var token = state.User.FindFirstValue(FacturacionClaim.ApiToken.ToClaimType());
         if (state.User.Identity?.IsAuthenticated != true || string.IsNullOrWhiteSpace(token) ||
             !Guid.TryParse(state.User.FindFirstValue(FacturacionClaim.TenantId.ToClaimType()), out _))
