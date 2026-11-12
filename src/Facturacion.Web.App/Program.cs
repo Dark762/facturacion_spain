@@ -428,6 +428,9 @@ static IResult LoginFailed(HttpContext http)
     return Results.Redirect("/login");
 }
 
+// En .NET 10, los assets generados (incluido Facturacion.Web.App.styles.css)
+// se publican mediante el manifiesto de static web assets.
+app.MapStaticAssets();
 app.MapRazorComponents<App>().AddInteractiveServerRenderMode().RequireAuthorization();
 app.Run();
 
