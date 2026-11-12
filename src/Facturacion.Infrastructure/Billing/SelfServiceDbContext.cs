@@ -6,6 +6,7 @@ namespace Facturacion.Infrastructure.Billing;
 public sealed class SelfServiceDbContext : DbContext
 {
     public SelfServiceDbContext(DbContextOptions<SelfServiceDbContext> options) : base(options) { }
+    public DbSet<SystemIncident> SystemIncidents => Set<SystemIncident>();
     public DbSet<RegistrationIntent> RegistrationIntents => Set<RegistrationIntent>();
     public DbSet<SubscriptionPlan> SubscriptionPlans => Set<SubscriptionPlan>();
     public DbSet<ProcessedPaymentEvent> ProcessedPaymentEvents => Set<ProcessedPaymentEvent>();
@@ -13,6 +14,19 @@ public sealed class SelfServiceDbContext : DbContext
     public DbSet<ProvisioningOperation> ProvisioningOperations => Set<ProvisioningOperation>();
     protected override void OnModelCreating(ModelBuilder b)
     {
+        b.Entity<SystemIncident>(x => {
+            x.ToTable("SystemIncidents"); x.HasKey(y => y.Id);
+            x.Property(y => y.Application).HasMaxLength(80).IsRequired();
+            x.Property(y => y.Operation).HasMaxLength(120).IsRequired();
+            x.Property(y => y.Severity).HasMaxLength(16).IsRequired();
+            x.Property(y => y.ErrorCode).HasMaxLength(80).IsRequired();
+            x.Property(y => y.Status).HasMaxLength(24).IsRequired();
+            x.Property(y => y.TraceId).HasMaxLength(128);
+            x.Property(y => y.ResolvedBy).HasMaxLength(128);
+            x.HasIndex(y => y.CreatedAt);
+            x.HasIndex(y => new { y.Status, y.CreatedAt });
+            x.HasIndex(y => y.ErrorCode);
+        });
         b.Entity<RegistrationIntent>(x => { x.ToTable("RegistrationIntents"); x.HasKey(y => y.Id); x.HasIndex(y => y.UserId).IsUnique(); x.HasIndex(y => y.CheckoutSessionId).IsUnique(); });
         b.Entity<SubscriptionPlan>(x => { x.ToTable("SubscriptionPlans"); x.HasKey(y => y.Code); x.HasIndex(y => y.StripePriceId).IsUnique(); });
         b.Entity<ProcessedPaymentEvent>(x => { x.ToTable("ProcessedPaymentEvents"); x.HasKey(y => y.Id); });
