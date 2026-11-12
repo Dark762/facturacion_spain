@@ -27,6 +27,7 @@ public static class SelfServiceRegistration
         // Comparte resolutor y cadena con BillingDbContext y AuthDbContext.
         services.AddConfiguredDatabaseContext<SelfServiceDbContext>();
 
+        services.AddScoped<SystemIncidentRecorder>();
         services.AddHttpClient<IPaymentGateway, StripeCheckoutGateway>();
         services.AddScoped<ISaasRegistrationService, SaasRegistrationService>();
 
