@@ -23,13 +23,15 @@ public sealed class SaasRegistrationService : ISaasRegistrationService
     private readonly IProvisioningService _provisioning;
     private readonly StripeOptions _stripe;
     private readonly ILogger<SaasRegistrationService> _logger;
+    private readonly SystemIncidentRecorder _incidents;
     public SaasRegistrationService(SelfServiceDbContext db,
         UserManager<ApplicationUser> users,
         IRegistrationEmailSender emails,
         IPaymentGateway gateway,
         IOptions<StripeOptions> stripe,
         IProvisioningService provisioning,
-        ILogger<SaasRegistrationService> logger)
+        ILogger<SaasRegistrationService> logger,
+        SystemIncidentRecorder incidents)
     {
         _db = db;
         _users = users;
@@ -38,6 +40,7 @@ public sealed class SaasRegistrationService : ISaasRegistrationService
         _stripe = stripe.Value;
         _provisioning = provisioning;
         _logger = logger;
+        _incidents = incidents;
     }
 
     public async Task<RegistrationResponse> RegisterAsync(RegisterSaasRequest r, CancellationToken ct)
@@ -110,8 +113,10 @@ public sealed class SaasRegistrationService : ISaasRegistrationService
         {
             await SendRegistrationEmailAsync(email, intent.Id, token, "Resume", ct);
         }
-        catch (EmailDeliveryException)
+        catch (EmailDeliveryException ex)
         {
+            await _incidents.RecordAsync("Facturacion.Api", "RegistrationEmailResume",
+                ex.ErrorCode, System.Diagnostics.Activity.Current?.Id, intent.TenantId, ct);
             // No revelar la existencia del registro mediante diferencias de respuesta.
             return new RegistrationResponse(Guid.NewGuid(), genericMessage);
         }
