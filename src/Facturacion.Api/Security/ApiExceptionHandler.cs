@@ -10,12 +10,12 @@ namespace Facturacion.Api.Security;
 public sealed class ApiExceptionHandler : IExceptionHandler
 {
     private readonly ILogger<ApiExceptionHandler> _logger;
-    private readonly SystemIncidentRecorder _incidents;
+    private readonly IServiceScopeFactory _scopeFactory;
 
-    public ApiExceptionHandler(ILogger<ApiExceptionHandler> logger, SystemIncidentRecorder incidents)
+    public ApiExceptionHandler(ILogger<ApiExceptionHandler> logger, IServiceScopeFactory scopeFactory)
     {
         _logger = logger;
-        _incidents = incidents;
+        _scopeFactory = scopeFactory;
     }
 
     public async ValueTask<bool> TryHandleAsync(
@@ -43,8 +43,9 @@ public sealed class ApiExceptionHandler : IExceptionHandler
         {
             var tenant = context.Items.TryGetValue("TenantId", out var tenantValue) &&
                 Guid.TryParse(tenantValue?.ToString(), out var tenantId) ? tenantId : (Guid?)null;
-            await _incidents.RecordAsync("Facturacion.Api", "HttpRequest", code,
-                context.TraceIdentifier, tenant, ct);
+            using var scope = _scopeFactory.CreateScope();
+            await scope.ServiceProvider.GetRequiredService<SystemIncidentRecorder>()
+                .RecordAsync("Facturacion.Api", "HttpRequest", code, context.TraceIdentifier, tenant, ct);
         }
         if (exception is EmailDeliveryException) context.Response.Headers.RetryAfter = "60";
         context.Response.StatusCode = status;
