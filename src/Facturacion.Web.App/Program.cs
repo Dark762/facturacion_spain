@@ -300,6 +300,7 @@ app.MapPost("/select-tenant", async (HttpContext http, IAntiforgery antiforgery,
     };
 
     if (tenantId.HasValue) claims.Add(new Claim(FacturacionClaim.TenantId.ToClaimType(), tenantId.Value.ToString("D")));
+    if (platform) claims.Add(new Claim(FacturacionClaim.Purpose.ToClaimType(), FacturacionClaimPurpose.Platform.ToClaimValue()));
 
     var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
 
