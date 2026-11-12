@@ -30,7 +30,7 @@ No registrar contraseñas, JWT, códigos de correo, tokens de checkout, cabecera
 
 ## Pendiente
 - Contexto multiempresa: incorporar identificadores únicamente tras autorización; no copiar claims o cabeceras sin validar.
-- Exportación centralizada a Seq/Loki/Azure según hosting.
+- Integración Seq opcional implementada; pendiente validación en despliegue real. Otros destinos (Loki/Azure) requieren adaptadores adicionales.
 - Alertas y trazas distribuidas OpenTelemetry.
 - Validación de compilación y pruebas en el entorno de desarrollo.
 
@@ -77,3 +77,26 @@ Realiza un alta de prueba o un checkout y abre la pestaña **Metrics** del dashb
 La API transforma `EmailDeliveryException` en HTTP 503 con un mensaje seguro y `TraceId`. Para evitar enumeración de cuentas, `ResumeAsync` conserva su respuesta genérica ante fallos de entrega clasificados; el error queda registrado para operaciones. Los logs de excepciones de infraestructura pueden contener información del proveedor SMTP: restringir el acceso y revisar la política de redacción del colector.
 
 Esta entrega **no** incorpora reintentos automáticos, persistencia de incidencias ni panel administrativo. Tampoco garantiza entrega final al buzón: una respuesta SMTP satisfactoria solo confirma la aceptación por el servidor SMTP.
+
+## Centralización opcional con Seq (IIS y otros alojamientos)
+
+Los cuatro hosts utilizan `Facturacion.Observability`. El sink Seq está **deshabilitado por defecto** y no sustituye la salida JSON a consola. Para habilitarlo, establecer en la configuración de cada proceso (preferiblemente variables de entorno):
+
+```text
+FacturacionLogging__Centralized__Enabled=true
+FacturacionLogging__Centralized__Provider=Seq
+FacturacionLogging__Centralized__ServerUrl=https://seq.interno.ejemplo
+FacturacionLogging__Centralized__ApiKey=<clave-proporcionada-fuera-del-repositorio>
+```
+
+La clave es opcional técnicamente, pero se recomienda autenticación en entornos compartidos o de producción. No incluir claves en `appsettings.json`, comandos registrados, capturas o logs. El URL se valida como HTTP(S) absoluto sin credenciales incrustadas. Para producción, utilizar HTTPS con certificado válido, restringir el acceso por firewall y aplicar permisos de consulta por rol en Seq. No publicar Seq directamente en Internet.
+
+**IIS/Windows Server**: ejecutar API, Web.App y Web.Public bajo identidades de Application Pool con permisos mínimos. Si se habilitan archivos locales, configurar `FacturacionLogging__EnableFile=true` y una ruta diferente por proceso, por ejemplo `C:/Facturacion/Logs/Api/log-.json`, `C:/Facturacion/Logs/WebApp/log-.json` y `C:/Facturacion/Logs/WebPublic/log-.json`. Conceder permisos de escritura solo a la identidad correspondiente; configurar retención y respaldo. Workers usa su propia identidad de servicio y directorio `C:/Facturacion/Logs/Workers/log-.json`. El destino Seq puede estar en otro servidor: no se requiere instalarlo dentro de IIS.
+
+**Docker/Linux/Azure**: conservar `EnableFile=false` y recolectar JSON desde stdout, o activar Seq mediante las mismas variables de entorno. No hay dependencias de Windows en el código.
+
+**Validación recomendada**: arrancar cada host con Seq deshabilitado; activar Seq en un entorno de pruebas; comprobar eventos de los cuatro hosts y filtrar por `Application`, `Environment`, `TraceId`, `Operation`, `Outcome` y `ErrorCode`; simular SMTP no configurado y SMTP temporal; detener Seq y comprobar que el proceso sigue emitiendo JSON a consola. El sink usa envío por lotes: una caída prolongada del servidor central puede ocasionar pérdida de eventos que no se hayan persistido en otro destino. No considerar Seq como almacenamiento transaccional ni cola durable.
+
+**Privacidad**: revisar eventos y excepciones antes de habilitar acceso compartido. `RegistrationId`, `TenantId` y `UserId` son identificadores operativos sujetos a controles de acceso y retención; nunca registrar contraseñas, tokens, códigos de verificación ni datos fiscales. Configurar alertas y políticas de retención en el colector, no en los servicios de negocio.
+
+**Alcance**: esta fase no crea endpoints de consulta, panel `/platform`, reintentos de correo ni alertas automáticas. La compilación y las pruebas de integración deben ejecutarse en un entorno con .NET 10 y acceso a NuGet.
