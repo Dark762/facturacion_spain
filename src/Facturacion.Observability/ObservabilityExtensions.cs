@@ -50,6 +50,24 @@ public static class ObservabilityExtensions
                 .Enrich.WithProperty("Environment", environmentName)
                 .WriteTo.Console(new JsonFormatter(renderMessage: true));
 
+            var centralized = section.GetSection("Centralized");
+            if (bool.TryParse(centralized["Enabled"], out var enabledCentralized) && enabledCentralized)
+            {
+                var provider = centralized["Provider"];
+                if (!string.Equals(provider, "Seq", StringComparison.OrdinalIgnoreCase))
+                    throw new InvalidOperationException("FacturacionLogging:Centralized:Provider debe ser Seq cuando está habilitado.");
+
+                var serverUrl = centralized["ServerUrl"];
+                if (!Uri.TryCreate(serverUrl, UriKind.Absolute, out var uri) ||
+                    uri.Scheme is not ("http" or "https") ||
+                    !string.IsNullOrEmpty(uri.UserInfo))
+                    throw new InvalidOperationException("FacturacionLogging:Centralized:ServerUrl debe ser una URL HTTP(S) absoluta sin credenciales.");
+
+                // El sink envía lotes de forma asíncrona; la consola JSON sigue activa
+                // incluso si el servidor central no está disponible.
+                logger.WriteTo.Seq(serverUrl!, apiKey: centralized["ApiKey"]);
+            }
+
             if (bool.TryParse(section["EnableFile"], out var enableFile) && enableFile)
             {
                 var path = section["FilePath"];
