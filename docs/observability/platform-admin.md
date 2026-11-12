@@ -27,3 +27,15 @@ La Web.App crea una cookie de autenticación HttpOnly, Secure, SameSite=Lax, sin
 - Comprobar que `GET /api/platform/tenants` pagina y no muestra información fiscal sensible.
 
 No se han añadido migraciones de base de datos en esta fase.
+
+## Incidencias internas (fase inicial)
+
+Ruta de interfaz: `/platform/incidents`, enlazada desde `/platform`. La API protege `GET /api/platform/incidents` y `PATCH /api/platform/incidents/{id}/status` con la política `PlatformAdmin`. El formulario web exige autenticación de cookie y antiforgery; la API vuelve a verificar el JWT y la identidad propietaria.
+
+**Antes de desplegar**: ejecutar manualmente la actualización `database/upgrade/10_system_incidents_mysql_mariadb.sql`, `10_system_incidents_postgresql.sql` o `10_system_incidents_sqlserver.sql`, según proveedor. La aplicación no ejecuta cambios de esquema automáticamente. Realizar copia de seguridad y probar el script en staging.
+
+Los errores HTTP 5xx capturados por `ApiExceptionHandler` y los fallos de correo clasificados de `ResumeAsync` se persisten de forma best-effort. La tabla conserva únicamente identificadores operativos, código, servicio, operación, estado y marcas de tiempo; **no** almacena mensajes de excepción, destinatarios, códigos de verificación ni payloads. La escritura de incidencias no reemplaza Serilog: si la base de datos falla, el registro técnico sigue siendo el mecanismo de contingencia. Los fallos de escritura se registran como advertencias.
+
+La vista admite paginación, estado, código, aplicación y rango de fechas, y permite cambiar el estado a `Open`, `Investigating` o `Resolved`. `ResolvedBy` almacena el identificador del administrador que resuelve. El endpoint no permite cambiar otros campos ni consultar incidencias desde cuentas tenant-admin.
+
+**Límites**: todavía no existe captura uniforme de excepciones de todos los Workers o procesos web, ni deduplicación de eventos, alertas automáticas, comentarios, historial de transiciones o limpieza por retención. La operación de estado conserva el último responsable de resolución, no una auditoría completa. Los logs técnicos siguen disponibles en consola/archivos/Seq opcional. Validar compilación y pruebas en .NET 10 antes de publicar.
