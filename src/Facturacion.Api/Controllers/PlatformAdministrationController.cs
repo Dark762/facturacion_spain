@@ -4,6 +4,7 @@ using Facturacion.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 
 namespace Facturacion.Api.Controllers;
 
@@ -70,4 +71,50 @@ public sealed class PlatformAdministrationController(
         }).ToArray();
         return this.ApiOk(result);
     }
+    [HttpGet("incidents")]
+    public async Task<IActionResult> Incidents([FromQuery] int page = 1,
+        [FromQuery] int pageSize = 25, [FromQuery] string? status = null,
+        [FromQuery] string? code = null, [FromQuery] string? application = null,
+        [FromQuery] DateTimeOffset? from = null, [FromQuery] DateTimeOffset? to = null,
+        CancellationToken ct = default)
+    {
+        if (page < 1 || pageSize is < 1 or > 100 || (from.HasValue && to.HasValue && from > to) ||
+            (status is not null && status is not ("Open" or "Investigating" or "Resolved")) ||
+            code?.Length > 80 || application?.Length > 80)
+            return this.ApiFailure<object>(400, "INVALID_FILTER", "Los filtros proporcionados no son válidos.");
+
+        var query = selfService.SystemIncidents.AsNoTracking().AsQueryable();
+        if (status is not null) query = query.Where(x => x.Status == status);
+        if (!string.IsNullOrWhiteSpace(code)) query = query.Where(x => x.ErrorCode == code);
+        if (!string.IsNullOrWhiteSpace(application)) query = query.Where(x => x.Application == application);
+        if (from.HasValue) query = query.Where(x => x.CreatedAt >= from.Value);
+        if (to.HasValue) query = query.Where(x => x.CreatedAt <= to.Value);
+        var total = await query.CountAsync(ct);
+        var items = await query.OrderByDescending(x => x.CreatedAt).ThenByDescending(x => x.Id)
+            .Skip((int)Math.Min((long)(page - 1) * pageSize, int.MaxValue)).Take(pageSize)
+            .Select(x => new { x.Id, x.CreatedAt, x.UpdatedAt, x.Application, x.Operation,
+                x.Severity, x.ErrorCode, x.Status, x.TraceId, x.TenantId, x.Occurrences, x.ResolvedBy })
+            .ToArrayAsync(ct);
+        return this.ApiOk(new { Total = total, Items = items });
+    }
+
+    public sealed record IncidentStatusRequest(string Status);
+
+    [HttpPatch("incidents/{id:guid}/status")]
+    public async Task<IActionResult> UpdateIncidentStatus(Guid id,
+        [FromBody] IncidentStatusRequest request, CancellationToken ct)
+    {
+        if (request.Status is not ("Open" or "Investigating" or "Resolved"))
+            return this.ApiFailure<object>(400, "INVALID_INCIDENT_STATUS", "Estado de incidencia no válido.");
+        var incident = await selfService.SystemIncidents.SingleOrDefaultAsync(x => x.Id == id, ct);
+        if (incident is null)
+            return this.ApiFailure<object>(404, "INCIDENT_NOT_FOUND", "Incidencia no encontrada.");
+        incident.Status = request.Status;
+        incident.UpdatedAt = DateTimeOffset.UtcNow;
+        incident.ResolvedBy = request.Status == "Resolved"
+            ? User.FindFirstValue(ClaimTypes.NameIdentifier) : null;
+        await selfService.SaveChangesAsync(ct);
+        return this.ApiOk(new { incident.Id, incident.Status, incident.UpdatedAt });
+    }
+
 }
