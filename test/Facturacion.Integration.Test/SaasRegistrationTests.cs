@@ -1,5 +1,6 @@
 using Facturacion.Application.Billing;
 using Facturacion.Application.Common.Results;
+using Facturacion.Application.Interfaces;
 using Facturacion.Infrastructure.Billing;
 using Facturacion.Integration.Test.Infrastructure;
 using Microsoft.EntityFrameworkCore;
@@ -170,5 +171,42 @@ public sealed class SaasRegistrationTests : IClassFixture<RegistrationFixture>
 
         await Assert.ThrowsAsync<RegistrationValidationException>(() =>
             service.CompleteCompanyAsync(response.RegistrationId, "cualquier-token", incomplete, CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task Application_service_devuelve_el_mensaje_de_correo_duplicado()
+    {
+        var email = $"dup-app-{Guid.NewGuid():N}@example.test";
+        await RegisterAsync(email);
+
+        using var scope = _fixture.CreateScope();
+        var application = scope.ServiceProvider
+            .GetRequiredService<ISaaSRegistrationApplicationService>();
+
+        var result = await application.RegisterAsync(Request(email), CancellationToken.None);
+
+        Assert.True(result.IsFailure);
+        var error = Assert.Single(result.Errors);
+        Assert.Equal("REGISTRATION_EMAIL_EXISTS", error.Code);
+        Assert.Equal("Email", error.Field);
+        Assert.Contains("Este correo ya está registrado", error.Message);
+    }
+
+    [Fact]
+    public async Task Application_service_traduce_los_errores_de_contrasena()
+    {
+        using var scope = _fixture.CreateScope();
+        var application = scope.ServiceProvider
+            .GetRequiredService<ISaaSRegistrationApplicationService>();
+
+        var weak = new RegisterSaasRequest(
+            $"weak-{Guid.NewGuid():N}@example.test", "corta", "Dueño");
+
+        var result = await application.RegisterAsync(weak, CancellationToken.None);
+
+        Assert.True(result.IsFailure);
+        Assert.All(result.Errors, error => Assert.Equal("PASSWORD_INVALID", error.Code));
+        Assert.All(result.Errors, error => Assert.Equal("Password", error.Field));
+        Assert.Contains(result.Errors, error => error.Message.Contains("12 caracteres"));
     }
 }

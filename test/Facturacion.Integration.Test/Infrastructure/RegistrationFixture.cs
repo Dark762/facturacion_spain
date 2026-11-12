@@ -1,5 +1,7 @@
 using Facturacion.Application.Billing;
+using Facturacion.Application.Interfaces;
 using Facturacion.Application.Provisioning;
+using Facturacion.Application.Services;
 using Facturacion.Configuration.Options;
 using Facturacion.Infrastructure.Billing;
 using Facturacion.Infrastructure.Identity;
@@ -45,6 +47,8 @@ public sealed class RegistrationFixture : IDisposable
         services.AddDbContext<AuthDbContext>(o => o.UseSqlite(_connection));
         services.AddDbContext<SelfServiceDbContext>(o => o.UseSqlite(_connection));
         services.AddScoped<SaasRegistrationService>();
+        services.AddScoped<ISaasRegistrationService>(sp => sp.GetRequiredService<SaasRegistrationService>());
+        services.AddScoped<ISaaSRegistrationApplicationService, SaasRegistrationApplicationService>();
 
         _root = services.BuildServiceProvider();
 

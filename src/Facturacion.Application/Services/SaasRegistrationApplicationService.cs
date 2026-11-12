@@ -21,21 +21,17 @@ public sealed class SaasRegistrationApplicationService : ISaaSRegistrationApplic
             var response = await _registration.RegisterAsync(request, cancellationToken);
             return Result<RegistrationResponse>.Success(response);
         }
+        catch (BusinessException ex)
+        {
+            // El servicio de infraestructura comunica los errores de negocio con
+            // BusinessException (código + mensaje + estado HTTP). Si no se captura
+            // aquí, la excepción llega a la capa de UI y se sustituye por un mensaje
+            // genérico: el usuario nunca ve el motivo real.
+            return Result<RegistrationResponse>.Failure(ToErrors(ex));
+        }
         catch (ArgumentException ex)
         {
-            // Identity agrupa los errores de contraseña con "; ".
-            // Traducir cada regla y asociarla al campo Password por separado.
-            var details = ex.Message.Split(';', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
-            var passwordErrors = details
-                .Where(message => message.StartsWith("Passwords ", StringComparison.OrdinalIgnoreCase))
-                .Select(TranslatePasswordError)
-                .Distinct()
-                .ToArray();
-
-            if (passwordErrors.Length > 0)
-                return Result<RegistrationResponse>.Failure(passwordErrors.Select(message => ApplicationErrors.Invalid("PASSWORD_INVALID", message, "Password")).ToArray());
-
-            return Result<RegistrationResponse>.Failure(ApplicationErrors.Invalid("REGISTRATION_INVALID", ex.Message, "request"));
+            return Result<RegistrationResponse>.Failure(ToPasswordOrRequestErrors(ex.Message));
         }
         catch (InvalidOperationException ex)
         {
@@ -49,6 +45,10 @@ public sealed class SaasRegistrationApplicationService : ISaaSRegistrationApplic
         {
             return Result<RegistrationResponse>.Success(await _registration.ResumeAsync(request, ct));
         }
+        catch (BusinessException ex)
+        {
+            return Result<RegistrationResponse>.Failure(ToErrors(ex));
+        }
         catch (InvalidOperationException)
         {
             return Result<RegistrationResponse>.Failure(ApplicationErrors.Invalid("RESUME_FAILED", "No se ha podido recuperar el registro.", "request"));
@@ -60,6 +60,10 @@ public sealed class SaasRegistrationApplicationService : ISaaSRegistrationApplic
         try
         {
             return Result<RegistrationProgress>.Success(await _registration.VerifyAndResumeAsync(id, token, newPassword, ct));
+        }
+        catch (BusinessException ex)
+        {
+            return Result<RegistrationProgress>.Failure(ToErrors(ex));
         }
         catch (KeyNotFoundException)
         {
@@ -84,6 +88,10 @@ public sealed class SaasRegistrationApplicationService : ISaaSRegistrationApplic
 
             return Result<string>.Success(checkoutToken);
         }
+        catch (BusinessException ex)
+        {
+            return Result<string>.Failure(ToErrors(ex));
+        }
         catch (KeyNotFoundException)
         {
             return Result<string>.Failure(ApplicationErrors.NotFound("Registro"));
@@ -102,6 +110,10 @@ public sealed class SaasRegistrationApplicationService : ISaaSRegistrationApplic
         {
             await _registration.CompleteCompanyAsync(registrationId, checkoutToken, request, cancellationToken);
             return Result.Success();
+        }
+        catch (BusinessException ex)
+        {
+            return Result.Failure(ToErrors(ex));
         }
         catch (KeyNotFoundException)
         {
@@ -125,6 +137,10 @@ public sealed class SaasRegistrationApplicationService : ISaaSRegistrationApplic
 
             return Result<CheckoutResponse>.Success(response);
         }
+        catch (BusinessException ex)
+        {
+            return Result<CheckoutResponse>.Failure(ToErrors(ex));
+        }
         catch (KeyNotFoundException)
         {
             return Result<CheckoutResponse>.Failure(ApplicationErrors.NotFound("Registro"));
@@ -138,6 +154,67 @@ public sealed class SaasRegistrationApplicationService : ISaaSRegistrationApplic
             return Result<CheckoutResponse>.Failure(ApplicationErrors.Invalid("CHECKOUT_INVALID", ex.Message, "planCode"));
         }
     }
+
+    /// <summary>
+    /// Convierte un <see cref="BusinessException"/> en errores del resultado
+    /// conservando código, mensaje y tipo (conflicto, no encontrado, etc.).
+    /// </summary>
+    private static Error[] ToErrors(BusinessException exception)
+    {
+        if (exception.Code is "REGISTRATION_INVALID_PASSWORD")
+        {
+            var passwordErrors = ToPasswordOrRequestErrors(exception.Message);
+            // Solo se traduce a mensajes de contraseña si Identity devolvió reglas;
+            // cualquier otro texto se devuelve tal cual.
+            if (passwordErrors.All(error => error.Code == "PASSWORD_INVALID"))
+                return passwordErrors;
+        }
+
+        return new[]
+        {
+            new Error(exception.Code, exception.Message,
+                MapErrorType(exception.StatusCode), DefaultField(exception.Code))
+        };
+    }
+
+    private static Error[] ToPasswordOrRequestErrors(string message)
+    {
+        // Identity agrupa los errores de contraseña con "; ".
+        // Traducir cada regla y asociarla al campo Password por separado.
+        var details = message.Split(';', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+        var passwordErrors = details
+            .Where(entry => entry.StartsWith("Passwords ", StringComparison.OrdinalIgnoreCase))
+            .Select(TranslatePasswordError)
+            .Distinct()
+            .ToArray();
+
+        if (passwordErrors.Length > 0)
+            return passwordErrors
+                .Select(entry => ApplicationErrors.Invalid("PASSWORD_INVALID", entry, "Password"))
+                .ToArray();
+
+        return new[] { ApplicationErrors.Invalid("REGISTRATION_INVALID", message, "request") };
+    }
+
+    private static ErrorType MapErrorType(int statusCode) => statusCode switch
+    {
+        401 => ErrorType.Unauthorized,
+        403 => ErrorType.Forbidden,
+        404 => ErrorType.NotFound,
+        409 => ErrorType.Conflict,
+        >= 500 => ErrorType.Internal,
+        _ => ErrorType.Validation
+    };
+
+    private static string? DefaultField(string code) => code switch
+    {
+        "REGISTRATION_EMAIL_EXISTS" => "Email",
+        "REGISTRATION_INVALID_CODE" => "token",
+        "REGISTRATION_INVALID_PASSWORD" => "Password",
+        "REGISTRATION_REQUIRED_FIELDS" => "request",
+        _ => null
+    };
+
     private static string TranslatePasswordError(string message)
     {
         if (message.StartsWith("Passwords must be at least ", StringComparison.OrdinalIgnoreCase))

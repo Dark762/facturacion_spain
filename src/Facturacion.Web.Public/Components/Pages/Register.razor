@@ -294,6 +294,14 @@
             _form.Password = "";
             _step = RegistrationStep.EmailVerification;
         }
+        catch (BusinessException ex)
+        {
+            // El servicio de aplicación ya convierte los errores de negocio en
+            // Result; esto cubre cualquier BusinessException que escape de otras
+            // dependencias para no ocultar el motivo real tras un texto genérico.
+            Logger.LogWarning(ex, "Error de negocio al iniciar el registro.");
+            _error = ex.Message;
+        }
         catch (Exception)
         {
             _error = "No se ha podido iniciar el registro. Comprueba los datos o contacta con soporte.";
@@ -335,6 +343,11 @@
             _registrationId = result.Value.RegistrationId;
             _resumeVerification = true;
             _step = RegistrationStep.EmailVerification;
+        }
+        catch (BusinessException ex)
+        {
+            Logger.LogWarning(ex, "Error de negocio al recuperar un registro pendiente.");
+            _error = ex.Message;
         }
         catch (Exception ex)
         {
@@ -417,6 +430,11 @@
 
             _step = RegistrationStep.CompanyDetails;
         }
+        catch (BusinessException ex)
+        {
+            Logger.LogWarning(ex, "Error de negocio al verificar el correo.");
+            _error = ex.Message;
+        }
         catch (Exception) { _error = "No se pudo verificar el correo. Comprueba el código recibido."; }
         finally { _busy = false; }
     }
@@ -452,6 +470,11 @@
             _plans = await Plans.GetActiveAsync();
             _selectedPlan = _plans.FirstOrDefault()?.Code ?? "";
             _step = RegistrationStep.PlanSelection;
+        }
+        catch (BusinessException ex)
+        {
+            Logger.LogWarning(ex, "Error de negocio al guardar los datos de la empresa.");
+            _error = ex.Message;
         }
         catch (Exception)
         {
@@ -501,6 +524,11 @@
 
 
             Navigation.NavigateTo(destination.ToString(), forceLoad: true);
+        }
+        catch (BusinessException ex)
+        {
+            Logger.LogWarning(ex, "Error de negocio al contratar el plan {PlanCode} en el registro {RegistrationId}.", _selectedPlan, _registrationId);
+            _error = ex.Message;
         }
         catch (Exception ex)
         {
