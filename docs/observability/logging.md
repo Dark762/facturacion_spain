@@ -69,3 +69,11 @@ El exportador usa OTLP/gRPC por defecto; el endpoint debe ser HTTP(S) absoluto y
 Inicia `Facturacion.AppHost` con el perfil `Development` en Visual Studio. Aspire aporta su propio receptor OTLP y dashboard. El AppHost habilita `FacturacionMetrics__EnableOtlp=true` para API, Web Pública, Web App y Workers en `Development` y `Local`; en `Staging` y `Production` lo deja en `false`. El exportador OpenTelemetry utiliza `OTEL_EXPORTER_OTLP_ENDPOINT` inyectado por Aspire cuando no se establece `FacturacionMetrics:OtlpEndpoint` explícitamente.
 
 Realiza un alta de prueba o un checkout y abre la pestaña **Metrics** del dashboard Aspire. Busca el meter `Facturacion.Operations` y las métricas `facturacion.operation.completed` y `facturacion.operation.duration`. Las métricas de negocio solo aparecen tras ejecutar esas operaciones. El dashboard local es para diagnóstico de desarrollo, no almacenamiento histórico ni alertas persistentes. En despliegues independientes, configura `FacturacionMetrics:EnableOtlp=true` y un receptor OTLP externo, con TLS y credenciales según el entorno.
+
+## Errores de entrega de correo en el registro SaaS
+
+`SmtpEmailSender` clasifica fallos como `EMAIL_NOT_CONFIGURED`, `EMAIL_SMTP_TEMPORARY`, `EMAIL_SMTP_REJECTED` y `EMAIL_TRANSPORT_UNAVAILABLE`, sin incluir destinatarios ni códigos en los eventos propios. `RegisterAsync` y `ResumeAsync` instrumentan el envío mediante `OperationTelemetry` con las operaciones `RegistrationEmailRegister` y `RegistrationEmailResume`, y registran `RegistrationId`, `ErrorCode` e `IsTransient`.
+
+La API transforma `EmailDeliveryException` en HTTP 503 con un mensaje seguro y `TraceId`. Para evitar enumeración de cuentas, `ResumeAsync` conserva su respuesta genérica ante fallos de entrega clasificados; el error queda registrado para operaciones. Los logs de excepciones de infraestructura pueden contener información del proveedor SMTP: restringir el acceso y revisar la política de redacción del colector.
+
+Esta entrega **no** incorpora reintentos automáticos, persistencia de incidencias ni panel administrativo. Tampoco garantiza entrega final al buzón: una respuesta SMTP satisfactoria solo confirma la aceptación por el servidor SMTP.
