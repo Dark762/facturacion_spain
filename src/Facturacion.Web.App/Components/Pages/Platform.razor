@@ -2,73 +2,99 @@
 @using System.Net.Http.Headers
 @using System.Net.Http.Json
 @using System.Security.Claims
-@using System.Text.Json.Serialization
 @inject IHttpClientFactory Clients
 @inject IHttpContextAccessor HttpAccessor
-@inject Microsoft.AspNetCore.Antiforgery.IAntiforgery Antiforgery
 
 <PageTitle>Centro de Control | FacturaciónES</PageTitle>
-<h1>Centro de Control</h1>
-<p><a href="/platform/incidents">Ver incidencias del sistema</a></p>
-<p>Administración global de la plataforma. Acceso exclusivo del propietario.</p>
-@if (_logoutToken is not null)
-{
-    <form method="post" action="/logout">
-        <input type="hidden" name="__RequestVerificationToken" value="@_logoutToken" />
-        <button type="submit">Cerrar sesión</button>
-    </form>
-}
+<div class="platform-dashboard">
+    <header class="platform-hero">
+        <div>
+            <p class="platform-eyebrow">ADMINISTRACIÓN GENERAL / RESUMEN</p>
+            <h1>Centro de Control</h1>
+            <p class="platform-description">Supervisa las organizaciones, suscripciones y actividad de tu plataforma desde un solo lugar.</p>
+        </div>
+        <a class="platform-action" href="/platform/incidents">Ver incidencias <span aria-hidden="true">↗</span></a>
+    </header>
 
-@if (_forbidden)
-{
-    <p role="alert">No tienes permisos de administrador de plataforma.</p>
-}
-else if (_error)
-{
-    <p role="alert">No se han podido cargar los datos. Revisa la conexión con la API.</p>
-}
-else if (_summary is null)
-{
-    <p>Cargando información…</p>
-}
-else
-{
-    <section aria-label="Resumen">
-        <h2>Resumen global</h2>
-        <p>Tenants: @_summary.TotalTenants · Activos: @_summary.ActiveTenants · Empresas activas: @_summary.ActiveCompanies</p>
-    </section>
-    <section aria-label="Tenants">
-        <h2>Tenants</h2>
-        <table>
-            <thead><tr><th>Nombre</th><th>Estado</th><th>Empresas</th><th>Plan</th><th>Suscripción</th><th>Alta</th></tr></thead>
-            <tbody>
-                @foreach (var tenant in _tenants)
-                {
-                    <tr>
-                        <td>@tenant.Name</td>
-                        <td>@(tenant.IsActive ? "Activo" : "Inactivo")</td>
-                        <td>@tenant.ActiveCompanies</td>
-                        <td>@(tenant.PlanCode ?? "—")</td>
-                        <td>@(tenant.SubscriptionStatus ?? "—")</td>
-                        <td>@(tenant.RegisteredAt?.ToString("dd/MM/yyyy") ?? "—")</td>
-                    </tr>
-                }
-            </tbody>
-        </table>
-        <p>Página @_page</p>
-        @if (_page > 1)
-        {
-            <a href="@($"/platform?page={_page - 1}")">Anterior</a>
-        }
-        @if (_tenants.Length == 25)
-        {
-            <a href="@($"/platform?page={_page + 1}")">Siguiente</a>
-        }
-    </section>
-}
+    @if (_forbidden)
+    {
+        <div class="platform-message" role="alert">No tienes permisos de administrador de plataforma.</div>
+    }
+    else if (_error)
+    {
+        <div class="platform-message" role="alert">No se han podido cargar los datos. Comprueba la conexión con la API.</div>
+    }
+    else if (_summary is null)
+    {
+        <p role="status">Cargando información de la plataforma…</p>
+    }
+    else
+    {
+        <section aria-label="Indicadores principales" class="platform-metrics">
+            <article class="platform-metric">
+                <span class="platform-metric-label">Organizaciones registradas</span>
+                <strong>@_summary.TotalTenants</strong>
+                <span class="platform-metric-foot">Total de tenants</span>
+            </article>
+            <article class="platform-metric">
+                <span class="platform-metric-label">Organizaciones activas</span>
+                <strong>@_summary.ActiveTenants</strong>
+                <span class="platform-metric-foot"><span class="platform-dot"></span> Actualmente activas</span>
+            </article>
+            <article class="platform-metric">
+                <span class="platform-metric-label">Empresas activas</span>
+                <strong>@_summary.ActiveCompanies</strong>
+                <span class="platform-metric-foot">En toda la plataforma</span>
+            </article>
+        </section>
+        <section class="platform-panel" aria-labelledby="platform-tenants-title">
+            <div class="platform-panel-header">
+                <div>
+                    <h2 id="platform-tenants-title">Organizaciones</h2>
+                    <p>Listado de tenants y estado de sus suscripciones</p>
+                </div>
+                <span class="platform-count">@_tenants.Length en esta página</span>
+            </div>
+            <div class="platform-table-scroll">
+                <table class="platform-table">
+                    <thead><tr><th>Organización</th><th>Estado</th><th>Empresas</th><th>Plan</th><th>Suscripción</th><th>Fecha de alta</th></tr></thead>
+                    <tbody>
+                        @foreach (var tenant in _tenants)
+                        {
+                            <tr>
+                                <td><span class="platform-tenant-avatar">@(string.IsNullOrWhiteSpace(tenant.Name) ? "?" : tenant.Name[..1].ToUpperInvariant())</span><strong>@tenant.Name</strong></td>
+                                <td><span class="platform-status @(tenant.IsActive ? "platform-status-active" : "platform-status-inactive")">@(tenant.IsActive ? "Activo" : "Inactivo")</span></td>
+                                <td>@tenant.ActiveCompanies</td>
+                                <td><span class="platform-plan">@(tenant.PlanCode ?? "Sin plan")</span></td>
+                                <td>@(tenant.SubscriptionStatus ?? "—")</td>
+                                <td>@(tenant.RegisteredAt?.ToString("dd/MM/yyyy") ?? "—")</td>
+                            </tr>
+                        }
+                        @if (_tenants.Length == 0)
+                        {
+                            <tr><td colspan="6" class="platform-empty">No hay organizaciones para mostrar.</td></tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+            <footer class="platform-pagination">
+                <span>Página @_page</span>
+                <div>
+                    @if (_page > 1)
+                    {
+                        <a href="@($"/platform?page={_page - 1}")">← Anterior</a>
+                    }
+                    @if (_tenants.Length == 25)
+                    {
+                        <a href="@($"/platform?page={_page + 1}")">Siguiente →</a>
+                    }
+                </div>
+            </footer>
+        </section>
+    }
+</div>
 @code {
     [SupplyParameterFromQuery(Name = "page")] public int? Page { get; set; }
-    private string? _logoutToken;
     private int _page = 1;
     private bool _forbidden;
     private bool _error;
@@ -78,8 +104,6 @@ else
     protected override async Task OnParametersSetAsync()
     {
         _page = Math.Clamp(Page ?? 1, 1, 100000);
-        if (HttpAccessor.HttpContext is { } http)
-            _logoutToken = Antiforgery.GetAndStoreTokens(http).RequestToken;
         var token = HttpAccessor.HttpContext?.User.FindFirstValue(FacturacionClaim.ApiToken.ToClaimType());
         if (string.IsNullOrEmpty(token)) { _forbidden = true; return; }
         try
