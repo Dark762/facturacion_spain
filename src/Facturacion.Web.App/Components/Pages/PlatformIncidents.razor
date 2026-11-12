@@ -7,81 +7,140 @@
 @inject Microsoft.AspNetCore.Antiforgery.IAntiforgery Antiforgery
 
 <PageTitle>Incidencias | FacturaciónES</PageTitle>
-<h1>Incidencias del sistema</h1>
-<p><a href="/platform">Volver al Centro de Control</a></p>
-@if (_forbidden)
-{
-    <p role="alert">No tienes permisos de administrador de plataforma.</p>
-}
-else if (_error)
-{
-    <p role="alert">No se pudieron cargar las incidencias. Comprueba la API y la actualización de base de datos.</p>
-}
-else if (_result is null)
-{
-    <p>Cargando incidencias…</p>
-}
-else
-{
-    <form method="get" action="/platform/incidents">
-        <label>Estado
-            <select name="status">
-                <option value="">Todos</option>
-                <option value="Open" selected="@(_status == "Open")">Abiertas</option>
-                <option value="Investigating" selected="@(_status == "Investigating")">Investigando</option>
-                <option value="Resolved" selected="@(_status == "Resolved")">Resueltas</option>
-            </select>
-        </label>
-        <label>Código <input name="code" value="@Code" maxlength="80" /></label>
-        <label>Servicio <input name="application" value="@Application" maxlength="80" /></label>
-        <label>Desde (UTC) <input type="date" name="from" value="@From" /></label>
-        <label>Hasta (UTC) <input type="date" name="to" value="@To" /></label>
-        <button type="submit">Filtrar</button>
-    </form>
-    <p>Total: @_result.Total</p>
-    <table>
-        <thead><tr><th>Fecha UTC</th><th>Servicio</th><th>Operación</th><th>Gravedad</th><th>Código</th><th>TraceId</th><th>Tenant</th><th>Estado</th><th>Gestión</th></tr></thead>
-        <tbody>
-            @foreach (var incident in _result.Items)
+<div class="incidents-dashboard">
+    <header class="incidents-hero">
+        <div>
+            <p class="incidents-eyebrow">ADMINISTRACIÓN GENERAL / MONITORIZACIÓN</p>
+            <h1>Incidencias del sistema</h1>
+            <p class="incidents-description">Consulta y gestiona los errores operativos registrados por la plataforma.</p>
+        </div>
+        <a class="incidents-back" href="/platform">← Centro de Control</a>
+    </header>
+
+    @if (_forbidden)
+    {
+        <div class="incidents-notice" role="alert">No tienes permisos de administrador de plataforma.</div>
+    }
+    else if (_error)
+    {
+        <div class="incidents-notice" role="alert">No se pudieron cargar las incidencias. Comprueba la conexión con la API y la actualización de la base de datos.</div>
+    }
+    else if (_result is null)
+    {
+        <p role="status">Cargando incidencias…</p>
+    }
+    else
+    {
+        <section class="incidents-panel" aria-labelledby="incidents-filter-title">
+            <div class="incidents-section-heading">
+                <div>
+                    <h2 id="incidents-filter-title">Filtros de búsqueda</h2>
+                    <p>Acota los resultados por estado, servicio, código o período.</p>
+                </div>
+            </div>
+            <form class="incidents-filters" method="get" action="/platform/incidents">
+                <label>Estado
+                    <select name="status">
+                        <option value="">Todos los estados</option>
+                        <option value="Open" selected="@(_status == "Open")">Abiertas</option>
+                        <option value="Investigating" selected="@(_status == "Investigating")">Investigando</option>
+                        <option value="Resolved" selected="@(_status == "Resolved")">Resueltas</option>
+                    </select>
+                </label>
+                <label>Código de error
+                    <input name="code" value="@Code" maxlength="80" placeholder="Ej. EMAIL_SMTP_TEMPORARY" />
+                </label>
+                <label>Servicio
+                    <input name="application" value="@Application" maxlength="80" placeholder="Ej. Facturacion.Api" />
+                </label>
+                <label>Desde (UTC)
+                    <input type="date" name="from" value="@From" />
+                </label>
+                <label>Hasta (UTC)
+                    <input type="date" name="to" value="@To" />
+                </label>
+                <div class="incidents-filter-actions">
+                    <button type="submit">Aplicar filtros</button>
+                    <a href="/platform/incidents">Limpiar</a>
+                </div>
+            </form>
+        </section>
+
+        <section class="incidents-panel incidents-results" aria-labelledby="incidents-results-title">
+            <div class="incidents-section-heading incidents-results-heading">
+                <div>
+                    <h2 id="incidents-results-title">Registro de incidencias</h2>
+                    <p>Historial operativo de la plataforma.</p>
+                </div>
+                <span class="incidents-count">@_result.Total @(_result.Total == 1 ? "incidencia" : "incidencias")</span>
+            </div>
+            @if (_result.Items.Length == 0)
             {
-                <tr>
-                    <td>@incident.CreatedAt.ToString("yyyy-MM-dd HH:mm")</td>
-                    <td>@incident.Application</td>
-                    <td>@incident.Operation</td>
-                    <td>@incident.Severity</td>
-                    <td>@incident.ErrorCode</td>
-                    <td>@(incident.TraceId ?? "—")</td>
-                    <td>@(incident.TenantId?.ToString() ?? "—")</td>
-                    <td>@incident.Status</td>
-                    <td>
-                        @if (_csrf is not null)
-                        {
-                            <form method="post" action="/platform/incidents/status">
-                                <input type="hidden" name="__RequestVerificationToken" value="@_csrf" />
-                                <input type="hidden" name="id" value="@incident.Id" />
-                                <select name="status" aria-label="Nuevo estado">
-                                    <option value="Open">Abierta</option>
-                                    <option value="Investigating">Investigando</option>
-                                    <option value="Resolved">Resuelta</option>
-                                </select>
-                                <button type="submit">Guardar</button>
-                            </form>
-                        }
-                    </td>
-                </tr>
+                <div class="incidents-empty" role="status">
+                    <span class="incidents-empty-icon" aria-hidden="true">✓</span>
+                    <h3>@(_result.Total == 0 && !HasFilters ? "No hay incidencias registradas" : "No se encontraron incidencias")</h3>
+                    <p>@(_result.Total == 0 && !HasFilters ? "Cuando el sistema registre una incidencia, aparecerá aquí para su seguimiento." : "Prueba con otros filtros o vuelve a la primera página.")</p>
+                    @if (HasFilters)
+                    {
+                        <a href="/platform/incidents">Ver todas las incidencias</a>
+                    }
+                </div>
             }
-        </tbody>
-    </table>
-    <p>Página @_page</p>
-    @if (_page > 1)
-    {
-        <a href="@PageUrl(_page - 1)">Anterior</a>
+            else
+            {
+                <div class="incidents-table-scroll">
+                    <table class="incidents-table">
+                        <thead>
+                            <tr><th scope="col">Fecha (UTC)</th><th scope="col">Servicio / operación</th><th scope="col">Gravedad</th><th scope="col">Código</th><th scope="col">TraceId</th><th scope="col">Tenant</th><th scope="col">Estado</th><th scope="col">Gestión</th></tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var incident in _result.Items)
+                            {
+                                <tr>
+                                    <td class="incidents-date">@incident.CreatedAt.UtcDateTime.ToString("dd/MM/yyyy HH:mm")</td>
+                                    <td><strong>@incident.Application</strong><span class="incidents-secondary">@incident.Operation</span></td>
+                                    <td><span class="incidents-severity @(incident.Severity == "Error" || incident.Severity == "Critical" ? "incidents-severity-error" : "incidents-severity-neutral")">@incident.Severity</span></td>
+                                    <td><code>@incident.ErrorCode</code></td>
+                                    <td><span class="incidents-mono" title="@incident.TraceId">@(incident.TraceId ?? "—")</span></td>
+                                    <td><span class="incidents-mono" title="@incident.TenantId">@(incident.TenantId?.ToString() ?? "—")</span></td>
+                                    <td><span class="incidents-status @StatusClass(incident.Status)">@StatusLabel(incident.Status)</span></td>
+                                    <td>
+                                        @if (_csrf is not null)
+                                        {
+                                            <form class="incidents-status-form" method="post" action="/platform/incidents/status">
+                                                <input type="hidden" name="__RequestVerificationToken" value="@_csrf" />
+                                                <input type="hidden" name="id" value="@incident.Id" />
+                                                <select name="status" aria-label="@($"Cambiar estado de incidencia {incident.Id}")">
+                                                    <option value="Open" selected="@(incident.Status == "Open")">Abierta</option>
+                                                    <option value="Investigating" selected="@(incident.Status == "Investigating")">Investigando</option>
+                                                    <option value="Resolved" selected="@(incident.Status == "Resolved")">Resuelta</option>
+                                                </select>
+                                                <button type="submit">Guardar</button>
+                                            </form>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+            <footer class="incidents-pagination">
+                <span>Página @_page</span>
+                <div>
+                    @if (_page > 1)
+                    {
+                        <a href="@PageUrl(_page - 1)">← Anterior</a>
+                    }
+                    @if (_page < (int)Math.Ceiling(_result.Total / 25d))
+                    {
+                        <a href="@PageUrl(_page + 1)">Siguiente →</a>
+                    }
+                </div>
+            </footer>
+        </section>
     }
-    @if (_result.Items.Length == 25)
-    {
-        <a href="@PageUrl(_page + 1)">Siguiente</a>
-    }
-}
+</div>
 @code {
     [SupplyParameterFromQuery(Name = "page")] public int? Page { get; set; }
     [SupplyParameterFromQuery(Name = "status")] public string? Status { get; set; }
@@ -91,6 +150,9 @@ else
     [SupplyParameterFromQuery(Name = "to")] public string? To { get; set; }
     private int _page = 1;
     private string? _status;
+    private bool HasFilters => !string.IsNullOrWhiteSpace(Status) || !string.IsNullOrWhiteSpace(Code) || !string.IsNullOrWhiteSpace(Application) || !string.IsNullOrWhiteSpace(From) || !string.IsNullOrWhiteSpace(To);
+    private static string StatusLabel(string status) => status switch { "Open" => "Abierta", "Investigating" => "Investigando", "Resolved" => "Resuelta", _ => status };
+    private static string StatusClass(string status) => status switch { "Open" => "incidents-status-open", "Investigating" => "incidents-status-investigating", "Resolved" => "incidents-status-resolved", _ => "incidents-status-neutral" };
     private string? _csrf;
     private bool _forbidden;
     private bool _error;
@@ -102,6 +164,9 @@ else
 
     protected override async Task OnParametersSetAsync()
     {
+        _forbidden = false;
+        _error = false;
+        _result = null;
         _page = Math.Clamp(Page ?? 1, 1, 100000);
         _status = Status;
         var http = HttpAccessor.HttpContext;
