@@ -42,6 +42,13 @@
                                             <button disabled="@(_saving || string.IsNullOrWhiteSpace(_decisionCode))" @onclick='() => ReviewAsync(item.Id, "Rejected", _decisionCode)'>Rechazar</button>
                                         </div>
                                     }
+                                    @if (item.Status == "Verified")
+                                    {
+                                        <div class="verification-actions">
+                                            <input maxlength="80" aria-label="Motivo de revocación" placeholder="Código de motivo" @bind="_decisionCode" />
+                                            <button disabled="@(_saving || string.IsNullOrWhiteSpace(_decisionCode))" @onclick="() => RevokeAsync(item.Id, _decisionCode)">Revocar</button>
+                                        </div>
+                                    }
                                 </td></tr>
                             }
                         </tbody>
@@ -101,6 +108,31 @@
                 $"api/platform/identity-verifications/{id}/review",
                 new { Status = status, DecisionCode = decisionCode });
             _notice = response.IsSuccessStatusCode ? "Solicitud actualizada." : "No se pudo actualizar la solicitud.";
+            if (response.IsSuccessStatusCode)
+            {
+                _decisionCode = null;
+                await OnParametersSetAsync();
+            }
+        }
+        catch (HttpRequestException) { _notice = "No se pudo contactar con la API."; }
+        finally { _saving = false; }
+    }
+    private async Task RevokeAsync(Guid id, string? reasonCode)
+    {
+        if (_saving || string.IsNullOrWhiteSpace(reasonCode)) return;
+        _saving = true;
+        _notice = null;
+        try
+        {
+            var auth = await Authentication.GetAuthenticationStateAsync();
+            var token = auth.User.FindFirstValue(FacturacionClaim.ApiToken.ToClaimType());
+            if (string.IsNullOrWhiteSpace(token)) { _notice = "Sesión caducada."; return; }
+            using var client = Clients.CreateClient("FacturacionAuthApi");
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            using var response = await client.PostAsJsonAsync(
+                $"api/platform/identity-verifications/{id}/revoke",
+                new { ReasonCode = reasonCode });
+            _notice = response.IsSuccessStatusCode ? "Verificación revocada." : "No se pudo revocar la verificación.";
             if (response.IsSuccessStatusCode)
             {
                 _decisionCode = null;
