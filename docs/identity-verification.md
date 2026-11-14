@@ -7,10 +7,11 @@ Se implementó la **base de datos y la solicitud inicial** de dos vías, NO la v
 - `POST /api/identity-verification` con `{"method":"Manual"|"Certificate","subjectKind":"Individual"|"LegalEntity"}` (requiere JWT de tenant válido).
 - `GET /api/identity-verification/mine` muestra solicitudes del usuario autenticado en su tenant.
 - `GET /api/platform/identity-verifications` muestra solicitudes a la identidad PlatformAdmin, con paginación y filtro de estado.
+- `PATCH /api/platform/identity-verifications/{id}/review` admite únicamente `UnderReview` o `Rejected` (para rechazo, `decisionCode` es obligatorio). Guarda el identificador del administrador y fecha. No admite aprobación sin pruebas verificadas.
 - `IdentityVerifications` almacena estado, método, tenant, usuario y auditoría mínima, **sin documentos ni certificados privados**.
 - Aplicar antes de iniciar el host el script `database/upgrade/11_identity_verifications_<proveedor>.sql` correspondiente, previa copia de seguridad.
 
-Los estados iniciales son `AwaitingEvidence` (manual) y `AwaitingCertificate` (certificado). No existe endpoint que pueda marcar una solicitud como `Verified` en esta fase: impediría una falsa sensación de verificación.
+Los estados iniciales son `AwaitingEvidence` (manual) y `AwaitingCertificate` (certificado). No existe endpoint que pueda marcar una solicitud como `Verified` en esta fase: impediría una falsa sensación de verificación. Las decisiones de revisión son modificaciones auditadas mínimamente en la propia fila; falta historial de eventos inmutable.
 
 ## Para completar de forma segura la vía manual
 
@@ -22,7 +23,7 @@ Configurar autenticación TLS con certificado cliente o integración de proveedo
 
 ## Bloqueos de operaciones
 
-**Todavía no se ha integrado una política de autorización** que bloquee emisión de facturas, acceso fiscal, representación ni integraciones. Tampoco hay pantalla UI, carga de documentos, firma/challenge criptográfico, decisiones de revisión, caducidad/revocación, auditoría completa ni pruebas end-to-end. No presentar este módulo como una verificación KYC funcional ni habilitar producción con la suposición de que protege operaciones.
+**Todavía no se ha integrado una política de autorización** que bloquee emisión de facturas, acceso fiscal, representación ni integraciones. Tampoco hay pantalla UI, carga de documentos, firma/challenge criptográfico, aprobación segura, caducidad/revocación, auditoría completa ni pruebas end-to-end. No presentar este módulo como una verificación KYC funcional ni habilitar producción con la suposición de que protege operaciones.
 
 ## Pruebas imprescindibles
 
