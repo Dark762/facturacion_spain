@@ -6,8 +6,9 @@ Se implementó la **base de datos y la solicitud inicial** de dos vías, NO la v
 
 - `POST /api/identity-verification` con `{"method":"Manual"|"Certificate","subjectKind":"Individual"|"LegalEntity"}` (requiere JWT de tenant válido).
 - `GET /api/identity-verification/mine` muestra solicitudes del usuario autenticado en su tenant.
-- `GET /api/identity-verification/readiness` devuelve un estado **informativo**: identidad marcada como verificada, solicitud pendiente, representación no verificada y `EnforcementEnabled=false`. **No concede autorización ni valida evidencias**, y `IdentityVerified` depende de datos persistidos; nunca tratar este endpoint como fuente independiente de prueba criptográfica.
+- `GET /api/identity-verification/readiness` devuelve un estado **informativo**: identidad marcada como verificada, solicitud pendiente, representación no verificada y `EnforcementEnabled=false`, `CanIssueWithVerifiedIdentity=false`. **No concede autorización ni valida evidencias**, y `IdentityVerified` depende de datos persistidos; nunca tratar este endpoint como fuente independiente de prueba criptográfica.
 - `GET /api/platform/identity-verifications` muestra solicitudes a la identidad PlatformAdmin, con paginación y filtro de estado.
+- `POST /api/platform/identity-verifications/{id}/revoke` permite al administrador revocar atómicamente un registro heredado `Verified`, exigiendo `reasonCode` (1–80 caracteres), guardando quién revocó y cuándo. No crea aprobaciones ni historial inmutable.
 - `PATCH /api/platform/identity-verifications/{id}/review` admite únicamente `UnderReview` o `Rejected` (para rechazo, `decisionCode` es obligatorio). Guarda el identificador del administrador y fecha. No admite aprobación sin pruebas verificadas.
 - `IdentityVerifications` almacena estado, método, tenant, usuario y auditoría mínima, **sin documentos ni certificados privados**.
 - Aplicar antes de iniciar el host el script `database/upgrade/11_identity_verifications_<proveedor>.sql` correspondiente, previa copia de seguridad.
@@ -26,7 +27,7 @@ Configurar autenticación TLS con certificado cliente o integración de proveedo
 
 ## Bloqueos de operaciones
 
-**Todavía no se ha integrado una política de autorización** que bloquee emisión de facturas, acceso fiscal, representación ni integraciones. Existen pantallas iniciales: `/identity-verification` permite abrir y consultar solicitudes; `/platform/verifications` permite al administrador global consultar la cola en modo lectura. No implementan prueba de identidad ni aprobación. Tampoco hay carga de documentos, firma/challenge criptográfico, aprobación segura, caducidad/revocación, auditoría completa ni pruebas end-to-end. No presentar este módulo como una verificación KYC funcional ni habilitar producción con la suposición de que protege operaciones.
+**Todavía no se ha integrado una política de autorización** que bloquee emisión de facturas, acceso fiscal, representación ni integraciones. Existen pantallas iniciales: `/identity-verification` permite abrir y consultar solicitudes; `/platform/verifications` permite al administrador global consultar la cola en modo lectura. No implementan prueba de identidad ni aprobación. Tampoco hay carga de documentos, firma/challenge criptográfico, aprobación segura, caducidad y revocación automática, auditoría completa ni pruebas end-to-end. No presentar este módulo como una verificación KYC funcional ni habilitar producción con la suposición de que protege operaciones.
 
 ## Interfaces añadidas
 
@@ -47,7 +48,8 @@ Configurar autenticación TLS con certificado cliente o integración de proveedo
 | Captura y validación documental segura | Pendiente de proveedor, seguridad y RGPD |
 | Identificación criptográfica por certificado en IIS | Pendiente de infraestructura confiable |
 | Comprobación de representación | Pendiente |
-| Aprobación verificada, revocación y auditoría completa | Pendiente |
+| Revocación administrativa de registros `Verified` | Implementado en API; sin UI ni historial inmutable |
+| Aprobación verificada y auditoría completa | Pendiente |
 | Endpoint informativo de preparación de autorización | Implementado; no valida identidad ni representación |
 | Bloqueo de emisión y operaciones fiscales | Pendiente; **no activar sin vía real de verificación** |
 | Compilación y pruebas de integración | No ejecutadas |
