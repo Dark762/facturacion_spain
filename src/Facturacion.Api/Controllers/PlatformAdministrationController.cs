@@ -90,6 +90,32 @@ public sealed class PlatformAdministrationController(
         return this.ApiOk(new { Total = total, Items = items });
     }
 
+    public sealed record VerificationReviewRequest(string Status, string? DecisionCode);
+
+    /// <summary>La revisión puede rechazar o solicitar comprobaciones adicionales;
+    /// jamás aprobar sin una evidencia validada por un verificador confiable.</summary>
+    [HttpPatch("identity-verifications/{id:guid}/review")]
+    public async Task<IActionResult> ReviewIdentityVerification(Guid id,
+        [FromBody] VerificationReviewRequest request, CancellationToken ct)
+    {
+        if (request.Status is not ("UnderReview" or "Rejected") ||
+            request.DecisionCode?.Length > 80 ||
+            (request.Status == "Rejected" && string.IsNullOrWhiteSpace(request.DecisionCode)))
+            return this.ApiFailure<object>(400, "INVALID_VERIFICATION_DECISION", "Decisión no válida.");
+        var item = await selfService.IdentityVerifications.SingleOrDefaultAsync(x => x.Id == id, ct);
+        if (item is null)
+            return this.ApiFailure<object>(404, "VERIFICATION_NOT_FOUND", "Solicitud inexistente.");
+        if (item.Status is not ("AwaitingEvidence" or "AwaitingCertificate" or "UnderReview"))
+            return this.ApiFailure<object>(409, "VERIFICATION_NOT_REVIEWABLE", "La solicitud no admite esta transición.");
+        item.Status = request.Status;
+        item.DecisionCode = request.Status == "Rejected" ? request.DecisionCode!.Trim() : null;
+        item.ReviewedBy = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        item.ReviewedAt = DateTimeOffset.UtcNow;
+        item.UpdatedAt = item.ReviewedAt.Value;
+        await selfService.SaveChangesAsync(ct);
+        return this.ApiOk(new { item.Id, item.Status, item.UpdatedAt });
+    }
+
     [HttpGet("incidents")]
     public async Task<IActionResult> Incidents([FromQuery] int page = 1,
         [FromQuery] int pageSize = 25, [FromQuery] string? status = null,
