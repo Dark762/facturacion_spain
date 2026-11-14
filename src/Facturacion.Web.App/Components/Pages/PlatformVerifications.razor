@@ -4,6 +4,7 @@
 @using System.Security.Claims
 @inject IHttpClientFactory Clients
 @inject IHttpContextAccessor HttpAccessor
+@inject Microsoft.AspNetCore.Components.Authorization.AuthenticationStateProvider Authentication
 
 <PageTitle>Verificaciones | FacturaciónES</PageTitle>
 <div class="verification-admin">
@@ -11,6 +12,7 @@
     <h1>Solicitudes de verificación</h1>
     <p>Seguimiento de solicitudes de identidad y representación. Ninguna solicitud se aprueba automáticamente.</p>
     <a href="/platform">← Centro de Control</a>
+    @if (_notice is not null) { <p role="status">@_notice</p> }
     @if (_forbidden) { <p role="alert">Acceso no autorizado.</p> }
     else if (_error) { <p role="alert">No se pudo consultar la API de verificaciones.</p> }
     else if (_page is null) { <p>Cargando solicitudes…</p> }
@@ -23,11 +25,24 @@
             {
                 <div class="verification-scroll">
                     <table>
-                        <thead><tr><th>Fecha</th><th>Tenant</th><th>Usuario</th><th>Método</th><th>Tipo</th><th>Estado</th></tr></thead>
+                        <thead><tr><th>Fecha</th><th>Tenant</th><th>Usuario</th><th>Método</th><th>Tipo</th><th>Estado</th><th>Acciones</th></tr></thead>
                         <tbody>
                             @foreach (var item in _page.Items)
                             {
-                                <tr><td>@item.CreatedAt.ToString("dd/MM/yyyy")</td><td>@item.TenantId</td><td>@item.UserId</td><td>@item.Method</td><td>@item.SubjectKind</td><td><span class="verification-badge">@item.Status</span></td></tr>
+                                <tr><td>@item.CreatedAt.ToString("dd/MM/yyyy")</td><td>@item.TenantId</td><td>@item.UserId</td><td>@item.Method</td><td>@item.SubjectKind</td><td><span class="verification-badge">@item.Status</span></td>
+                                <td>
+                                    @if (item.Status is "AwaitingEvidence" or "AwaitingCertificate" or "UnderReview")
+                                    {
+                                        <div class="verification-actions">
+                                            @if (item.Status != "UnderReview")
+                                            {
+                                                <button disabled="@_saving" @onclick='() => ReviewAsync(item.Id, "UnderReview", null)'>En revisión</button>
+                                            }
+                                            <input maxlength="80" aria-label="Código de rechazo" placeholder="Motivo de rechazo" @bind="_decisionCode" />
+                                            <button disabled="@(_saving || string.IsNullOrWhiteSpace(_decisionCode))" @onclick='() => ReviewAsync(item.Id, "Rejected", _decisionCode)'>Rechazar</button>
+                                        </div>
+                                    }
+                                </td></tr>
                             }
                         </tbody>
                     </table>
@@ -44,6 +59,9 @@
 @code {
     [SupplyParameterFromQuery(Name = "page")] public int? Page { get; set; }
     private int _currentPage = 1;
+    private bool _saving;
+    private string? _decisionCode;
+    private string? _notice;
     private bool _forbidden;
     private bool _error;
     private VerificationPage? _page;
@@ -66,6 +84,31 @@
         }
         catch (HttpRequestException) { _error = true; }
         catch (System.Text.Json.JsonException) { _error = true; }
+    }
+    private async Task ReviewAsync(Guid id, string status, string? decisionCode)
+    {
+        if (_saving) return;
+        _saving = true;
+        _notice = null;
+        try
+        {
+            var auth = await Authentication.GetAuthenticationStateAsync();
+            var token = auth.User.FindFirstValue(FacturacionClaim.ApiToken.ToClaimType());
+            if (string.IsNullOrWhiteSpace(token)) { _notice = "Sesión caducada."; return; }
+            using var client = Clients.CreateClient("FacturacionAuthApi");
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            using var response = await client.PatchAsJsonAsync(
+                $"api/platform/identity-verifications/{id}/review",
+                new { Status = status, DecisionCode = decisionCode });
+            _notice = response.IsSuccessStatusCode ? "Solicitud actualizada." : "No se pudo actualizar la solicitud.";
+            if (response.IsSuccessStatusCode)
+            {
+                _decisionCode = null;
+                await OnParametersSetAsync();
+            }
+        }
+        catch (HttpRequestException) { _notice = "No se pudo contactar con la API."; }
+        finally { _saving = false; }
     }
     private sealed record Envelope<T>(T? Data);
     private sealed record VerificationPage(int Total, VerificationItem[] Items);
