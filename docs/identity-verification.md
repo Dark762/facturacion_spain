@@ -23,7 +23,30 @@ Configurar autenticación TLS con certificado cliente o integración de proveedo
 
 ## Bloqueos de operaciones
 
-**Todavía no se ha integrado una política de autorización** que bloquee emisión de facturas, acceso fiscal, representación ni integraciones. Tampoco hay pantalla UI, carga de documentos, firma/challenge criptográfico, aprobación segura, caducidad/revocación, auditoría completa ni pruebas end-to-end. No presentar este módulo como una verificación KYC funcional ni habilitar producción con la suposición de que protege operaciones.
+**Todavía no se ha integrado una política de autorización** que bloquee emisión de facturas, acceso fiscal, representación ni integraciones. Existen pantallas iniciales: `/identity-verification` permite abrir y consultar solicitudes; `/platform/verifications` permite al administrador global consultar la cola en modo lectura. No implementan prueba de identidad ni aprobación. Tampoco hay carga de documentos, firma/challenge criptográfico, aprobación segura, caducidad/revocación, auditoría completa ni pruebas end-to-end. No presentar este módulo como una verificación KYC funcional ni habilitar producción con la suposición de que protege operaciones.
+
+## Interfaces añadidas
+
+- `/identity-verification`: pantalla interactiva para usuarios tenant, con selector de método manual/certificado, tipo de titular, creación y consulta de solicitudes. No acepta archivos ni certificados.
+- `/platform/verifications`: listado paginado de solicitudes accesible desde el menú de administración. Las decisiones `UnderReview` y `Rejected` existen en la API, pero todavía no tienen botones de gestión en la interfaz.
+- El menú compartido muestra «Verificar identidad» a usuarios de empresa y «Verificaciones» a administradores de plataforma.
+- Las dos pantallas tienen estilos CSS aislados. Es imprescindible que `Facturacion.Web.App.styles.css` se publique correctamente.
+
+## Estado de implementación (actualizado)
+
+| Capacidad | Estado |
+| --- | --- |
+| Modelo, esquema SQL y solicitudes por dos vías | Implementado en código; migraciones pendientes de ejecutar |
+| Consulta del usuario y cola administrativa | Implementado en código |
+| Revisión/rechazo básico por API | Implementado en código |
+| Interfaz del usuario y listado administrativo | Implementado en código |
+| Decisiones administrativas desde la UI | Pendiente |
+| Captura y validación documental segura | Pendiente de proveedor, seguridad y RGPD |
+| Identificación criptográfica por certificado en IIS | Pendiente de infraestructura confiable |
+| Comprobación de representación | Pendiente |
+| Aprobación verificada, revocación y auditoría completa | Pendiente |
+| Bloqueo de emisión y operaciones fiscales | Pendiente; **no activar sin vía real de verificación** |
+| Compilación y pruebas de integración | No ejecutadas |
 
 ## Pruebas imprescindibles
 
