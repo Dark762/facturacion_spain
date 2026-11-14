@@ -31,12 +31,14 @@
             {
                 <a class="sidebar-link" href="/platform"><NavigationIcon Name="home" /> <span>Panel de plataforma</span></a>
                 <a class="sidebar-link" href="/platform/incidents"><NavigationIcon Name="invoice" /> <span>Incidencias</span></a>
+                <a class="sidebar-link" href="/platform/verifications"><NavigationIcon Name="account" /> <span>Verificaciones</span></a>
             }
             else
             {
                 <a class="sidebar-link" href="/"><NavigationIcon Name="home" /> <span>Inicio</span></a>
             <span class="sidebar-link sidebar-link-disabled"><NavigationIcon Name="invoice" /> <span>Facturas <small>Próximamente</small></span></span>
             <a class="sidebar-link" href="/customers"><NavigationIcon Name="users" /> <span>Clientes</span></a>
+            <a class="sidebar-link" href="/identity-verification"><NavigationIcon Name="account" /> <span>Verificar identidad</span></a>
             <span class="sidebar-link sidebar-link-disabled"><NavigationIcon Name="building" /> <span>Empresas <small>Próximamente</small></span></span>
             }
             <a class="sidebar-link" href="/account"><NavigationIcon Name="account" /> <span>Mi perfil y seguridad</span></a>
@@ -55,11 +57,13 @@
     {
         <a href="/platform"><NavigationIcon Name="home" /><span>Plataforma</span></a>
         <a href="/platform/incidents"><NavigationIcon Name="invoice" /><span>Incidencias</span></a>
+        <a href="/platform/verifications"><NavigationIcon Name="account" /><span>Verificaciones</span></a>
     }
     else
     {
         <a href="/"><NavigationIcon Name="home" /><span>Inicio</span></a>
     <a href="/customers"><NavigationIcon Name="users" /><span>Clientes</span></a>
+        <a href="/identity-verification"><NavigationIcon Name="account" /><span>Identidad</span></a>
     }
     <a href="/account"><NavigationIcon Name="account" /><span>Mi cuenta</span></a>
     <button type="button" class="mobile-logout" @onclick="OpenLogout"><NavigationIcon Name="logout" /><span>Salir</span></button>
