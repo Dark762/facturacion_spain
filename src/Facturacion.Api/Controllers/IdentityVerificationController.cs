@@ -58,16 +58,20 @@ public sealed class IdentityVerificationController(SelfServiceDbContext db) : Co
     public async Task<IActionResult> Cancel(Guid id, CancellationToken ct)
     {
         if (!TryScope(out var userId, out var tenantId)) return Forbid();
-        var item = await db.IdentityVerifications.SingleOrDefaultAsync(
-            x => x.Id == id && x.UserId == userId && x.TenantId == tenantId, ct);
-        if (item is null)
-            return this.ApiFailure<object>(404, "VERIFICATION_NOT_FOUND", "Solicitud inexistente.");
-        if (item.Status is not ("AwaitingEvidence" or "AwaitingCertificate" or "UnderReview"))
-            return this.ApiFailure<object>(409, "VERIFICATION_NOT_CANCELLABLE", "No se puede cancelar esta solicitud.");
-        item.Status = "Cancelled";
-        item.UpdatedAt = DateTimeOffset.UtcNow;
-        await db.SaveChangesAsync(ct);
-        return this.ApiOk(new { item.Id, item.Status, item.UpdatedAt });
+        var now = DateTimeOffset.UtcNow;
+        // Transición atómica: impide cancelar una solicitud aprobada/rechazada
+        // por otro proceso entre la lectura y la escritura.
+        var affected = await db.IdentityVerifications
+            .Where(x => x.Id == id && x.UserId == userId && x.TenantId == tenantId &&
+                (x.Status == "AwaitingEvidence" || x.Status == "AwaitingCertificate" ||
+                 x.Status == "UnderReview"))
+            .ExecuteUpdateAsync(setters => setters
+                .SetProperty(x => x.Status, "Cancelled")
+                .SetProperty(x => x.UpdatedAt, now), ct);
+        if (affected == 0)
+            return this.ApiFailure<object>(409, "VERIFICATION_NOT_CANCELLABLE",
+                "La solicitud no existe o no admite cancelación.");
+        return this.ApiOk(new { Id = id, Status = "Cancelled", UpdatedAt = now });
     }
 
     private bool TryScope(out string userId, out Guid tenantId)
