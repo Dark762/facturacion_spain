@@ -31,7 +31,7 @@ public sealed class IdentityVerificationController(SelfServiceDbContext db) : Co
         {
             IdentityVerified = verified,
             VerificationPending = pending,
-            CanIssueWithVerifiedIdentity = verified,
+            CanIssueWithVerifiedIdentity = false, // Sin evidencia validada ni política de autorización habilitada.
             RepresentationVerified = false,
             CanActAsCompanyRepresentative = false,
             EnforcementEnabled = false
