@@ -54,6 +54,22 @@ public sealed class IdentityVerificationController(SelfServiceDbContext db) : Co
         return this.ApiOk(new { item.Id, item.Method, item.SubjectKind, item.Status });
     }
 
+    [HttpPost("{id:guid}/cancel")]
+    public async Task<IActionResult> Cancel(Guid id, CancellationToken ct)
+    {
+        if (!TryScope(out var userId, out var tenantId)) return Forbid();
+        var item = await db.IdentityVerifications.SingleOrDefaultAsync(
+            x => x.Id == id && x.UserId == userId && x.TenantId == tenantId, ct);
+        if (item is null)
+            return this.ApiFailure<object>(404, "VERIFICATION_NOT_FOUND", "Solicitud inexistente.");
+        if (item.Status is not ("AwaitingEvidence" or "AwaitingCertificate" or "UnderReview"))
+            return this.ApiFailure<object>(409, "VERIFICATION_NOT_CANCELLABLE", "No se puede cancelar esta solicitud.");
+        item.Status = "Cancelled";
+        item.UpdatedAt = DateTimeOffset.UtcNow;
+        await db.SaveChangesAsync(ct);
+        return this.ApiOk(new { item.Id, item.Status, item.UpdatedAt });
+    }
+
     private bool TryScope(out string userId, out Guid tenantId)
     {
         userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "";
