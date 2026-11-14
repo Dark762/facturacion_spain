@@ -16,6 +16,28 @@ public sealed class IdentityVerificationController(SelfServiceDbContext db) : Co
 {
     public sealed record StartRequest(string Method, string SubjectKind);
 
+    /// <summary>Estado informativo, sin habilitar todavía controles de emisión.</summary>
+    [HttpGet("readiness")]
+    public async Task<IActionResult> Readiness(CancellationToken ct)
+    {
+        if (!TryScope(out var userId, out var tenantId)) return Forbid();
+        var verified = await db.IdentityVerifications.AsNoTracking().AnyAsync(
+            x => x.UserId == userId && x.TenantId == tenantId && x.Status == "Verified", ct);
+        var pending = await db.IdentityVerifications.AsNoTracking().AnyAsync(
+            x => x.UserId == userId && x.TenantId == tenantId &&
+                (x.Status == "AwaitingEvidence" || x.Status == "AwaitingCertificate" ||
+                 x.Status == "UnderReview"), ct);
+        return this.ApiOk(new
+        {
+            IdentityVerified = verified,
+            VerificationPending = pending,
+            CanIssueWithVerifiedIdentity = verified,
+            RepresentationVerified = false,
+            CanActAsCompanyRepresentative = false,
+            EnforcementEnabled = false
+        });
+    }
+
     [HttpGet("mine")]
     public async Task<IActionResult> Mine(CancellationToken ct)
     {
