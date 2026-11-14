@@ -6,6 +6,7 @@
 @using Microsoft.AspNetCore.Components.Authorization
 @inject AuthenticationStateProvider Authentication
 @inject IHttpClientFactory Clients
+@inject ILogger<IdentityVerification> Logger
 
 <PageTitle>Verificación de identidad | FacturaciónES</PageTitle>
 <section class="verification-page">
@@ -37,7 +38,7 @@
         {
             <p class="verification-info">La recepción segura de documentos está pendiente de integración. No envíes DNI ni documentos personales por correo electrónico.</p>
         }
-        <button type="button" disabled="@_busy" @onclick="StartAsync">Crear solicitud</button>
+        <button type="button" disabled="@(_busy || _loading)" @onclick="StartAsync">@(_busy ? "Procesando solicitud…" : "Crear solicitud")</button>
         @if (_message is not null)
         {
             <p role="status" class="@(_error ? "verification-error" : "verification-success")">@_message</p>
@@ -129,6 +130,13 @@
             if (!_error) await RefreshAsync();
         }
         catch (HttpRequestException) { _error = true; _message = "No se pudo contactar con la API."; }
+        catch (TaskCanceledException) { _error = true; _message = "La solicitud agotó el tiempo de espera."; }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error inesperado al crear solicitud de verificación.");
+            _error = true;
+            _message = "Error inesperado al crear la solicitud. Consulta los registros del servidor.";
+        }
         finally { _busy = false; }
     }
     private async Task CancelAsync(Guid id)
