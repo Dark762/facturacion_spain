@@ -57,6 +57,7 @@ public sealed class IdentityVerificationController(SelfServiceDbContext db) : Co
     private bool TryScope(out string userId, out Guid tenantId)
     {
         userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "";
+        tenantId = Guid.Empty;
         return userId.Length > 0 &&
             Guid.TryParse(User.FindFirstValue(FacturacionClaim.TenantId.ToClaimType()), out tenantId) &&
             User.FindFirstValue(FacturacionClaim.Purpose.ToClaimType()) != FacturacionClaimPurpose.Platform.ToClaimValue();
