@@ -1,0 +1,73 @@
+@page "/platform/verifications"
+@using System.Net.Http.Headers
+@using System.Net.Http.Json
+@using System.Security.Claims
+@inject IHttpClientFactory Clients
+@inject IHttpContextAccessor HttpAccessor
+
+<PageTitle>Verificaciones | FacturaciónES</PageTitle>
+<div class="verification-admin">
+    <p class="verification-eyebrow">ADMINISTRACIÓN GENERAL / IDENTIDAD</p>
+    <h1>Solicitudes de verificación</h1>
+    <p>Seguimiento de solicitudes de identidad y representación. Ninguna solicitud se aprueba automáticamente.</p>
+    <a href="/platform">← Centro de Control</a>
+    @if (_forbidden) { <p role="alert">Acceso no autorizado.</p> }
+    else if (_error) { <p role="alert">No se pudo consultar la API de verificaciones.</p> }
+    else if (_page is null) { <p>Cargando solicitudes…</p> }
+    else
+    {
+        <section class="verification-admin-card">
+            <header><h2>Solicitudes registradas</h2><span>@_page.Total en total</span></header>
+            @if (_page.Items.Length == 0) { <p class="verification-empty">No hay solicitudes de verificación.</p> }
+            else
+            {
+                <div class="verification-scroll">
+                    <table>
+                        <thead><tr><th>Fecha</th><th>Tenant</th><th>Usuario</th><th>Método</th><th>Tipo</th><th>Estado</th></tr></thead>
+                        <tbody>
+                            @foreach (var item in _page.Items)
+                            {
+                                <tr><td>@item.CreatedAt.ToString("dd/MM/yyyy")</td><td>@item.TenantId</td><td>@item.UserId</td><td>@item.Method</td><td>@item.SubjectKind</td><td><span class="verification-badge">@item.Status</span></td></tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+            <footer>
+                <span>Página @_currentPage</span>
+                @if (_currentPage > 1) { <a href="@($"/platform/verifications?page={_currentPage - 1}")">Anterior</a> }
+                @if (_currentPage * 25 < _page.Total) { <a href="@($"/platform/verifications?page={_currentPage + 1}")">Siguiente</a> }
+            </footer>
+        </section>
+    }
+</div>
+@code {
+    [SupplyParameterFromQuery(Name = "page")] public int? Page { get; set; }
+    private int _currentPage = 1;
+    private bool _forbidden;
+    private bool _error;
+    private VerificationPage? _page;
+    protected override async Task OnParametersSetAsync()
+    {
+        _page = null; _error = false; _forbidden = false;
+        _currentPage = Math.Clamp(Page ?? 1, 1, 100000);
+        var token = HttpAccessor.HttpContext?.User.FindFirstValue(FacturacionClaim.ApiToken.ToClaimType());
+        if (string.IsNullOrWhiteSpace(token)) { _forbidden = true; return; }
+        try
+        {
+            using var client = Clients.CreateClient("FacturacionAuthApi");
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            using var response = await client.GetAsync($"api/platform/identity-verifications?page={_currentPage}&pageSize=25");
+            if (response.StatusCode is System.Net.HttpStatusCode.Unauthorized or System.Net.HttpStatusCode.Forbidden)
+            { _forbidden = true; return; }
+            if (!response.IsSuccessStatusCode) { _error = true; return; }
+            _page = (await response.Content.ReadFromJsonAsync<Envelope<VerificationPage>>())?.Data;
+            if (_page is null) _error = true;
+        }
+        catch (HttpRequestException) { _error = true; }
+        catch (System.Text.Json.JsonException) { _error = true; }
+    }
+    private sealed record Envelope<T>(T? Data);
+    private sealed record VerificationPage(int Total, VerificationItem[] Items);
+    private sealed record VerificationItem(Guid Id, Guid TenantId, string UserId, string Method, string SubjectKind, string Status, DateTimeOffset CreatedAt);
+}
