@@ -77,7 +77,7 @@ public sealed class PlatformAdministrationController(
         [FromQuery] string? status = null, CancellationToken ct = default)
     {
         if (page < 1 || pageSize is < 1 or > 100 ||
-            (status is not null && status is not ("AwaitingEvidence" or "AwaitingCertificate" or "UnderReview" or "Verified" or "Rejected" or "Cancelled")))
+            (status is not null && status is not ("AwaitingEvidence" or "AwaitingCertificate" or "UnderReview" or "Verified" or "Rejected" or "Cancelled" or "Revoked")))
             return this.ApiFailure<object>(400, "INVALID_FILTER", "Filtros no válidos.");
         var query = selfService.IdentityVerifications.AsNoTracking();
         if (status is not null) query = query.Where(x => x.Status == status);
@@ -123,6 +123,35 @@ public sealed class PlatformAdministrationController(
             return this.ApiFailure<object>(409, "VERIFICATION_NOT_REVIEWABLE",
                 "La solicitud no existe o ha cambiado de estado.");
         return this.ApiOk(new { Id = id, Status = request.Status, UpdatedAt = now });
+    }
+
+    public sealed record RevokeVerificationRequest(string ReasonCode);
+
+    /// <summary>Revocación administrativa defensiva de registros heredados marcados Verified.
+    /// No permite otorgar Verified ni sustituye la comprobación de representación.</summary>
+    [HttpPost("identity-verifications/{id:guid}/revoke")]
+    public async Task<IActionResult> RevokeIdentityVerification(
+        Guid id, [FromBody] RevokeVerificationRequest request, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(request.ReasonCode) ||
+            request.ReasonCode.Length > 80)
+            return this.ApiFailure<object>(400, "INVALID_REVOCATION_REASON",
+                "Es obligatorio indicar un código de motivo de hasta 80 caracteres.");
+        var reviewer = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrWhiteSpace(reviewer)) return Forbid();
+        var now = DateTimeOffset.UtcNow;
+        var affected = await selfService.IdentityVerifications
+            .Where(x => x.Id == id && x.Status == "Verified")
+            .ExecuteUpdateAsync(setters => setters
+                .SetProperty(x => x.Status, "Revoked")
+                .SetProperty(x => x.DecisionCode, request.ReasonCode.Trim())
+                .SetProperty(x => x.ReviewedBy, reviewer)
+                .SetProperty(x => x.ReviewedAt, (DateTimeOffset?)now)
+                .SetProperty(x => x.UpdatedAt, now), ct);
+        if (affected == 0)
+            return this.ApiFailure<object>(409, "VERIFICATION_NOT_REVOCABLE",
+                "La solicitud no está verificada o no existe.");
+        return this.ApiOk(new { Id = id, Status = "Revoked", UpdatedAt = now });
     }
 
     [HttpGet("incidents")]
