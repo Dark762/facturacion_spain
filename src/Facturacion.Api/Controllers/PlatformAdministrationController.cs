@@ -71,6 +71,25 @@ public sealed class PlatformAdministrationController(
         }).ToArray();
         return this.ApiOk(result);
     }
+    [HttpGet("identity-verifications")]
+    public async Task<IActionResult> IdentityVerifications(
+        [FromQuery] int page = 1, [FromQuery] int pageSize = 25,
+        [FromQuery] string? status = null, CancellationToken ct = default)
+    {
+        if (page < 1 || pageSize is < 1 or > 100 ||
+            (status is not null && status is not ("AwaitingEvidence" or "AwaitingCertificate" or "UnderReview" or "Verified" or "Rejected")))
+            return this.ApiFailure<object>(400, "INVALID_FILTER", "Filtros no válidos.");
+        var query = selfService.IdentityVerifications.AsNoTracking();
+        if (status is not null) query = query.Where(x => x.Status == status);
+        var total = await query.CountAsync(ct);
+        var items = await query.OrderByDescending(x => x.CreatedAt).ThenByDescending(x => x.Id)
+            .Skip((int)Math.Min((long)(page - 1) * pageSize, int.MaxValue)).Take(pageSize)
+            .Select(x => new { x.Id, x.TenantId, x.UserId, x.Method, x.SubjectKind,
+                x.Status, x.CreatedAt, x.UpdatedAt, x.ReviewedAt, x.DecisionCode })
+            .ToArrayAsync(ct);
+        return this.ApiOk(new { Total = total, Items = items });
+    }
+
     [HttpGet("incidents")]
     public async Task<IActionResult> Incidents([FromQuery] int page = 1,
         [FromQuery] int pageSize = 25, [FromQuery] string? status = null,
