@@ -6,6 +6,7 @@ namespace Facturacion.Infrastructure.Billing;
 public sealed class SelfServiceDbContext : DbContext
 {
     public SelfServiceDbContext(DbContextOptions<SelfServiceDbContext> options) : base(options) { }
+    public DbSet<IdentityVerification> IdentityVerifications => Set<IdentityVerification>();
     public DbSet<SystemIncident> SystemIncidents => Set<SystemIncident>();
     public DbSet<RegistrationIntent> RegistrationIntents => Set<RegistrationIntent>();
     public DbSet<SubscriptionPlan> SubscriptionPlans => Set<SubscriptionPlan>();
@@ -14,6 +15,20 @@ public sealed class SelfServiceDbContext : DbContext
     public DbSet<ProvisioningOperation> ProvisioningOperations => Set<ProvisioningOperation>();
     protected override void OnModelCreating(ModelBuilder b)
     {
+        b.Entity<IdentityVerification>(x => {
+            x.ToTable("IdentityVerifications");
+            x.HasKey(y => y.Id);
+            x.Property(y => y.UserId).HasMaxLength(128).IsRequired();
+            x.Property(y => y.Method).HasMaxLength(24).IsRequired();
+            x.Property(y => y.Status).HasMaxLength(24).IsRequired();
+            x.Property(y => y.SubjectKind).HasMaxLength(24).IsRequired();
+            x.Property(y => y.EvidenceReference).HasMaxLength(256);
+            x.Property(y => y.CertificateThumbprint).HasMaxLength(128);
+            x.Property(y => y.ReviewedBy).HasMaxLength(128);
+            x.Property(y => y.DecisionCode).HasMaxLength(80);
+            x.HasIndex(y => new { y.TenantId, y.UserId, y.CreatedAt });
+            x.HasIndex(y => new { y.Status, y.CreatedAt });
+        });
         b.Entity<SystemIncident>(x => {
             x.ToTable("SystemIncidents"); x.HasKey(y => y.Id);
             x.Property(y => y.Application).HasMaxLength(80).IsRequired();
