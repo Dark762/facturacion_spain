@@ -6,6 +6,7 @@ Se implementó la **base de datos y la solicitud inicial** de dos vías, NO la v
 
 - `POST /api/identity-verification` con `{"method":"Manual"|"Certificate","subjectKind":"Individual"|"LegalEntity"}` (requiere JWT de tenant válido).
 - `GET /api/identity-verification/mine` muestra solicitudes del usuario autenticado en su tenant.
+- `GET /api/identity-verification/readiness` devuelve un estado **informativo**: identidad marcada como verificada, solicitud pendiente, representación no verificada y `EnforcementEnabled=false`. **No concede autorización ni valida evidencias**, y `IdentityVerified` depende de datos persistidos; nunca tratar este endpoint como fuente independiente de prueba criptográfica.
 - `GET /api/platform/identity-verifications` muestra solicitudes a la identidad PlatformAdmin, con paginación y filtro de estado.
 - `PATCH /api/platform/identity-verifications/{id}/review` admite únicamente `UnderReview` o `Rejected` (para rechazo, `decisionCode` es obligatorio). Guarda el identificador del administrador y fecha. No admite aprobación sin pruebas verificadas.
 - `IdentityVerifications` almacena estado, método, tenant, usuario y auditoría mínima, **sin documentos ni certificados privados**.
@@ -47,6 +48,7 @@ Configurar autenticación TLS con certificado cliente o integración de proveedo
 | Identificación criptográfica por certificado en IIS | Pendiente de infraestructura confiable |
 | Comprobación de representación | Pendiente |
 | Aprobación verificada, revocación y auditoría completa | Pendiente |
+| Endpoint informativo de preparación de autorización | Implementado; no valida identidad ni representación |
 | Bloqueo de emisión y operaciones fiscales | Pendiente; **no activar sin vía real de verificación** |
 | Compilación y pruebas de integración | No ejecutadas |
 
