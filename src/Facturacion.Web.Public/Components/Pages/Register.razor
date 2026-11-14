@@ -144,7 +144,16 @@
         {
             <h2>¡Tu cuenta gratuita está activada!</h2>
             <p>Tu organización ya está creada. Puedes acceder con el correo y la contraseña registrados.</p>
-            <p class="muted">Para entrar es necesario iniciar sesión; el registro no inicia sesión automáticamente.</p>
+            <div class="notice" role="status">El plan gratuito se ha activado correctamente. Ya puedes acceder a tu espacio de trabajo.</div>
+            <p class="muted">Por seguridad, el registro no inicia sesión automáticamente. Cuando quieras, continúa al inicio de sesión.</p>
+            @if (!string.IsNullOrWhiteSpace(_loginUrl))
+            {
+                <a class="button button-large" href="@_loginUrl">Ir a iniciar sesión</a>
+            }
+            else
+            {
+                <p role="alert">La cuenta está activada, pero no se ha configurado la dirección de acceso. Contacta con soporte.</p>
+            }
         }
         else if (_step == RegistrationStep.PlanSelection)
         {
@@ -231,6 +240,7 @@
     private RegistrationStep _step;
     private bool _busy;
     private bool _freeActivated;
+    private string? _loginUrl;
     private bool _resuming;
     private bool _resumeVerification;
     private string _newPassword = "";
@@ -506,13 +516,13 @@
             if (response.IsFreeActivated)
             {
                 _freeActivated = true;
+                // No redirigir: el usuario debe poder leer el resultado de la activación.
+                // La autenticación sigue siendo explícita, mediante el enlace mostrado.
                 var appUrl = Configuration["Facturacion:WebAppUrl"];
-                if (Uri.TryCreate(appUrl, UriKind.Absolute, out var appDestination) &&
+                _loginUrl = Uri.TryCreate(appUrl, UriKind.Absolute, out var appDestination) &&
                     (appDestination.Scheme == Uri.UriSchemeHttps ||
-                     (appDestination.IsLoopback && appDestination.Scheme == Uri.UriSchemeHttp)))
-                {
-                    Navigation.NavigateTo(appDestination.ToString(), forceLoad: true);
-                }
+                     (appDestination.IsLoopback && appDestination.Scheme == Uri.UriSchemeHttp))
+                    ? appDestination.ToString() : null;
                 return;
             }
 
