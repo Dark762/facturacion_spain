@@ -13,7 +13,7 @@ Se implementó la **base de datos y la solicitud inicial** de dos vías, NO la v
 
 Los estados iniciales son `AwaitingEvidence` (manual) y `AwaitingCertificate` (certificado). No existe endpoint que pueda marcar una solicitud como `Verified` en esta fase: impediría una falsa sensación de verificación. Las decisiones de revisión son modificaciones auditadas mínimamente en la propia fila; falta historial de eventos inmutable.
 
-La API también dispone de `POST /api/identity-verification/{id}/cancel` con comprobación de pertenencia al usuario y tenant; no permite cancelar solicitudes ya resueltas.
+La API también dispone de `POST /api/identity-verification/{id}/cancel` con comprobación de pertenencia al usuario y tenant; no permite cancelar solicitudes ya resueltas. Las transiciones de cancelación y revisión administrativa ahora son actualizaciones condicionales atómicas (`ExecuteUpdateAsync`) que evitan sobrescribir una cancelación o decisión concurrente. El filtro administrativo admite `Cancelled`.
 
 ## Para completar de forma segura la vía manual
 
@@ -40,8 +40,8 @@ Configurar autenticación TLS con certificado cliente o integración de proveedo
 | --- | --- |
 | Modelo, esquema SQL y solicitudes por dos vías | Implementado en código; migraciones pendientes de ejecutar |
 | Consulta del usuario y cola administrativa | Implementado en código |
-| Revisión/rechazo básico por API | Implementado en código |
-| Interfaz del usuario y listado administrativo | Implementado en código; permite cancelar solicitudes pendientes |
+| Revisión/rechazo básico por API | Implementado en código, con transición atómica |
+| Interfaz del usuario y listado administrativo | Implementado en código; permite cancelar solicitudes pendientes con transición atómica |
 | Decisiones administrativas desde la UI | Implementado: revisión y rechazo; aprobación pendiente |
 | Captura y validación documental segura | Pendiente de proveedor, seguridad y RGPD |
 | Identificación criptográfica por certificado en IIS | Pendiente de infraestructura confiable |
