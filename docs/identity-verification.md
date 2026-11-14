@@ -13,6 +13,8 @@ Se implementó la **base de datos y la solicitud inicial** de dos vías, NO la v
 
 Los estados iniciales son `AwaitingEvidence` (manual) y `AwaitingCertificate` (certificado). No existe endpoint que pueda marcar una solicitud como `Verified` en esta fase: impediría una falsa sensación de verificación. Las decisiones de revisión son modificaciones auditadas mínimamente en la propia fila; falta historial de eventos inmutable.
 
+La API también dispone de `POST /api/identity-verification/{id}/cancel` con comprobación de pertenencia al usuario y tenant; no permite cancelar solicitudes ya resueltas.
+
 ## Para completar de forma segura la vía manual
 
 Diseñar almacenamiento privado cifrado de evidencias, antivirus, límites de tamaño y tipo, política de conservación y borrado, permisos segregados, trazabilidad inmutable de accesos y decisiones, revisión de identidad de la persona y **por separado** de representación de la sociedad. Evitar exposición de DNI/NIE en logs o URLs. Definir proveedor de comprobación documental y base jurídica RGPD antes de recopilar documentación.
@@ -28,7 +30,7 @@ Configurar autenticación TLS con certificado cliente o integración de proveedo
 ## Interfaces añadidas
 
 - `/identity-verification`: pantalla interactiva para usuarios tenant, con selector de método manual/certificado, tipo de titular, creación y consulta de solicitudes. No acepta archivos ni certificados.
-- `/platform/verifications`: listado paginado de solicitudes accesible desde el menú de administración. Las decisiones `UnderReview` y `Rejected` existen en la API, pero todavía no tienen botones de gestión en la interfaz.
+- `/platform/verifications`: listado paginado de solicitudes accesible desde el menú de administración. Las decisiones `UnderReview` y `Rejected` están conectadas a controles en la interfaz. El rechazo exige un código de motivo; no existe aprobación sin evidencias.
 - El menú compartido muestra «Verificar identidad» a usuarios de empresa y «Verificaciones» a administradores de plataforma.
 - Las dos pantallas tienen estilos CSS aislados. Es imprescindible que `Facturacion.Web.App.styles.css` se publique correctamente.
 
@@ -39,8 +41,8 @@ Configurar autenticación TLS con certificado cliente o integración de proveedo
 | Modelo, esquema SQL y solicitudes por dos vías | Implementado en código; migraciones pendientes de ejecutar |
 | Consulta del usuario y cola administrativa | Implementado en código |
 | Revisión/rechazo básico por API | Implementado en código |
-| Interfaz del usuario y listado administrativo | Implementado en código |
-| Decisiones administrativas desde la UI | Pendiente |
+| Interfaz del usuario y listado administrativo | Implementado en código; permite cancelar solicitudes pendientes |
+| Decisiones administrativas desde la UI | Implementado: revisión y rechazo; aprobación pendiente |
 | Captura y validación documental segura | Pendiente de proveedor, seguridad y RGPD |
 | Identificación criptográfica por certificado en IIS | Pendiente de infraestructura confiable |
 | Comprobación de representación | Pendiente |
