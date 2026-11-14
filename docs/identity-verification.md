@@ -32,7 +32,7 @@ Configurar autenticación TLS con certificado cliente o integración de proveedo
 ## Interfaces añadidas
 
 - `/identity-verification`: pantalla interactiva para usuarios tenant, con selector de método manual/certificado, tipo de titular, creación y consulta de solicitudes. No acepta archivos ni certificados.
-- `/platform/verifications`: listado paginado de solicitudes accesible desde el menú de administración. Las decisiones `UnderReview` y `Rejected` están conectadas a controles en la interfaz. El rechazo exige un código de motivo; no existe aprobación sin evidencias.
+- `/platform/verifications`: listado paginado de solicitudes accesible desde el menú de administración. Las decisiones `UnderReview` y `Rejected`, así como la revocación de registros `Verified`, están conectadas a controles en la interfaz. El rechazo exige un código de motivo; no existe aprobación sin evidencias.
 - El menú compartido muestra «Verificar identidad» a usuarios de empresa y «Verificaciones» a administradores de plataforma.
 - Las dos pantallas tienen estilos CSS aislados. Es imprescindible que `Facturacion.Web.App.styles.css` se publique correctamente.
 
@@ -48,7 +48,7 @@ Configurar autenticación TLS con certificado cliente o integración de proveedo
 | Captura y validación documental segura | Pendiente de proveedor, seguridad y RGPD |
 | Identificación criptográfica por certificado en IIS | Pendiente de infraestructura confiable |
 | Comprobación de representación | Pendiente |
-| Revocación administrativa de registros `Verified` | Implementado en API; sin UI ni historial inmutable |
+| Revocación administrativa de registros `Verified` | Implementado en API; con acción en UI; sin historial inmutable |
 | Aprobación verificada y auditoría completa | Pendiente |
 | Endpoint informativo de preparación de autorización | Implementado; no valida identidad ni representación |
 | Bloqueo de emisión y operaciones fiscales | Pendiente; **no activar sin vía real de verificación** |
