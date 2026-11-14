@@ -51,11 +51,17 @@
         {
             <div class="verification-scroll">
                 <table>
-                    <thead><tr><th>Fecha</th><th>Método</th><th>Titular</th><th>Estado</th></tr></thead>
+                    <thead><tr><th>Fecha</th><th>Método</th><th>Titular</th><th>Estado</th><th>Acción</th></tr></thead>
                     <tbody>
                         @foreach (var item in _requests)
                         {
-                            <tr><td>@item.CreatedAt.ToString("dd/MM/yyyy")</td><td>@item.Method</td><td>@item.SubjectKind</td><td><span class="verification-state">@StateLabel(item.Status)</span></td></tr>
+                            <tr><td>@item.CreatedAt.ToString("dd/MM/yyyy")</td><td>@item.Method</td><td>@item.SubjectKind</td><td><span class="verification-state">@StateLabel(item.Status)</span></td>
+                                <td>
+                                    @if (item.Status is "AwaitingEvidence" or "AwaitingCertificate" or "UnderReview")
+                                    {
+                                        <button type="button" disabled="@_busy" @onclick="() => CancelAsync(item.Id)">Cancelar</button>
+                                    }
+                                </td></tr>
                         }
                     </tbody>
                 </table>
@@ -78,6 +84,7 @@
         "AwaitingCertificate" => "Pendiente de certificado",
         "UnderReview" => "En revisión",
         "Rejected" => "Rechazada",
+        "Cancelled" => "Cancelada",
         "Verified" => "Verificada",
         _ => status
     };
@@ -119,6 +126,22 @@
             _error = !response.IsSuccessStatusCode;
             _message = _error ? "No se pudo crear la solicitud. Comprueba si ya tienes una solicitud vigente." :
                 "Solicitud creada. Pendiente de habilitar la comprobación de identidad.";
+            if (!_error) await RefreshAsync();
+        }
+        catch (HttpRequestException) { _error = true; _message = "No se pudo contactar con la API."; }
+        finally { _busy = false; }
+    }
+    private async Task CancelAsync(Guid id)
+    {
+        if (_busy) return;
+        _busy = true; _error = false; _message = null;
+        try
+        {
+            using var client = await AuthorizedClientAsync();
+            if (client is null) { _error = true; _message = "Sesión no disponible."; return; }
+            using var response = await client.PostAsync($"api/identity-verification/{id}/cancel", null);
+            _error = !response.IsSuccessStatusCode;
+            _message = _error ? "No se pudo cancelar la solicitud." : "Solicitud cancelada.";
             if (!_error) await RefreshAsync();
         }
         catch (HttpRequestException) { _error = true; _message = "No se pudo contactar con la API."; }
