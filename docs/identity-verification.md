@@ -1,5 +1,21 @@
 # Identidad y representación: implementación inicial (NO apta para producción)
 
+## Opción híbrida — fase inicial (16/11/2026)
+
+Implementado: GET /api/identity-verification/capabilities (autenticado) informa de forma explícita que las vías Manual y Certificate no están conectadas. POST /api/identity-verification/{id}/begin-proof exige pertenencia al usuario y tenant y solicitud pendiente; devuelve HTTP 503 con IDENTITY_PROVIDER_NOT_CONFIGURED. No otorga Verified ni autorización fiscal.
+
+Pendiente: seleccionar y contratar proveedor documental con sandbox, RGPD, verificación de callbacks firmados, protección de replay e idempotencia; configurar autenticación criptográfica mediante certificado (prueba de posesión, cadena de confianza y revocación); comprobar NIF del titular y representación legal de la sociedad por separado; cifrar evidencias, auditar decisiones y aplicar caducidad.
+
+### Pruebas de esta fase
+
+1. Con JWT de tenant, GET /api/identity-verification/capabilities debe responder 200 con Available=false en ambas vías.
+2. Crear una solicitud y obtener su ID en GET /api/identity-verification/mine.
+3. POST /api/identity-verification/{id}/begin-proof debe responder 503 para su propietario.
+4. Un ID inexistente, de otro usuario o tenant, o una solicitud no pendiente debe responder 404.
+5. Sin JWT debe rechazarse el acceso. Ninguna prueba debe generar Verified.
+6. Tras integrar proveedor: probar firma inválida, callback duplicado, expiración, NIF incorrecto, certificado revocado y representación inexistente.
+
+No se han ejecutado compilación ni pruebas de integración en esta fase. Los endpoints actuales no constituyen verificación de identidad real.
 ## Estado real
 
 Se implementó la **base de datos y la solicitud inicial** de dos vías, NO la verificación de identidad completa:
