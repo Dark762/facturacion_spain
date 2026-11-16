@@ -16,6 +16,30 @@ public sealed class IdentityVerificationController(SelfServiceDbContext db) : Co
 {
     public sealed record StartRequest(string Method, string SubjectKind);
 
+    /// <summary>Capacidades reales: ninguna vía se anuncia como verificada sin un proveedor confiable.</summary>
+    [HttpGet("capabilities")]
+    public IActionResult Capabilities() => this.ApiOk(new
+    {
+        Certificate = new { Available = false, Reason = "Pendiente de configurar autenticación mTLS, validación de cadena, OCSP/CRL y prueba de representación." },
+        Manual = new { Available = false, Reason = "Pendiente de contratar un proveedor documental, verificar sus webhooks y proteger las evidencias." },
+        Individual = new { Supported = false },
+        LegalEntity = new { Supported = false, RequiresRepresentation = true },
+        Sandbox = new { Available = false, Reason = "No se habilitan aprobaciones simuladas en el sistema real." }
+    });
+
+    /// <summary>Impide presentar una solicitud como sesión de identificación real.</summary>
+    [HttpPost("{id:guid}/begin-proof")]
+    public async Task<IActionResult> BeginProof(Guid id, CancellationToken ct)
+    {
+        if (!TryScope(out var userId, out var tenantId)) return Forbid();
+        var exists = await db.IdentityVerifications.AsNoTracking().AnyAsync(
+            x => x.Id == id && x.UserId == userId && x.TenantId == tenantId &&
+                (x.Status == "AwaitingEvidence" || x.Status == "AwaitingCertificate"), ct);
+        if (!exists) return this.ApiFailure<object>(404, "VERIFICATION_NOT_FOUND", "Solicitud no encontrada o no pendiente.");
+        return this.ApiFailure<object>(503, "IDENTITY_PROVIDER_NOT_CONFIGURED",
+            "No existe un proveedor de identificación conectado. No se puede validar identidad ni representación.");
+    }
+
     /// <summary>Estado informativo, sin habilitar todavía controles de emisión.</summary>
     [HttpGet("readiness")]
     public async Task<IActionResult> Readiness(CancellationToken ct)
