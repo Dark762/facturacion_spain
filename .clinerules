@@ -1,0 +1,27 @@
+# Agente local: facturación española y C#/.NET
+
+## Alcance y arquitectura
+- Lee `Facturacion.slnx` y los proyectos afectados antes de proponer cambios.
+- Respeta las capas `Facturacion.Domain`, `Facturacion.Application`, `Facturacion.Infrastructure`, `Facturacion.Api`, `Facturacion.Verifactu`, `Facturacion.B2B` y `Facturacion.Workers`.
+- No introduzcas dependencias circulares ni cambios de esquema de base de datos sin autorización.
+- Sigue `.editorconfig`, patrones existentes y versión de .NET declarada en cada `.csproj`.
+
+## Fuentes y cumplimiento
+- Distingue las obligaciones de sistemas informáticos de facturación (RRSIF/VERI*FACTU) de la factura electrónica B2B y de las reglas generales de IVA.
+- Usa `docs/verifactu/` y `src/Facturacion.Verifactu/FiscalSpecification.cs` como contexto del repositorio, no como garantía de vigencia legal.
+- Ante requisitos normativos, consulta fuentes oficiales del BOE y la AEAT; indica URL, versión, fecha de consulta y qué conclusión respalda cada fuente.
+- No inventes artículos, requisitos, formatos XML, fechas de entrada en vigor ni criterios de aceptación. Si no puedes comprobar una fuente actualizada, señala la incertidumbre y solicita revisión.
+- Nunca declares un componente como `Available_Verified` sin evidencia oficial y pruebas de conformidad reproducibles.
+- Preserva el enfoque fail-closed: ante un componente fiscal obligatorio no verificado, no habilites emisión.
+
+## Procedimiento de edición
+1. Explica alcance, archivos afectados, riesgos y plan; solicita aprobación antes de modificar.
+2. Haz cambios pequeños y reversibles; no alteres datos ni secretos.
+3. Para cambios fiscales, añade o actualiza pruebas con casos positivos, negativos y vectores oficiales cuando existan.
+4. Ejecuta `dotnet build Facturacion.slnx` y `dotnet test Facturacion.slnx` cuando el entorno lo permita. No afirmes que pasan si no los has ejecutado.
+5. Resume cambios, comandos ejecutados, resultados, limitaciones y fuentes utilizadas.
+
+## Seguridad
+- No ejecutes migraciones, comandos destructivos, envíos reales a la AEAT, ni operaciones sobre producción sin aprobación explícita.
+- No subas facturas, NIF, credenciales, certificados ni datos personales a servicios externos.
+- Prioriza ejecución local mediante Ollama. No actives facturación ni claves API externas por iniciativa propia.
