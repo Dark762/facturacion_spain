@@ -1,52 +1,71 @@
-# RAG local para facturacion_spain
+# RAG local en C# / .NET 10
 
-Implementación sin dependencias de terceros: Python 3.10+, Ollama para embeddings y SQLite como índice vectorial. Funciona **localmente** y expone una herramienta MCP de **solo lectura** para Cline.
+Esta implementación se ejecuta en el proyecto `src/Facturacion.AI`. Usa **Ollama** para embeddings, **SQLite** para persistencia y **MCP stdio** para que Cline consulte el índice. No necesita Python.
 
-## 1. Preparar embeddings
+## 1. Instalar y crear el índice
 
 Desde PowerShell en la raíz del repositorio:
 
 ```powershell
+git switch develop
+git pull origin develop
 ollama pull nomic-embed-text
-python ai/rag/rag.py index
-python ai/rag/rag.py search "¿Cómo se calcula la huella de un registro de alta?"
+dotnet restore src/Facturacion.AI/Facturacion.AI.csproj
+dotnet run --project src/Facturacion.AI -- index
 ```
 
-Ollama debe estar ejecutándose en `http://localhost:11434`. La primera indexación puede tardar varios minutos. Se indexan `docs/`, `src/`, `test/` y `ai/knowledge/` (solo archivos de texto con extensiones permitidas); archivos grandes, secretos, binarios y directorios de compilación se omiten. La base local queda en `ai/.local/rag.sqlite3` y no se sube a Git.
+La primera indexación puede tardar. El índice queda en `ai/.local/rag-dotnet.sqlite3` (ignorado por Git). Para reindexar tras cambios, repite `index`. Se procesan archivos admitidos en `docs/`, `src/`, `test/` y `ai/knowledge/`.
 
-Para refrescar después de un cambio de código o documentación, repite `python ai/rag/rag.py index`. El indexador detecta cambios por SHA-256 y elimina entradas de archivos borrados. **No descarga automáticamente normas del BOE o la AEAT.** Incorpora únicamente documentación oficial autorizada y registra su procedencia en `ai/knowledge/sources.md`.
+## 2. Buscar información
 
-## 2. Conectar a Cline por MCP
+```powershell
+dotnet run --project src/Facturacion.AI -- search "Cómo se calcula la huella VERI*FACTU"
+```
 
-En la configuración de servidores MCP de Cline, añade un servidor como este. Sustituye `C:/ruta/facturacion_spain` por la ruta absoluta a tu clon y utiliza el ejecutable de Python correcto:
+Devuelve ruta, fragmento, puntuación de similitud y texto recuperado. La puntuación no demuestra corrección legal.
+
+## 3. Conectar con Cline (MCP)
+
+**Compila antes de configurar MCP** para evitar que `dotnet run` escriba mensajes de compilación en stdout del protocolo:
+
+```powershell
+dotnet build src/Facturacion.AI/Facturacion.AI.csproj -c Release
+```
+
+Añade el servidor en el fichero MCP que abra Cline, ajustando la ruta absoluta:
 
 ```json
 {
   "mcpServers": {
     "facturacion-rag": {
-      "command": "python",
-      "args": ["C:/ruta/facturacion_spain/ai/rag/rag.py", "serve"],
+      "command": "dotnet",
+      "args": ["C:/Proyectos/facturacion_spain/src/Facturacion.AI/bin/Release/net10.0/Facturacion.AI.dll", "serve"],
       "disabled": false
     }
   }
 }
 ```
 
-La ubicación y el formato del archivo de configuración de Cline pueden variar según su versión; añade este objeto al fichero MCP que Cline muestre en su interfaz, sin sobrescribir otros servidores.
+El servidor local expone `search_fiscal_knowledge`, una herramienta de consulta de solo lectura. No edita el proyecto ni realiza envíos fiscales.
 
-Herramienta disponible: `search_fiscal_knowledge(query, limit)`. Solo devuelve fragmentos con rutas y puntuación de similitud. **No edita archivos ni consulta internet**. El agente debe contrastar vigencia, fuentes y versiones de requisitos legales antes de generar código fiscal.
+**Importante:** inicia Cline con el repositorio como directorio de trabajo, porque el servidor busca `Facturacion.slnx` desde el directorio actual. Si Cline lo inicia desde otro directorio, configura su campo `cwd` (si está disponible) a la raíz del repositorio, o utiliza un script de arranque que cambie al directorio antes de lanzar el proceso.
 
-Prueba sugerida en Cline: «Usa search_fiscal_knowledge para localizar cómo se calcula la huella y dime qué archivos del repositorio la implementan. No edites nada».
+## 4. Comprender RAG frente a entrenamiento
 
-## 3. Diagnóstico
+1. **Ingesta:** `FilesToIndex()` selecciona archivos y excluye rutas comunes de compilación y secretos.
+2. **Chunking:** `Split()` divide el texto en fragmentos solapados.
+3. **Embeddings:** `EmbedAsync()` llama a la API local `/api/embed` de Ollama.
+4. **Persistencia:** `IndexAsync()` guarda fragmentos y vectores en SQLite.
+5. **Retrieval:** `SearchAsync()` calcula similitud coseno y devuelve los fragmentos más cercanos.
+6. **Uso por el LLM:** Cline solicita `search_fiscal_knowledge` y utiliza los resultados como contexto.
 
-- Si falla `ollama pull`, verifica Ollama y tu conexión durante la descarga inicial.
-- Si `index` informa de error de embeddings, comprueba `ollama list` y el modelo `nomic-embed-text`.
-- Si Cline no detecta la herramienta, revisa ruta absoluta, intérprete Python y registro MCP.
-- Si no aparecen resultados nuevos, vuelve a ejecutar `index`.
-- Si cambias `FACTURACION_EMBED_MODEL`, reindexa. Solo se buscan vectores del modelo configurado.
-- Opcional: configura `OLLAMA_HOST`, `FACTURACION_EMBED_MODEL` o `FACTURACION_RAG_DB` como variables de entorno.
+**RAG no entrena pesos.** Para aprender fine-tuning, reúne tareas aprobadas por una persona, contexto, diffs y resultados de pruebas en un conjunto de evaluación. Después considera entrenar un modelo pequeño (3B–7B) o usar una GPU remota; 30B no es práctico para fine-tuning con una RTX 4060 de 8 GB.
 
-## Seguridad y límites
+## 5. Seguridad y límites
 
-El indexador excluye patrones comunes de secretos, pero **no puede garantizar detectar datos personales dentro de un archivo de código o documento**. Revisa qué incorporas antes de indexar. No añadas facturas reales, credenciales ni certificados. El índice no es una fuente de verdad jurídica, no realiza comprobación automática de vigencia y no reemplaza las pruebas XSD y fiscales. Las puntuaciones son similitudes, no niveles de certeza jurídica.
+- La base SQLite y los embeddings se almacenan localmente; no subas facturas reales, secretos, NIF o certificados al índice.
+- Los filtros por nombre de archivo **no garantizan** detectar información sensible dentro del contenido.
+- El código no descarga ni valida automáticamente normativa actualizada. Consulta el BOE y la AEAT para vigencia y requisitos legales.
+- La búsqueda vectorial actual es lineal; para índices grandes conviene introducir búsqueda híbrida y un motor vectorial especializado.
+- El servidor MCP usa mensajes JSON-RPC por línea sobre stdio. Verifica la compatibilidad con tu versión de Cline.
+- No se han ejecutado compilación ni pruebas desde GitHub; compruébalas en tu equipo con `dotnet build Facturacion.slnx` y `dotnet test Facturacion.slnx`.
