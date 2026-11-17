@@ -34,6 +34,8 @@ builder.Services.AddFacturacionObservability(builder.Configuration, "Facturacion
 builder.Services.AddFacturacionOptions(
     ConfigurationScope.Database | ConfigurationScope.Jwt | ConfigurationScope.Invitations);
 
+builder.Services.AddScoped<CertificateValidationService>();
+
 builder.Services.AddControllers().ConfigureApiBehaviorOptions(options =>
 {
     options.InvalidModelStateResponseFactory = context =>
