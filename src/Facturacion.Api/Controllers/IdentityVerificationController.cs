@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using Facturacion.Api.Responses;
+using Facturacion.Api.Security;
 using Facturacion.Configuration.Security;
 using Facturacion.Infrastructure.Billing;
 using Microsoft.AspNetCore.Authorization;
@@ -12,7 +13,7 @@ namespace Facturacion.Api.Controllers;
 [ApiController]
 [Authorize]
 [Route("api/identity-verification")]
-public sealed class IdentityVerificationController(SelfServiceDbContext db) : ControllerBase
+public sealed class IdentityVerificationController(SelfServiceDbContext db, CertificateValidationService certificates) : ControllerBase
 {
     public sealed record StartRequest(string Method, string SubjectKind);
 
@@ -98,6 +99,50 @@ public sealed class IdentityVerificationController(SelfServiceDbContext db) : Co
         db.IdentityVerifications.Add(item);
         await db.SaveChangesAsync(ct);
         return this.ApiOk(new { item.Id, item.Method, item.SubjectKind, item.Status });
+    }
+
+
+    /// <summary>
+    /// Comprueba la prueba criptográfica TLS; NO aprueba identidad fiscal ni representación.
+    /// El certificado solo puede proceder del handshake TLS de la conexión con la API.
+    /// Si se usa proxy TLS, este endpoint no debe exponerse hasta implementar una
+    /// autenticación de proxy de confianza equivalente.
+    /// </summary>
+    [HttpPost("{id:guid}/certificate-check")]
+    public async Task<IActionResult> CheckCertificate(Guid id, CancellationToken ct)
+    {
+        if (!TryScope(out var userId, out var tenantId)) return Forbid();
+        var pending = await db.IdentityVerifications.AsNoTracking().AnyAsync(
+            x => x.Id == id && x.UserId == userId && x.TenantId == tenantId &&
+                x.Method == "Certificate" && x.Status == "AwaitingCertificate", ct);
+        if (!pending)
+            return this.ApiFailure<object>(404, "VERIFICATION_NOT_FOUND",
+                "No existe una solicitud de certificado pendiente para este usuario.");
+        if (!HttpContext.Request.IsHttps)
+            return this.ApiFailure<object>(403, "TLS_REQUIRED", "Se requiere conexión TLS directa.");
+
+        // No confiar en cabeceras X-Client-Cert ni en certificados recibidos por JSON.
+        var clientCertificate = await HttpContext.Connection.GetClientCertificateAsync(ct);
+        if (clientCertificate is null)
+            return this.ApiFailure<object>(401, "CLIENT_CERTIFICATE_REQUIRED",
+                "No se presentó un certificado cliente durante la negociación TLS.");
+        using (clientCertificate)
+        {
+            var result = certificates.Validate(clientCertificate);
+            if (!result.Valid)
+                return this.ApiFailure<object>(401, result.Code,
+                    "El certificado no ha superado la validación criptográfica.");
+            // Nunca devolver NIF ni atributos personales en este paso.
+            // Falta comparar titular fiscal y representación antes de Verified.
+            return this.ApiOk(new
+            {
+                CertificateValidated = true,
+                FiscalIdentityVerified = false,
+                RepresentationVerified = false,
+                VerificationStatus = "AwaitingCertificate",
+                CertificateExpiresAt = result.Attributes!.ExpiresAt
+            });
+        }
     }
 
     [HttpPost("{id:guid}/cancel")]
