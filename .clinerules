@@ -25,3 +25,9 @@
 - No ejecutes migraciones, comandos destructivos, envíos reales a la AEAT, ni operaciones sobre producción sin aprobación explícita.
 - No subas facturas, NIF, credenciales, certificados ni datos personales a servicios externos.
 - Prioriza ejecución local mediante Ollama. No actives facturación ni claves API externas por iniciativa propia.
+
+## Recuperación de conocimiento (RAG)
+- Antes de modificar lógica fiscal, utiliza la herramienta MCP `search_fiscal_knowledge` si está disponible para localizar código, pruebas y documentación relevante.
+- Indica las rutas de los fragmentos recuperados y separa documentación local de fuentes oficiales vigentes.
+- Una coincidencia RAG no demuestra que una norma esté vigente. Contrasta requisitos legales con BOE/AEAT antes de aplicarlos.
+- Si el índice no existe o la herramienta no está disponible, dilo; no simules consultas ni citas.
