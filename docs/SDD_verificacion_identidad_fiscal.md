@@ -48,3 +48,18 @@ E1 biblioteca de parsing y validación X.509, pruebas, configuración mTLS y end
 
 ## 12. Riesgos y decisiones abiertas
 Seleccionar gateway (Kestrel/IIS/Nginx), certificados de confianza y mecanismo de revocación, política de certificados FNMT/DNIe/Camerfirma, acceso AEAT, evidencia de representación y base jurídica de tratamiento. No bloquear emisión comercial por una verificación opcional no disponible.
+
+## 13. Registro de implementación E1 (17-11-2026)
+- Implementado en código: `CertificateValidationService`, análisis ASN.1 del Subject, raíces explícitas, validación X509Chain con revocación Online, vigencia y EKU.
+- Implementado en código: endpoint `POST /api/identity-verification/{id}/certificate-check`, limitado a usuario/tenant y solicitud pendiente de certificado. Solo devuelve resultado criptográfico; **no** modifica el estado a Verified.
+- Registrado servicio en DI y añadidas pruebas de rechazo sin raíces, caducado y no confiable.
+- Pendiente para completar E1: terminación mTLS de confianza, anclaje seguro en proxy, prueba de posesión real desde navegador, certificados oficiales de test, pruebas de revocación OCSP/CRL y de cadenas con intermediarios, controles de disponibilidad, pruebas E2E y compilación ejecutada. El endpoint no es usable desde un navegador sin configurar certificado cliente en el host TLS.
+
+### Configuración de desarrollo
+`IdentityCertificates__TrustedRootPaths__0=/ruta/segura/raiz-admitida.pem`. No incluir raíces privadas, claves ni datos personales en Git. No habilitar certificados de prueba fuera del entorno de tests. El certificado cliente debe llegar a `HttpContext.Connection.GetClientCertificateAsync()` desde la negociación TLS del propio servidor; si TLS termina en proxy, no activar el endpoint hasta diseñar y verificar la confianza proxy-API.
+
+### Comandos de verificación
+`dotnet build Facturacion.slnx`
+`dotnet test test/Facturacion.Integration.Test/Facturacion.Integration.Test.csproj --filter FullyQualifiedName~IdentityCertificateValidationTests`
+
+Estos comandos no han sido ejecutados en esta entrega. El código y la configuración de infraestructura deben revisarse antes de producción.
