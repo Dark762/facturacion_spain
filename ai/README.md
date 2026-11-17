@@ -1,6 +1,6 @@
 # Agente local para facturación española
 
-Este directorio prepara un asistente de programación **local** para `facturacion_spain`. No entrena los pesos del modelo ni certifica cumplimiento normativo. Combina reglas del repositorio, recuperación de documentos (RAG local con SQLite y Ollama) y validación automatizada.
+Este directorio prepara un asistente de programación **local** para `facturacion_spain`. No entrena los pesos del modelo ni certifica cumplimiento normativo. Combina reglas del repositorio, recuperación de documentos (RAG local en C#/.NET 10 con SQLite y Ollama) y validación automatizada.
 
 ## Requisitos
 - Ollama con `qwen3-coder:30b` instalado.
@@ -24,17 +24,17 @@ ollama run facturacion-csharp
 
 Después selecciona `facturacion-csharp` en Cline. El Modelfile solo añade instrucciones; **no es fine-tuning**. Los modelos locales no generan cargos por tokens de API, pero consumen recursos de tu PC.
 
-## RAG local implementado
+## RAG local implementado en C#/.NET 10
 
-Consulta [ai/rag/README.md](rag/README.md) para instalarlo y conectarlo con Cline mediante MCP.
+Consulta [ai/rag/README.md](rag/README.md) para configurarlo y aprender su funcionamiento.
 
 ```powershell
 ollama pull nomic-embed-text
-python ai/rag/rag.py index
-python ai/rag/rag.py search "¿Cómo se calcula la huella VERI*FACTU?"
+dotnet run --project src/Facturacion.AI -- index
+dotnet run --project src/Facturacion.AI -- search "¿Cómo se calcula la huella VERI*FACTU?"
 ```
 
-El servidor MCP se inicia con `python ai/rag/rag.py serve` y expone `search_fiscal_knowledge`. No hay descargas automáticas de legislación; añade y verifica documentación oficial antes de indexarla.
+El proyecto `src/Facturacion.AI` contiene el indexador, la búsqueda y el servidor MCP de solo lectura. No necesitas Python. El comando `serve` se ejecuta desde Cline con el ensamblado compilado.
 
 ## Mejoras futuras del RAG
 - Ingerir solo documentos oficiales identificados en `ai/knowledge/sources.md`, conservando URL, versión, fecha y checksum.
@@ -47,4 +47,4 @@ El servidor MCP se inicia con `python ai/rag/rag.py serve` y expone `search_fisc
 Usa `ai/evaluations/README.md` como punto de partida. Guarda ejemplos **aprobados por una persona** y parches reproducibles; no entrenes con respuestas autogeneradas sin revisión. Con RTX 4060 de 8 GB, el fine-tuning de 30B no es una opción local práctica; considera un modelo menor o hardware externo.
 
 ## Límites
-Ya existe un servidor MCP RAG local y un indexador; todavía no se ha descargado ni validado una colección documental oficial externa. La validación jurídica requiere consultar la versión vigente de cada fuente. No actives operaciones fiscales reales con el agente sin revisión.
+Ya existe un servidor MCP RAG local escrito en C#/.NET y un indexador; todavía no se ha descargado ni validado una colección documental oficial externa. La validación jurídica requiere consultar la versión vigente de cada fuente. No actives operaciones fiscales reales con el agente sin revisión.
